@@ -1,46 +1,48 @@
 # Architecture
 
-Perenna is a local stdio MCP server around a transport-independent core. Its
-permanent state is an independent Git repository of Markdown files; semantic
-retrieval is derived through Vexor.
+Perenna is an MCP server around a transport-independent core. Local clients use
+stdio; a self-hosted single-user instance can also use OAuth-protected
+Streamable HTTP. Permanent state is an independent Git repository of Markdown
+files, and semantic retrieval is derived through Vexor.
 
 ## System view
 
 ```text
-Claude Code / Codex / ChatGPT Desktop / Cursor
-                        │
-                    MCP stdio
-                        │
-                        ▼
-                     Perenna
-                   ┌────┴────┐
-                   │         │
-            Git + Markdown  Vexor
-            permanent data  local index
-                   │
-                   └── optional best-effort push
-                                │
-                                ▼
-                         private Git remote
-                              backup
+Local MCP clients ── stdio ────────────┐
+                                       ▼
+ChatGPT ── HTTPS/OAuth ── proxy ── HTTP Perenna
+                                       │
+                              ┌────────┴────────┐
+                              │                 │
+                       Git + Markdown         Vexor
+                       permanent data         index
+                              │
+                              └── optional best-effort push
+                                           │
+                                           ▼
+                                    private Git remote
 ```
 
 Each local client starts its own Perenna process. The processes coordinate
-through file locks in the shared Perenna home.
+through file locks in the shared Perenna home. A remote deployment runs one
+Perenna service for one configured OAuth subject and one Perenna home.
 
 ## Component responsibilities
 
-### stdio MCP adapter
+### MCP adapters
 
-The adapter:
+Both adapters reuse the same server and tool handlers. They:
 
-- advertises separate `memory_read`, `memory_write`, and `memory_delete` tools;
-- validates action-specific arguments;
-- dispatches to the core in a worker thread;
-- converts expected domain failures into MCP error results;
-- keeps protocol output on stdout and diagnostics on stderr.
+- advertise separate `memory_read`, `memory_write`, and `memory_delete` tools;
+- validate action-specific arguments;
+- dispatch to the core in a worker thread;
+- convert expected domain failures into MCP error results;
+- keep transport concerns outside the core.
 
-It does not own storage, indexing, source resolution, or Git behavior.
+The stdio adapter reserves stdout for protocol output. The HTTP adapter adds
+Streamable HTTP, protected-resource metadata, bearer-token verification,
+single-subject authorization, and per-tool scopes. Neither adapter owns
+storage, indexing, source resolution, or Git behavior.
 
 ### Core
 
@@ -48,8 +50,7 @@ The core exposes list, search, get, create, patch, replace, and delete
 operations to the adapter.
 
 It coordinates locks, committed snapshots, storage, index synchronization, and
-best-effort backup. It has no dependency on stdio and no generic transport
-interface.
+best-effort backup. It has no dependency on either transport.
 
 ### Markdown store
 
@@ -78,22 +79,27 @@ committed Markdown snapshot before returning a passage.
 - Committed Markdown is trusted only after strict schema and integrity checks.
 - Vexor metadata is treated as a cache hint and cross-checked against Git.
 - Remote embedding providers receive text only when the user configures one.
+- The remote adapter accepts only JWTs whose signature, issuer, audience,
+  lifetime, subject, and tool scope validate against operator configuration.
+- The configured public URL, rather than forwarded headers, owns the OAuth
+  resource identifier and accepted public host.
 
 The exact input and file contracts live in the
 [MCP API reference](../reference/mcp-api.md) and
 [memory file format](../reference/memory-format.md).
 
-## Local-first boundary
+## Deployment boundary
 
 The implemented product deliberately excludes:
 
-- HTTP or other network MCP transports;
-- server-side authentication and user accounts;
 - multi-user storage;
 - a remote synchronization protocol;
-- a web UI or deployment bundle;
+- a web UI;
+- an OAuth authorization server;
+- bundled TLS termination, DNS, or reverse-proxy management;
 - automatic memory extraction or context injection.
 
-A future transport may wrap the same core after the local data and retrieval
-contract is stable. That future work does not change the current local-first
-boundary.
+The container packages Perenna only. The operator owns HTTPS, the reverse
+proxy, OAuth-provider configuration, persistent volumes, and backup
+credentials. Remote mode remains single-user and keeps the same Git, Markdown,
+locking, and retrieval contracts as stdio.

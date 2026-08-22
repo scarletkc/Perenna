@@ -1,7 +1,7 @@
 # Product Overview
 
-Perenna gives local AI agents a shared, durable memory that is independent of
-their native memory features and conversation histories.
+Perenna gives AI agents a shared, durable memory that is independent of their
+native memory features and conversation histories.
 
 ## The problem it solves
 
@@ -13,8 +13,8 @@ An agent often needs information that outlives one conversation:
 - workflows that another agent must follow later;
 - historical context that should not be rediscovered from scratch.
 
-Native agent memory is usually tied to one platform. Perenna provides a local
-source that different MCP clients can read and update.
+Native agent memory is usually tied to one platform. Perenna provides a
+self-owned source that different MCP clients can read and update.
 
 ## Core capabilities
 
@@ -32,6 +32,7 @@ Internally, Perenna provides:
 - global and project-specific scopes;
 - semantic retrieval through a rebuildable Vexor collection;
 - safe coordination between multiple local Perenna processes;
+- local stdio and single-user authenticated HTTP access;
 - optional best-effort Git push for backup.
 
 The exact tool contract is documented in the
@@ -64,9 +65,10 @@ ordinary versioned Markdown files that can be read without proprietary tools.
 
 ## Current product boundary
 
-Perenna runs as a local stdio MCP server. It does not provide a network MCP
-endpoint, multi-user accounts, server authentication, remote synchronization,
-a web interface, or automatic extraction from conversations.
+Perenna runs locally over stdio or as one OAuth-protected Streamable HTTP
+service for one owner. It does not provide multi-user accounts, an OAuth
+authorization server, remote synchronization, a web interface, bundled TLS or
+reverse-proxy management, or automatic extraction from conversations.
 
 For the technical boundary, see [Architecture](concepts/architecture.md).
 For practical memory choices, see

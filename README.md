@@ -1,10 +1,11 @@
 # Perenna
 
 A lightweight, Git-backed permanent memory for AI agents. Claude Code, Codex,
-ChatGPT Desktop, Cursor, and other local MCP clients can share durable memories
-without sharing a vendor account or conversation history.
+ChatGPT, Cursor, and other MCP clients can share durable memories without
+sharing a vendor account or conversation history.
 
-- Separate stdio MCP tools for reading, writing, and deleting memories
+- Separate MCP tools for reading, writing, and deleting memories
+- Local stdio and single-user OAuth-protected Streamable HTTP transports
 - Human-readable Markdown stored in an independent Git repository
 - Local Vexor retrieval index that can always be rebuilt from Git
 - Cross-process locking for multiple local agent processes
@@ -43,6 +44,7 @@ then follow the path for your task:
 
 - [Getting started](https://github.com/scarletkc/Perenna/blob/main/docs/getting-started.md)
 - [Client setup](https://github.com/scarletkc/Perenna/blob/main/docs/guides/client-setup.md)
+- [Self-hosting for ChatGPT](https://github.com/scarletkc/Perenna/blob/main/docs/guides/self-hosting.md)
 - [Using permanent memory](https://github.com/scarletkc/Perenna/blob/main/docs/guides/using-memory.md)
 - [Configuration reference](https://github.com/scarletkc/Perenna/blob/main/docs/reference/configuration.md)
 - [Architecture](https://github.com/scarletkc/Perenna/blob/main/docs/concepts/architecture.md)

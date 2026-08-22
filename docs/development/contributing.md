@@ -31,9 +31,11 @@ Use pytest temporary directories or an explicit disposable home.
 ```text
 src/perenna/
 ├── cli.py          # command parsing and stderr logging setup
-├── mcp_server.py   # exact stdio MCP adapter
+├── mcp_server.py   # shared MCP tools and stdio adapter
+├── http_server.py  # authenticated Streamable HTTP adapter
+├── oauth.py        # single-owner JWT verification
 ├── core.py         # read, mutation, lock, and backup orchestration
-├── config.py       # startup precedence and runtime paths
+├── config.py       # local and remote startup configuration
 ├── models.py       # memory types and normalization
 ├── markdown.py     # strict Markdown serialization and parsing
 ├── store.py        # revision-guarded mutation transactions
@@ -53,10 +55,11 @@ Changes must preserve these rules:
 1. Committed Markdown in the memory Git repository is the only permanent
    source of truth.
 2. Vexor is one concrete, rebuildable retrieval cache, not a second store.
-3. The core remains independent of stdio, but the project does not add a
+3. The core remains independent of MCP transport, but the project does not add a
    speculative generic transport interface.
-4. The implemented server remains local stdio. Do not add HTTP, authentication,
-   deployment, or multi-user placeholders without an approved product change.
+4. Remote HTTP remains one OAuth subject mapped to one Perenna home. Do not add
+   multi-user storage, an authorization server, or bundled reverse-proxy and
+   certificate management without an approved product change.
 5. MCP exposes `memory_read`, `memory_write`, and `memory_delete`. Internal Git
    and index operations do not become agent-facing tools.
 6. A successful changed mutation always means that one target memory path is
@@ -103,6 +106,7 @@ Do not introduce automatic fetch, pull, force-push, or conflict resolution.
 - Run synchronous core operations in worker threads so the MCP event loop does
   not serialize all reads.
 - Reserve stdout for protocol messages during stdio operation.
+- Keep OAuth verification and HTTP transport outside the core.
 - Send diagnostics to stderr without memory bodies, queries, or secrets.
 - Make expected errors actionable: state what failed, where, and what the user
   should do next.

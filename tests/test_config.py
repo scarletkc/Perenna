@@ -7,9 +7,12 @@ import pytest
 from perenna.config import (
     DEFAULT_GIT_REMOTE,
     DEFAULT_HOME,
+    REMOTE_SCOPES,
+    RemoteSettings,
     RuntimePaths,
     resolve_git_remote,
     resolve_home,
+    resolve_remote_settings,
     resolve_settings,
     resolve_source,
 )
@@ -90,3 +93,59 @@ def test_resolve_settings_uses_each_precedence_rule(tmp_path: Path) -> None:
     assert settings.paths.index == cli_home.resolve() / "index"
     assert settings.source == "codex"
     assert settings.git_remote is None
+
+
+def test_remote_settings_require_exact_https_values() -> None:
+    settings = resolve_remote_settings(
+        {
+            "PERENNA_PUBLIC_URL": "https://memory.example.com/mcp",
+            "PERENNA_OAUTH_ISSUER": "https://tenant.example.com",
+            "PERENNA_OAUTH_JWKS_URL": "https://tenant.example.com/.well-known/jwks.json",
+            "PERENNA_OAUTH_ALLOWED_SUBJECT": "auth0|owner",
+        }
+    )
+
+    assert settings == RemoteSettings(
+        public_url="https://memory.example.com/mcp",
+        issuer="https://tenant.example.com",
+        jwks_url="https://tenant.example.com/.well-known/jwks.json",
+        allowed_subject="auth0|owner",
+    )
+    assert REMOTE_SCOPES == ("memory:read", "memory:write", "memory:delete")
+
+
+@pytest.mark.parametrize(
+    ("name", "value", "message"),
+    [
+        ("PERENNA_PUBLIC_URL", "http://memory.example.com/mcp", "absolute HTTPS URL"),
+        (
+            "PERENNA_PUBLIC_URL",
+            "https://Memory.Example.com:443/mcp",
+            "canonical form: https://memory.example.com/mcp",
+        ),
+        ("PERENNA_PUBLIC_URL", "https://memory.example.com/other", "exact /mcp path"),
+        ("PERENNA_OAUTH_ISSUER", "https://user@tenant.example.com", "without credentials"),
+        ("PERENNA_OAUTH_JWKS_URL", "https://tenant.example.com/keys?q=1", "query"),
+        ("PERENNA_OAUTH_ALLOWED_SUBJECT", " ", "empty"),
+    ],
+)
+def test_remote_settings_reject_unsafe_or_empty_values(
+    name: str,
+    value: str,
+    message: str,
+) -> None:
+    environment = {
+        "PERENNA_PUBLIC_URL": "https://memory.example.com/mcp",
+        "PERENNA_OAUTH_ISSUER": "https://tenant.example.com/",
+        "PERENNA_OAUTH_JWKS_URL": "https://tenant.example.com/.well-known/jwks.json",
+        "PERENNA_OAUTH_ALLOWED_SUBJECT": "auth0|owner",
+    }
+    environment[name] = value
+
+    with pytest.raises(ConfigurationError, match=message):
+        resolve_remote_settings(environment)
+
+
+def test_remote_settings_report_the_missing_field() -> None:
+    with pytest.raises(ConfigurationError, match="PERENNA_PUBLIC_URL is missing"):
+        resolve_remote_settings({})

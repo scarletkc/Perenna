@@ -1340,7 +1340,10 @@ dependencies = [
     { name = "mcp" },
     { name = "portalocker", extra = ["win32"] },
     { name = "pydantic" },
+    { name = "pyjwt", extra = ["crypto"] },
     { name = "pyyaml" },
+    { name = "starlette" },
+    { name = "uvicorn" },
     { name = "vexor" },
 ]
 
@@ -1366,12 +1369,15 @@ requires-dist = [
     { name = "mcp", specifier = ">=2.0,<3.0" },
     { name = "portalocker", extras = ["win32"], specifier = ">=4.2,<5.0" },
     { name = "pydantic", specifier = ">=2.12,<3.0" },
+    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.10,<3.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.25" },
     { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3.6" },
     { name = "pyyaml", specifier = ">=6.0,<7.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.12" },
+    { name = "starlette", specifier = ">=0.48,<2.0" },
     { name = "twine", marker = "extra == 'dev'", specifier = ">=6.1" },
+    { name = "uvicorn", specifier = ">=0.31,<1.0" },
     { name = "vexor", specifier = ">=0.28,<0.29" },
     { name = "vexor", extras = ["local"], marker = "extra == 'local'", specifier = ">=0.28,<0.29" },
 ]

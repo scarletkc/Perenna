@@ -1,11 +1,17 @@
 # MCP API Reference
 
-Perenna exposes three stdio MCP tools. All successful calls return structured
-content plus a short text summary. Unknown fields, explicit `null` values, and
-fields belonging to another action are rejected.
+Perenna exposes the same three MCP tools over local stdio and authenticated
+Streamable HTTP. All successful calls return structured content plus a short
+text summary. Unknown fields, explicit `null` values, and fields belonging to
+another action are rejected.
 
 `source` is never accepted from a tool call. The host supplies it through
 trusted startup configuration.
+
+Remote HTTP advertises OAuth in each tool's MCP metadata and enforces one
+scope per tool: `memory:read`, `memory:write`, or `memory:delete`. Missing,
+invalid, or insufficient credentials fail before the core operation. Local
+stdio does not attach OAuth metadata or require a token.
 
 ## `memory_read`
 

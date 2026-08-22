@@ -179,6 +179,7 @@ async def test_low_level_handlers_dispatch_every_tool_and_keep_errors_safe(caplo
         MEMORY_WRITE_OUTPUT_SCHEMA,
         MEMORY_DELETE_OUTPUT_SCHEMA,
     ]
+    assert all(tool.meta is None for tool in listed.tools)
 
     unknown = await call_handler(None, types.CallToolRequestParams(name="memory"))
     invalid = await call_handler(

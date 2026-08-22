@@ -6,6 +6,7 @@ from typing import Any, Literal, Self, cast
 import anyio
 import mcp.types as types
 from mcp.server import Server, ServerRequestContext
+from mcp.server.auth.middleware.auth_context import get_access_token
 from mcp.server.stdio import stdio_server
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
@@ -16,6 +17,12 @@ from perenna.index import DEFAULT_SEARCH_LIMIT, MAX_SEARCH_MATCHES
 from perenna.models import PatchEdit
 
 logger = logging.getLogger(__name__)
+
+TOOL_SCOPES: dict[str, tuple[str, ...]] = {
+    "memory_read": ("memory:read",),
+    "memory_write": ("memory:write",),
+    "memory_delete": ("memory:delete",),
+}
 
 _MEMORY_REF_PROPERTIES: dict[str, object] = {
     "memory_id": {"type": "string"},
@@ -359,19 +366,28 @@ class MemoryDeleteArguments(BaseModel):
     base_revision: str
 
 
-def create_server(core: PerennaCore) -> Server[object]:
+def create_server(
+    core: PerennaCore,
+    *,
+    oauth_metadata_url: str | None = None,
+) -> Server[object]:
     async def list_tools(
         _context: ServerRequestContext[object],
         _params: types.PaginatedRequestParams | None,
     ) -> types.ListToolsResult:
-        return types.ListToolsResult(
-            tools=[MEMORY_READ_TOOL, MEMORY_WRITE_TOOL, MEMORY_DELETE_TOOL]
-        )
+        tools = [MEMORY_READ_TOOL, MEMORY_WRITE_TOOL, MEMORY_DELETE_TOOL]
+        if oauth_metadata_url is not None:
+            tools = [_with_oauth(tool) for tool in tools]
+        return types.ListToolsResult(tools=tools)
 
     async def call_tool(
         _context: ServerRequestContext[object],
         params: types.CallToolRequestParams,
     ) -> types.CallToolResult:
+        if oauth_metadata_url is not None and params.name in TOOL_SCOPES:
+            auth_error = _authorize_tool(params.name, oauth_metadata_url)
+            if auth_error is not None:
+                return auth_error
         try:
             if params.name == "memory_read":
                 payload = await _call_read(core, params.arguments or {})
@@ -547,5 +563,55 @@ def _argument_error(tool_name: str) -> str:
 def _error_result(message: str) -> types.CallToolResult:
     return types.CallToolResult(
         content=[types.TextContent(text=message)],
+        is_error=True,
+    )
+
+
+def _with_oauth(tool: types.Tool) -> types.Tool:
+    return tool.model_copy(
+        update={
+            "meta": {
+                "securitySchemes": [{"type": "oauth2", "scopes": list(TOOL_SCOPES[tool.name])}]
+            }
+        }
+    )
+
+
+def _authorize_tool(tool_name: str, metadata_url: str) -> types.CallToolResult | None:
+    access_token = get_access_token()
+    required_scopes = TOOL_SCOPES[tool_name]
+    if access_token is None:
+        return _oauth_error_result(
+            metadata_url,
+            required_scopes,
+            error="invalid_token",
+            description="Authentication is required to use Perenna.",
+        )
+    missing = [scope for scope in required_scopes if scope not in access_token.scopes]
+    if missing:
+        return _oauth_error_result(
+            metadata_url,
+            required_scopes,
+            error="insufficient_scope",
+            description=f"The {tool_name} tool requires the {missing[0]} scope.",
+        )
+    return None
+
+
+def _oauth_error_result(
+    metadata_url: str,
+    scopes: tuple[str, ...],
+    *,
+    error: str,
+    description: str,
+) -> types.CallToolResult:
+    scope = " ".join(scopes)
+    challenge = (
+        f'Bearer resource_metadata="{metadata_url}", scope="{scope}", '
+        f'error="{error}", error_description="{description}"'
+    )
+    return types.CallToolResult(
+        content=[types.TextContent(text=description)],
+        meta={"mcp/www_authenticate": [challenge]},
         is_error=True,
     )

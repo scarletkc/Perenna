@@ -35,7 +35,10 @@ dependencies = [
   "mcp>=2.0,<3.0",
   "portalocker[win32]>=4.2,<5.0",
   "pydantic>=2.12,<3.0",
+  "PyJWT[crypto]>=2.10,<3.0",
   "PyYAML>=6.0,<7.0",
+  "starlette>=0.48,<2.0",
+  "uvicorn>=0.31,<1.0",
   "vexor>=0.28,<0.29",
 ]
 

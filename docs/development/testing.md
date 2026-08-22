@@ -49,7 +49,7 @@ coverage threshold are owned by `pyproject.toml`.
 | Store and Git | create, patch, replace, delete, revisions, one-file commits, rollback |
 | Index | chunk rebuild, scope filtering, limits, budgets, stale metadata, marker failures |
 | Core | committed reads, index failure isolation, push behavior, concurrent readers |
-| MCP | exact schema, action validation, safe errors, real stdio subprocess |
+| MCP | exact schema, action validation, safe errors, real stdio and HTTP sessions |
 | Multiprocess | first-run races, concurrent writers, clean Git history |
 | End to end | agents create, search, get, patch, and delete one shared memory |
 | Safety | environment isolation, links, device names, Git states, control characters |
@@ -66,6 +66,7 @@ During development, run the smallest relevant file first:
 uv run pytest tests/test_store.py -q
 uv run pytest tests/test_index.py -q
 uv run pytest tests/test_mcp.py -q
+uv run pytest tests/test_http.py tests/test_oauth.py -q
 ```
 
 Run the full suite before committing a cross-cutting change.
@@ -120,6 +121,17 @@ that:
 - expected failures do not leak memory content.
 
 Keep at least one real subprocess path when changing CLI or MCP startup code.
+
+## Remote HTTP tests
+
+The remote suite runs the real ASGI application in process with the official
+MCP client. It verifies OAuth discovery and challenges, JWT validation,
+single-subject access, per-tool scopes, public-host checks, and serialized tool
+metadata without requiring an external identity provider.
+
+Docker image execution is a separate environment check. A passing Python test
+suite does not establish that a particular container runtime, reverse proxy,
+domain, certificate, or OAuth tenant is configured correctly.
 
 ## Continuous integration
 

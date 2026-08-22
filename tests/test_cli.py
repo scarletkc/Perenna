@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from perenna import DESCRIPTION, __version__, cli
-from perenna.config import RuntimePaths, RuntimeSettings
+from perenna.config import RemoteSettings, RuntimePaths, RuntimeSettings
 from perenna.errors import ConfigurationError
 
 
@@ -38,6 +38,55 @@ def test_main_resolves_settings_builds_core_and_runs_stdio(tmp_path: Path, monke
 
     assert cli.main(["mcp", "--source", "codex", "--home", str(tmp_path)]) == 0
     assert observed == [core]
+
+
+def test_main_runs_authenticated_http_server(tmp_path: Path, monkeypatch) -> None:
+    settings = RuntimeSettings(RuntimePaths(tmp_path / "home"), "chatgpt-web", None)
+    remote = RemoteSettings(
+        public_url="https://memory.example.com/mcp",
+        issuer="https://tenant.example.com/",
+        jwks_url="https://tenant.example.com/.well-known/jwks.json",
+        allowed_subject="auth0|owner",
+    )
+    core = object()
+    observed: list[tuple[object, object, str, int]] = []
+
+    monkeypatch.setattr(cli, "resolve_settings", lambda **_kwargs: settings)
+    monkeypatch.setattr(cli, "resolve_remote_settings", lambda: remote)
+    monkeypatch.setattr(cli, "PerennaCore", lambda value: core if value is settings else None)
+    monkeypatch.setattr(
+        cli,
+        "run_http",
+        lambda value, remote_settings, *, host, port: observed.append(
+            (value, remote_settings, host, port)
+        ),
+    )
+
+    assert (
+        cli.main(
+            [
+                "serve",
+                "--source",
+                "chatgpt-web",
+                "--home",
+                str(tmp_path),
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8788",
+            ]
+        )
+        == 0
+    )
+    assert observed == [(core, remote, "0.0.0.0", 8788)]
+
+
+@pytest.mark.parametrize("port", ["0", "65536"])
+def test_serve_rejects_invalid_port(port: str) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        cli.build_parser().parse_args(["serve", "--port", port])
+
+    assert exc_info.value.code == 2
 
 
 def test_main_reports_expected_startup_error_on_stderr(capsys, monkeypatch) -> None:

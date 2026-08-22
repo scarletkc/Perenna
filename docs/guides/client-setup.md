@@ -3,6 +3,9 @@
 This guide connects supported local MCP clients to the same Perenna home. It
 assumes that `perenna` is installed and available on `PATH`.
 
+For an OAuth-protected ChatGPT web connection to a VPS, use the separate
+[self-hosting guide](self-hosting.md).
+
 Each client must supply a trusted `source` when it starts Perenna. The source
 is stored with every changed mutation and is intentionally absent from MCP tool
 schema.
@@ -61,6 +64,12 @@ use the Codex CLI command above, or configure the server from the desktop app:
 7. Save and restart the app.
 
 Use `/mcp` in the composer to inspect connected servers.
+
+## ChatGPT web
+
+ChatGPT web connects to `perenna serve` through a public HTTPS reverse proxy
+and OAuth. It does not start a local process or share the desktop stdio
+configuration. Follow [Self-host Perenna for ChatGPT](self-hosting.md).
 
 ## Cursor
 

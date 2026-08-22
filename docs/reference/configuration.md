@@ -1,15 +1,19 @@
 # Configuration Reference
 
 This page is the canonical reference for Perenna startup configuration, local
-paths, optional Git backup, and Vexor provider settings.
+paths, remote OAuth, optional Git backup, and Vexor provider settings.
 
 ## CLI entry point
 
 ```text
 perenna mcp [--source SOURCE] [--home PATH]
+perenna serve [--source SOURCE] [--home PATH] [--host HOST] [--port PORT]
 ```
 
-Perenna currently exposes only the local stdio MCP command.
+`mcp` serves local clients over stdio. `serve` exposes an OAuth-protected
+Streamable HTTP endpoint at `/mcp`. The default HTTP listen address is
+`127.0.0.1` and the default port is `8000`; a container normally overrides the
+address to `0.0.0.0` while publishing the port only to a trusted reverse proxy.
 
 ## Perenna home
 
@@ -57,6 +61,48 @@ Stable examples include `claude-code`, `codex`, and `cursor`.
 
 The host injects source into changed mutations. `source` is not an MCP tool
 field.
+
+## Remote MCP and OAuth
+
+`perenna serve` requires all of these environment variables:
+
+| Variable | Contract |
+| --- | --- |
+| `PERENNA_PUBLIC_URL` | Canonical public HTTPS resource URL with the exact `/mcp` path |
+| `PERENNA_OAUTH_ISSUER` | Exact HTTPS authorization-server issuer |
+| `PERENNA_OAUTH_JWKS_URL` | HTTPS JWKS document for RS256 access-token verification |
+| `PERENNA_OAUTH_ALLOWED_SUBJECT` | Exact OAuth `sub` allowed to use this instance |
+
+URLs cannot contain credentials, a query, or a fragment. The public URL is
+also the required JWT audience and the source of the accepted HTTP `Host`.
+Every URL must already use its canonical form, including a lowercase host and
+no explicit default port. Perenna preserves the issuer path exactly, including
+whether it has a trailing slash, so it can match the provider's `issuer` claim.
+
+The protected-resource metadata URL is derived from the public resource path:
+
+```text
+https://memory.example.com/.well-known/oauth-protected-resource/mcp
+```
+
+It advertises these fixed scopes:
+
+| Tool | Required scope |
+| --- | --- |
+| `memory_read` | `memory:read` |
+| `memory_write` | `memory:write` |
+| `memory_delete` | `memory:delete` |
+
+Remote access always requires OAuth. Perenna accepts signed RS256 JWT access
+tokens, fetches signing keys from the configured JWKS URL, and verifies the
+signature, issuer, audience, time claims, owner subject, and tool scope. It is
+only an OAuth resource server: the configured provider owns login, consent,
+client registration, token issuance, refresh, and revocation.
+
+These variables are not required by `perenna mcp`; local stdio behavior and
+configuration remain unchanged. Follow the
+[self-hosting guide](../guides/self-hosting.md) for Docker, Nginx, OAuth-provider,
+and ChatGPT setup.
 
 ## Git remote backup
 
@@ -249,10 +295,14 @@ To change that contract:
 
 Do not edit `collections.db` or `indexed_commit` to imitate compatibility.
 
-## Logging and stdio
+## Logging
 
 During `perenna mcp`, stdout is reserved for MCP protocol messages. Perenna
 sends diagnostics and redacted operational logs to stderr.
+
+`perenna serve` also sends application diagnostics to stderr. Its default
+Uvicorn access log is disabled so bearer headers and request details do not
+enter routine logs.
 
 Logs may include action, source, project, operation, result count, short commit
 ID, and exception type. They must not include a memory summary, body, search

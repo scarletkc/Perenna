@@ -15,6 +15,7 @@ more exact layers only when you need them.
 | Document | Use it to |
 | --- | --- |
 | [Client setup](guides/client-setup.md) | Connect Claude Code, Codex, ChatGPT Desktop, or Cursor |
+| [Self-hosting](guides/self-hosting.md) | Run one OAuth-protected Perenna instance for ChatGPT web |
 | [Using permanent memory](guides/using-memory.md) | List, search, get, create, patch, replace, and delete memories |
 | [Maintenance and recovery](guides/maintenance.md) | Inspect Git history, handle local edits, and rebuild the index |
 
@@ -51,6 +52,7 @@ docs/
 ├── getting-started.md
 ├── guides/
 │   ├── client-setup.md
+│   ├── self-hosting.md
 │   ├── using-memory.md
 │   └── maintenance.md
 ├── concepts/

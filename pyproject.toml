@@ -4,21 +4,31 @@ build-backend = "hatchling.build"
 
 [project]
 name = "Perenna"
-version = "0.1.0"
-description = "Local-first permanent memory for AI agents"
+dynamic = ["version"]
+description = "A lightweight, Git-backed permanent memory for AI agents."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "scarletkc" }]
+keywords = ["ai", "agents", "llm", "memory", "mcp", "git", "local-first", "semantic-search"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Intended Audience :: End Users/Desktop",
   "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Topic :: Database",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
   "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: Software Development :: Version Control :: Git",
+  "Topic :: Text Processing :: Indexing",
+  "Topic :: Utilities",
 ]
 dependencies = [
   "anyio>=4.9,<5.0",
@@ -38,6 +48,7 @@ dev = [
   "pytest-asyncio>=0.25",
   "pytest-xdist>=3.6",
   "ruff>=0.12",
+  "twine>=6.1",
 ]
 
 [project.scripts]
@@ -47,6 +58,17 @@ perenna = "perenna.cli:main"
 Homepage = "https://github.com/scarletkc/Perenna"
 Repository = "https://github.com/scarletkc/Perenna"
 Issues = "https://github.com/scarletkc/Perenna/issues"
+
+[tool.hatch.version]
+path = "src/perenna/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "src/perenna",
+  "LICENSE",
+  "README.md",
+  "pyproject.toml",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/perenna"]

@@ -123,9 +123,10 @@ Keep at least one real subprocess path when changing CLI or MCP startup code.
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs the locked suite across the supported Windows,
-Linux, and Python matrix. Each job performs dependency synchronization, Ruff,
-pytest with coverage, and package build. The live-provider marker remains
-excluded.
+`.github/workflows/validate.yml` owns the validation runner and Python version. Each
+run performs dependency synchronization, Ruff, pytest with coverage, and
+package build. The live-provider marker remains excluded.
 
-CI validates buildability but does not publish packages or deploy a service.
+CI validates buildability but does not publish packages directly. A successful
+`main` push can trigger the separate workflow documented in
+[Releasing](releasing.md).

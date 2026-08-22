@@ -1,0 +1,180 @@
+name: Publish
+
+on:
+  workflow_run:
+    workflows: [Validate]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Create GitHub release and publish to PyPI
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/perenna/
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Check out the validated commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          python-version: "3.13"
+          enable-cache: false
+
+      - name: Detect version change
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          import pathlib
+          import re
+          import subprocess
+
+          VERSION_PATH = "src/perenna/__init__.py"
+
+
+          def read_version(text: str) -> str:
+              match = re.search(r"__version__\s*=\s*['\"]([^'\"]+)['\"]", text)
+              if not match:
+                  raise SystemExit(f"Unable to find __version__ in {VERSION_PATH}")
+              return match.group(1)
+
+
+          def read_file_from_ref(ref: str) -> str | None:
+              try:
+                  return subprocess.check_output(
+                      ["git", "show", f"{ref}:{VERSION_PATH}"],
+                      text=True,
+                  )
+              except subprocess.CalledProcessError:
+                  return None
+
+
+          current_text = pathlib.Path(VERSION_PATH).read_text(encoding="utf-8")
+          current_version = read_version(current_text)
+          previous_text = read_file_from_ref("HEAD^")
+          previous_version = read_version(previous_text) if previous_text is not None else ""
+          release_changed = current_version != previous_version
+
+          current_tag = f"v{current_version}"
+          previous_tag = ""
+          try:
+              previous_tag = subprocess.check_output(
+                  ["git", "describe", "--tags", "--abbrev=0", "--match", "v*", "HEAD^"],
+                  text=True,
+              ).strip()
+          except subprocess.CalledProcessError:
+              pass
+
+          if release_changed:
+              print(f"Version changed: {previous_version or '(none)'} -> {current_version}")
+          else:
+              print(f"Version unchanged at {current_version}; skipping release.")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write(f"release_changed={'true' if release_changed else 'false'}\n")
+              handle.write(f"version={current_version}\n")
+              handle.write(f"current_tag={current_tag}\n")
+              handle.write(f"previous_tag={previous_tag}\n")
+          PY
+
+      - name: Build distributions
+        if: steps.version.outputs.release_changed == 'true'
+        run: uv build --clear --no-create-gitignore
+
+      - name: Check distribution metadata
+        if: steps.version.outputs.release_changed == 'true'
+        run: uvx --from twine twine check dist/*
+
+      - name: Verify wheel in a clean environment
+        if: steps.version.outputs.release_changed == 'true'
+        run: |
+          python -m venv "${RUNNER_TEMP}/perenna-wheel-test"
+          "${RUNNER_TEMP}/perenna-wheel-test/bin/python" -m pip install --upgrade pip
+          "${RUNNER_TEMP}/perenna-wheel-test/bin/python" -m pip install dist/*.whl
+          "${RUNNER_TEMP}/perenna-wheel-test/bin/perenna" --help
+          "${RUNNER_TEMP}/perenna-wheel-test/bin/perenna" --version
+
+      - name: Generate release notes
+        if: steps.version.outputs.release_changed == 'true'
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          CURRENT_TAG: ${{ steps.version.outputs.current_tag }}
+          PREVIOUS_TAG: ${{ steps.version.outputs.previous_tag }}
+        run: |
+          set -euo pipefail
+          note_file="docs/release-notes/${VERSION}.md"
+
+          if [ -f "${note_file}" ]; then
+            first_line="$(head -n 1 "${note_file}")"
+            case "${first_line}" in
+              '## '[![:space:]]*) ;;
+              *)
+                echo "${note_file} must start with a '## <title>' heading, got: ${first_line}" >&2
+                exit 1
+                ;;
+            esac
+            if [ -z "$(tail -n +2 "${note_file}" | tr -d '[:space:]')" ]; then
+              echo "${note_file} has a heading but no body; write the note or delete the file." >&2
+              exit 1
+            fi
+          fi
+
+          {
+            echo "Automated release for Perenna ${CURRENT_TAG}."
+            echo
+            if [ -f "${note_file}" ]; then
+              printf '%s\n\n' "$(cat "${note_file}")"
+            fi
+            echo "## Changelog"
+            echo
+            if [ -n "${PREVIOUS_TAG}" ]; then
+              echo "Changes since ${PREVIOUS_TAG}:"
+              echo
+              git log "${PREVIOUS_TAG}..HEAD" --pretty=format:'- %s (%h)' --reverse
+              echo
+              echo
+              echo "[Full diff](https://github.com/${GITHUB_REPOSITORY}/compare/${PREVIOUS_TAG}...${CURRENT_TAG})"
+            else
+              git log HEAD --pretty=format:'- %s (%h)' --reverse
+              echo
+            fi
+          } > release-notes.md
+
+      - name: Create GitHub release
+        if: steps.version.outputs.release_changed == 'true'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.version.outputs.current_tag }}
+          name: Perenna ${{ steps.version.outputs.current_tag }}
+          target_commitish: ${{ github.event.workflow_run.head_sha }}
+          draft: false
+          prerelease: >-
+            ${{ contains(steps.version.outputs.version, 'a') ||
+                contains(steps.version.outputs.version, 'b') ||
+                contains(steps.version.outputs.version, 'rc') }}
+          files: dist/*
+          body_path: release-notes.md
+
+      - name: Publish to PyPI
+        if: steps.version.outputs.release_changed == 'true'
+        uses: pypa/gh-action-pypi-publish@v1.14.2

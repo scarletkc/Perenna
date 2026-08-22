@@ -222,8 +222,10 @@ That logging rule does not prevent configured embedding traffic.
 Install Vexor's local embedding dependencies with the Perenna extra:
 
 ```bash
-uv tool install ".[local]"
+uv tool install "perenna[local]"
 ```
+
+For a source checkout, use `uv tool install ".[local]"` instead.
 
 Then select a local provider through Vexor configuration, for example:
 

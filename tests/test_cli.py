@@ -2,9 +2,26 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from perenna import cli
+import pytest
+
+from perenna import DESCRIPTION, __version__, cli
 from perenna.config import RuntimePaths, RuntimeSettings
 from perenna.errors import ConfigurationError
+
+
+def test_parser_uses_package_description() -> None:
+    assert cli.build_parser().description == DESCRIPTION
+
+
+@pytest.mark.parametrize("flag", ["--version", "-V"])
+def test_main_reports_version(flag: str, capsys) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main([flag])
+
+    assert exc_info.value.code == 0
+    captured = capsys.readouterr()
+    assert captured.out == f"perenna {__version__}\n"
+    assert captured.err == ""
 
 
 def test_main_resolves_settings_builds_core_and_runs_stdio(tmp_path: Path, monkeypatch) -> None:

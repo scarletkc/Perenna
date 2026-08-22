@@ -1,7 +1,7 @@
 # Getting Started
 
-This guide installs Perenna from source, checks the command, and prepares the
-first client connection.
+This guide installs Perenna, checks the command, and prepares the first client
+connection.
 
 ## Requirements
 
@@ -10,7 +10,15 @@ first client connection.
 - [uv](https://docs.astral.sh/uv/)
 - an MCP client that can start a local stdio server
 
-## Install from source
+## Install
+
+Install a published release:
+
+```bash
+uv tool install perenna
+```
+
+For source development instead:
 
 ```bash
 git clone https://github.com/scarletkc/Perenna.git
@@ -31,8 +39,10 @@ install Vexor's local embedding dependencies as well, install the `local`
 extra:
 
 ```bash
-uv tool install ".[local]"
+uv tool install "perenna[local]"
 ```
+
+For a source checkout, use `uv tool install ".[local]"` instead.
 
 The initial dependency and model downloads may still require network access.
 Provider configuration and privacy boundaries are documented in the

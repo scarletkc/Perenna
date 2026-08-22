@@ -40,6 +40,7 @@ more exact layers only when you need them.
 | --- | --- |
 | [Contributing](development/contributing.md) | Set up the repository and follow implementation boundaries |
 | [Testing](development/testing.md) | Run offline, concurrency, integration, and live-provider tests |
+| [Releasing](development/releasing.md) | Understand and run the GitHub Release to PyPI workflow |
 
 ## Directory map
 
@@ -62,5 +63,6 @@ docs/
 │   └── memory-format.md
 └── development/
     ├── contributing.md
+    ├── releasing.md
     └── testing.md
 ```

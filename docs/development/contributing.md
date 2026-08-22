@@ -120,6 +120,7 @@ Update the document that owns the changed fact:
 | Markdown schema or normalization | `docs/reference/memory-format.md` |
 | Consistency, locks, transaction, failures | `docs/concepts/consistency.md` |
 | Test workflow | `docs/development/testing.md` |
+| Release packaging and PyPI workflow | `docs/development/releasing.md` |
 
 Other pages should link to that owner instead of copying the complete rule.
 Keep the root README short.

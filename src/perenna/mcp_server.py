@@ -9,7 +9,7 @@ from mcp.server import Server, ServerRequestContext
 from mcp.server.stdio import stdio_server
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
-from perenna import __version__
+from perenna import DESCRIPTION, __version__
 from perenna.core import PerennaCore
 from perenna.errors import PerennaError
 from perenna.index import DEFAULT_SEARCH_LIMIT, MAX_SEARCH_MATCHES
@@ -402,7 +402,7 @@ def create_server(core: PerennaCore) -> Server[object]:
     return Server(
         "Perenna",
         version=__version__,
-        description="Local-first permanent memory for AI agents",
+        description=DESCRIPTION,
         instructions=SERVER_INSTRUCTIONS,
         on_list_tools=list_tools,
         on_call_tool=call_tool,

@@ -6,6 +6,7 @@ import logging
 import sys
 from collections.abc import Sequence
 
+from perenna import DESCRIPTION, __version__
 from perenna.config import resolve_settings
 from perenna.core import PerennaCore
 from perenna.errors import PerennaError
@@ -15,8 +16,9 @@ from perenna.mcp_server import run_stdio
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="perenna",
-        description="Local-first permanent memory for AI agents.",
+        description=DESCRIPTION,
     )
+    parser.add_argument("-V", "--version", action="version", version=f"%(prog)s {__version__}")
     subparsers = parser.add_subparsers(dest="command", required=True)
     mcp = subparsers.add_parser("mcp", help="Run the local MCP server over stdio.")
     mcp.add_argument(

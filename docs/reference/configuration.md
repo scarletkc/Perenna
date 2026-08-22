@@ -75,6 +75,85 @@ Remote backup never participates in query, title upsert, local commit
 creation, or write success. Perenna performs no automatic fetch, pull, merge,
 or force-push.
 
+### Set up a backup remote
+
+Connect Perenna once so that `<home>/memory` exists, then choose an empty
+private Git repository or a remote with compatible history. Perenna will not
+integrate an unrelated initial commit created by the remote host.
+
+Enter the memory repository and inspect existing remotes before adding one:
+
+```bash
+cd <memory-repository>
+git remote -v
+```
+
+Add the default `origin` remote:
+
+```bash
+git remote add origin <remote-url>
+```
+
+If `origin` already exists and should point somewhere else, update it
+explicitly:
+
+```bash
+git remote set-url origin <remote-url>
+```
+
+For another remote name, add that name and set `PERENNA_GIT_REMOTE` to the same
+value in the MCP host configuration:
+
+```bash
+git remote add backup <remote-url>
+```
+
+#### Prepare non-interactive credentials
+
+Perenna never opens a Git credential prompt. Its Git subprocesses set
+`GIT_TERMINAL_PROMPT=0`, `GCM_INTERACTIVE=Never`, and
+`SSH_ASKPASS_REQUIRE=never`, and they do not use inherited askpass helpers.
+Authentication must therefore succeed non-interactively in the environment
+inherited from the MCP client.
+
+Use one of these credential paths:
+
+- **SSH:** use an SSH remote and make the key available without a new prompt,
+  typically by loading it into an SSH agent that the MCP client can access.
+- **HTTPS:** save a token or credential in the operating system's Git
+  credential manager before Perenna starts.
+- **Token in URL:** Git can use one, but it leaves the secret in the memory
+  repository's `.git/config`; prefer a credential manager instead.
+
+A credential that works only after an interactive shell prompt is not ready
+for Perenna. Desktop clients may also inherit a different SSH-agent or
+credential environment from your terminal.
+
+#### Verify the connection
+
+Run the checks as the same operating-system user that runs the MCP client:
+
+```bash
+git ls-remote origin
+```
+
+After at least one memory commit exists, verify write authentication without
+changing the remote:
+
+```bash
+git push --dry-run origin main
+```
+
+You can perform the first backup manually and establish the upstream:
+
+```bash
+git push --set-upstream origin main
+```
+
+Otherwise, a later successful Perenna push establishes the upstream
+automatically. Replace `origin` and `main` when you configured another remote
+or use an existing repository on another branch.
+
 ## Vexor collection contract
 
 Perenna uses one Vexor collection:

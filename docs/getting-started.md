@@ -63,6 +63,14 @@ Perenna initializes the resolved home automatically:
 The `memory/` directory starts on a `main` branch and uses a repository-local
 Perenna commit identity. Perenna does not change your global Git identity.
 
+## Optional: set up a backup remote
+
+After the first connection creates the memory repository, you can attach an
+empty private Git repository for best-effort backup. Follow
+[Set up a backup remote](reference/configuration.md#set-up-a-backup-remote) for
+the `git remote add` command, non-interactive credential requirements, and
+connection checks.
+
 ## Verify the first session
 
 After the client reports that Perenna is connected:
@@ -81,5 +89,5 @@ git -C ~/.perenna/memory log --oneline
 On Windows, replace `~/.perenna` with the resolved home shown by your shell.
 
 Next, read [Using permanent memory](guides/using-memory.md). For non-default
-paths, sources, backup remotes, or embedding providers, use the
+paths, sources, remote names, or embedding providers, use the
 [configuration reference](reference/configuration.md).

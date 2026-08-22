@@ -114,7 +114,9 @@ disk space, repository state, and stderr diagnostics.
 ## Recover from a backup push failure
 
 Remote push is best effort and does not define write success. Check the local
-state first:
+state first. If the remote or its credentials were never configured, follow
+[Set up a backup remote](../reference/configuration.md#set-up-a-backup-remote)
+before treating the warning as a transient failure.
 
 ```bash
 git -C <memory-repository> remote -v
@@ -122,7 +124,9 @@ git -C <memory-repository> status --branch --short
 ```
 
 You may push manually after confirming the intended remote and branch. Perenna
-does not pull, fetch, force-push, or resolve a remote divergence.
+does not pull, fetch, force-push, or resolve a remote divergence. Run manual
+authentication checks as the same operating-system user and with the same
+credential or SSH-agent access as the MCP client.
 
 ## Disaster recovery
 

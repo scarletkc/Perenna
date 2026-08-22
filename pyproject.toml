@@ -1,0 +1,78 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "Perenna"
+version = "0.1.0"
+description = "Local-first permanent memory for AI agents"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "scarletkc" }]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+  "anyio>=4.9,<5.0",
+  "mcp>=2.0,<3.0",
+  "portalocker[win32]>=4.2,<5.0",
+  "pydantic>=2.12,<3.0",
+  "PyYAML>=6.0,<7.0",
+  "vexor>=0.28,<0.29",
+]
+
+[project.optional-dependencies]
+local = ["vexor[local]>=0.28,<0.29"]
+dev = [
+  "build>=1.2",
+  "coverage[toml]>=7.6",
+  "pytest>=8.3",
+  "pytest-asyncio>=0.25",
+  "pytest-xdist>=3.6",
+  "ruff>=0.12",
+]
+
+[project.scripts]
+perenna = "perenna.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/scarletkc/Perenna"
+Repository = "https://github.com/scarletkc/Perenna"
+Issues = "https://github.com/scarletkc/Perenna/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/perenna"]
+
+[tool.pytest.ini_options]
+addopts = "--strict-config --strict-markers -m 'not live_provider'"
+testpaths = ["tests"]
+markers = [
+  "live_provider: requires a configured live Vexor embedding provider",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["perenna"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 90
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["B", "E", "F", "I", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B011"]

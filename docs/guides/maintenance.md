@@ -23,13 +23,13 @@ git -C <memory-repository> show <commit>
 git -C <memory-repository> log -- <relative-memory-path>
 ```
 
-Every successful Perenna write creates one commit containing only the target
-memory file.
+Every successful changed Perenna mutation creates one commit containing only
+the target memory path.
 
 ## Resolve a dirty working tree
 
-Perenna refuses writes while the memory repository contains uncommitted or
-staged changes. Queries continue to read the last committed snapshot.
+Perenna refuses mutations while the memory repository contains uncommitted or
+staged changes. Reads continue to use the last committed snapshot.
 
 Inspect the state first:
 
@@ -49,14 +49,14 @@ Do not use a repository-wide destructive reset as a routine recovery step.
 
 ## Make a manual memory edit
 
-1. Stop or avoid concurrent Perenna writes.
+1. Stop or avoid concurrent Perenna mutations.
 2. Edit the Markdown under `global/` or `projects/<slug>/`.
 3. Validate it against the
    [memory file format](../reference/memory-format.md).
 4. Stage only the intended file.
 5. Create a Git commit.
 
-The next recall notices the changed `HEAD` and rebuilds the Vexor collection.
+The next search notices the changed `HEAD` and rebuilds the Vexor collection.
 
 ## Restore or delete a memory
 
@@ -67,9 +67,9 @@ git -C <memory-repository> revert <commit>
 ```
 
 To restore one file, retrieve that file from the chosen commit, validate it,
-and create a new commit. To delete a memory, remove its file and commit the
-deletion. Perenna does not expose deletion through MCP, but Git retains the
-older content.
+and create a new commit. `memory_delete` can remove one current memory by ID,
+title, and revision; a manual file deletion and commit has the same
+history-preserving storage effect. Neither path purges older Git content.
 
 ## Rebuild the Vexor index
 
@@ -79,8 +79,8 @@ want to discard all derived index state:
 1. Stop every Perenna process using the same home.
 2. Move `<home>/index` outside the home as a temporary backup, or delete it.
 3. Restart a configured MCP client.
-4. Run a recall query with non-empty search text.
-5. Confirm that recall succeeds.
+4. Run `memory_read` with `action: "search"` and non-empty query text.
+5. Confirm that search succeeds.
 6. Remove the temporary index backup when it is no longer needed.
 
 Rebuild reads only the committed Git snapshot. Uncommitted working-tree files
@@ -88,12 +88,12 @@ never enter the collection.
 
 ## Recover from an embedding failure
 
-If a write reports successful Git persistence but indexing is pending:
+If a mutation reports successful Git persistence but indexing is pending:
 
-1. Do not repeat the same write merely to trigger embedding again.
+1. Do not repeat the same mutation merely to trigger embedding again.
 2. Check the effective Vexor provider, model, endpoint, and API key.
 3. Correct the provider configuration.
-4. Recall again to retry recovery.
+4. Search again to retry recovery.
 5. Rebuild the index if the provider, model, or vector dimension changed.
 
 The committed Markdown remains authoritative throughout this process.
@@ -101,19 +101,19 @@ The committed Markdown remains authoritative throughout this process.
 ## Recover from a Git commit failure
 
 Perenna attempts to restore the target file and Git index when commit creation
-fails. Verify the result before another write:
+fails. Verify the result before another mutation:
 
 ```bash
 git -C <memory-repository> status --short
 git -C <memory-repository> log -1 --oneline
 ```
 
-If the repository remains dirty, stop new writes and inspect file permissions,
+If the repository remains dirty, stop new mutations and inspect file permissions,
 disk space, repository state, and stderr diagnostics.
 
 ## Recover from a backup push failure
 
-Remote push is best effort and does not define write success. Check the local
+Remote push is best effort and does not define mutation success. Check the local
 state first. If the remote or its credentials were never configured, follow
 [Set up a backup remote](../reference/configuration.md#set-up-a-backup-remote)
 before treating the warning as a transient failure.
@@ -137,7 +137,7 @@ If the memory Git repository survives, the Vexor index is unnecessary:
 3. Validate the committed memory files.
 4. Leave `<new-home>/index` absent.
 5. Configure a working Vexor provider.
-6. Start Perenna with `<new-home>` and run a recall query.
+6. Start Perenna with `<new-home>` and run a search query.
 
-Validate recovery from Git history, memory content, and recall results rather
+Validate recovery from Git history, memory content, and search results rather
 than from any old cache files.

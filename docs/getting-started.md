@@ -75,10 +75,11 @@ connection checks.
 
 After the client reports that Perenna is connected:
 
-1. Call `memory` with `action: "query"` and no query text.
-2. Confirm that the response contains a lightweight memory index.
-3. Write a disposable test topic only if you want to verify the full Git and
-   retrieval path.
+1. Call `memory_read` with `action: "list"`.
+2. Confirm that the response contains the lightweight memory index.
+3. Create a disposable test topic through `memory_write` only if you want to
+   verify the full Git and retrieval path; create requires title, stable
+   one-line summary, and body.
 4. Inspect the generated repository with:
 
 ```bash

@@ -41,8 +41,11 @@ def test_real_vexor_collection_scope_and_deleted_index_recovery(
 
         results = index.search(snapshot, "architecture", "vexor")
 
-        assert {memory.id for memory in results} <= {global_memory.id, project_memory.id}
-        assert project_memory.id in {memory.id for memory in results}
+        assert {match.memory.id for match in results.matches} <= {
+            global_memory.id,
+            project_memory.id,
+        }
+        assert project_memory.id in {match.memory.id for match in results.matches}
         assert (index_dir / "collections.db").exists()
 
         shutil.rmtree(index_dir)
@@ -56,6 +59,7 @@ def _memory(memory_id: str, scope: str, path: str, body: str) -> Memory:
     return Memory(
         id=memory_id,
         title=body.split()[0],
+        summary=f"Memory about {body}.",
         source="codex",
         created_at="2026-08-22T00:00:00.000000Z",
         updated_at="2026-08-22T00:00:00.000000Z",

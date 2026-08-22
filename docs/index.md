@@ -15,7 +15,7 @@ more exact layers only when you need them.
 | Document | Use it to |
 | --- | --- |
 | [Client setup](guides/client-setup.md) | Connect Claude Code, Codex, ChatGPT Desktop, or Cursor |
-| [Using permanent memory](guides/using-memory.md) | Query, recall, create, and update memories effectively |
+| [Using permanent memory](guides/using-memory.md) | List, search, get, create, patch, replace, and delete memories |
 | [Maintenance and recovery](guides/maintenance.md) | Inspect Git history, handle local edits, and rebuild the index |
 
 ## Understand the design
@@ -23,7 +23,7 @@ more exact layers only when you need them.
 | Document | Use it to |
 | --- | --- |
 | [Architecture](concepts/architecture.md) | Understand component boundaries and the local-first design |
-| [Memory model](concepts/memory-model.md) | Understand scopes, named notes, and upsert behavior |
+| [Memory model](concepts/memory-model.md) | Understand identity, summaries, scopes, reads, and mutations |
 | [Consistency model](concepts/consistency.md) | Understand commits, locks, snapshots, indexing, and failures |
 
 ## Look up an exact contract
@@ -31,7 +31,7 @@ more exact layers only when you need them.
 | Document | Use it to |
 | --- | --- |
 | [Configuration reference](reference/configuration.md) | Look up CLI flags, environment variables, paths, and Vexor settings |
-| [MCP API reference](reference/mcp-api.md) | Look up the exact `memory` tool schema and action rules |
+| [MCP API reference](reference/mcp-api.md) | Look up the three tool schemas and action rules |
 | [Memory file format](reference/memory-format.md) | Look up paths, frontmatter, normalization, and validation rules |
 
 ## Develop Perenna

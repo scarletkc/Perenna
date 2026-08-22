@@ -6,11 +6,11 @@ import pytest
 
 from perenna.git import GitRepository
 from perenna.store import MemoryStore
-from tests.helpers import EmbeddingServer, perenna_session, result_text
+from tests.helpers import EmbeddingServer, perenna_session
 
 
 @pytest.mark.asyncio
-async def test_cross_agent_write_recall_and_update_preserves_identity(tmp_path: Path) -> None:
+async def test_cross_agent_create_search_get_patch_and_delete(tmp_path: Path) -> None:
     home = tmp_path / "home"
     with EmbeddingServer() as server:
         async with perenna_session(home, "claude-code", embedding_server=server) as (
@@ -19,51 +19,77 @@ async def test_cross_agent_write_recall_and_update_preserves_identity(tmp_path: 
             _,
         ):
             created = await claude.call_tool(
-                "memory",
+                "memory_write",
                 {
-                    "action": "write",
+                    "action": "create",
                     "title": "AI collaboration preferences",
+                    "summary": "Stable preferences for collaborating with AI agents.",
                     "body": "Work proactively on clear tasks.",
                 },
             )
             assert not created.is_error
-            assert "created" in result_text(created)
+            memory_id = created.structured_content["memory"]["memory_id"]
+            first_revision = created.structured_content["memory"]["revision"]
 
         repository = GitRepository.initialize(home / "memory")
         first = MemoryStore(repository).snapshot().memories[0]
 
         async with perenna_session(home, "codex", embedding_server=server) as (codex, _, _):
-            recalled = await codex.call_tool(
-                "memory",
-                {"action": "query", "query": "proactively clear tasks"},
+            searched = await codex.call_tool(
+                "memory_read",
+                {"action": "search", "query": "proactively clear tasks", "limit": 1},
             )
-            assert not recalled.is_error
-            assert "Work proactively on clear tasks." in result_text(recalled)
+            assert not searched.is_error
+            match = searched.structured_content["matches"][0]
+            assert match["memory_id"] == memory_id
+            assert match["summary"] == "Stable preferences for collaborating with AI agents."
+            assert match["passages"][0]["text"] == "Work proactively on clear tasks."
+
+            fetched = await codex.call_tool(
+                "memory_read",
+                {"action": "get", "memory_id": memory_id},
+            )
+            assert fetched.structured_content["memory"]["body"] == first.body
+            assert fetched.structured_content["memory"]["revision"] == first_revision
 
         async with perenna_session(home, "cursor", embedding_server=server) as (cursor, _, _):
-            updated_result = await cursor.call_tool(
-                "memory",
+            patched = await cursor.call_tool(
+                "memory_write",
                 {
-                    "action": "write",
-                    "title": "ai collaboration preferences",
-                    "body": "Work proactively and explain important design decisions.",
+                    "action": "patch",
+                    "memory_id": memory_id,
+                    "base_revision": first_revision,
+                    "edits": [
+                        {
+                            "old_text": "Work proactively on clear tasks.",
+                            "new_text": (
+                                "Work proactively and explain important design decisions."
+                            ),
+                        }
+                    ],
                 },
             )
-            assert not updated_result.is_error
-            assert "updated" in result_text(updated_result)
+            assert not patched.is_error
+            patched_revision = patched.structured_content["memory"]["revision"]
 
-    final_snapshot = MemoryStore(repository).snapshot()
-    assert len(final_snapshot.memories) == 1
-    updated = final_snapshot.memories[0]
-    assert updated.id == first.id
-    assert updated.created_at == first.created_at
-    assert updated.updated_at > first.updated_at
-    assert updated.source == "cursor"
-    assert updated.body == "Work proactively and explain important design decisions."
-    assert repository._run(["rev-list", "--count", "HEAD"]).stdout.strip() == "2"
+            deleted = await cursor.call_tool(
+                "memory_delete",
+                {
+                    "memory_id": memory_id,
+                    "expected_title": "AI collaboration preferences",
+                    "base_revision": patched_revision,
+                },
+            )
+            assert not deleted.is_error
+            assert deleted.structured_content["recoverable_via_git"]
+
+    assert MemoryStore(repository).snapshot().memories == ()
+    assert repository._run(["rev-list", "--count", "HEAD"]).stdout.strip() == "3"
     repository.assert_clean()
     embedded_texts = [text for batch in server.requests for text in batch]
     assert any(
-        "AI collaboration preferences" in text and "Work proactively" in text
+        "AI collaboration preferences" in text
+        and "Stable preferences for collaborating" in text
+        and "Work proactively" in text
         for text in embedded_texts
     )

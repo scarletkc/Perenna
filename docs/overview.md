@@ -18,15 +18,17 @@ source that different MCP clients can read and update.
 
 ## Core capabilities
 
-Perenna exposes one MCP tool named `memory` with two actions:
+Perenna exposes three MCP tools:
 
-- `query` lists available topics or recalls relevant full memories;
-- `write` creates or replaces a named memory in one scope.
+- `memory_read` lists topics, searches ranked passages, or gets one complete
+  memory;
+- `memory_write` creates, exactly patches, or deliberately replaces a memory;
+- `memory_delete` removes one exact current memory while Git retains history.
 
 Internally, Perenna provides:
 
 - Markdown as the only permanent data format;
-- one Git commit for every successful logical write;
+- one Git commit for every successful changed mutation;
 - global and project-specific scopes;
 - semantic retrieval through a rebuildable Vexor collection;
 - safe coordination between multiple local Perenna processes;
@@ -44,9 +46,11 @@ Start a session
       ↓
 Read the lightweight memory index
       ↓
-Recall a full memory only when history matters
+Search bounded candidate passages when history matters
       ↓
-Write only information that should survive future sessions
+Get a complete memory only when needed
+      ↓
+Create or revise only durable information
 ```
 
 This keeps irrelevant history out of the active context and leaves the agent

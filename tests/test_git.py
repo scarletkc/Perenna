@@ -11,6 +11,7 @@ from perenna.config import RuntimePaths, RuntimeSettings
 from perenna.core import PerennaCore
 from perenna.errors import RepositoryError
 from perenna.git import GIT_IDENTITY_EMAIL, GIT_IDENTITY_NAME, GitRepository
+from perenna.markdown import memory_revision
 from perenna.store import MemoryStore
 
 MEMORY_ID = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
@@ -22,7 +23,13 @@ def _write_one(repository: GitRepository) -> str:
         clock=lambda: datetime(2026, 8, 22, tzinfo=UTC),
         id_factory=lambda: MEMORY_ID,
     )
-    return store.write(title="Fact", body="body", source="codex", project=None).commit
+    return store.create(
+        title="Fact",
+        summary="A fact.",
+        body="body",
+        source="codex",
+        project=None,
+    ).commit
 
 
 def test_core_initializes_runtime_directories_and_memory_repository(tmp_path: Path) -> None:
@@ -77,7 +84,7 @@ def test_initialize_refuses_nonempty_non_repository_without_overwriting(tmp_path
     assert not (path / ".git").exists()
 
 
-def test_first_and_update_writes_create_two_commits(
+def test_create_and_replace_create_two_commits(
     repository: GitRepository,
     run_git: Callable[[Path, list[str]], subprocess.CompletedProcess[str]],
 ) -> None:
@@ -93,14 +100,26 @@ def test_first_and_update_writes_create_two_commits(
         id_factory=lambda: MEMORY_ID,
     )
 
-    first = store.write(title="Fact", body="one", source="claude-code", project=None)
-    second = store.write(title="fact", body="two", source="cursor", project=None)
+    first = store.create(
+        title="Fact",
+        summary="A fact.",
+        body="one",
+        source="claude-code",
+        project=None,
+    )
+    second = store.replace(
+        memory_id=first.memory.id,
+        base_revision=memory_revision(first.memory),
+        summary="An updated fact.",
+        body="two",
+        source="cursor",
+    )
 
     assert first.previous_commit is None
     assert second.previous_commit == first.commit
     assert run_git(repository.path, ["rev-list", "--count", "HEAD"]).stdout.strip() == "2"
     subjects = run_git(repository.path, ["log", "--format=%s"]).stdout.splitlines()
-    assert subjects == ['memory(global): update "fact"', 'memory(global): add "Fact"']
+    assert subjects == ['memory(global): replace "Fact"', 'memory(global): create "Fact"']
 
 
 def test_push_reports_disabled_and_missing_remote(repository: GitRepository) -> None:

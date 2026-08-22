@@ -3,11 +3,13 @@ from __future__ import annotations
 import re
 import secrets
 import unicodedata
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import PurePosixPath
 
 MAX_TITLE_LENGTH = 120
+MAX_SUMMARY_LENGTH = 300
 MAX_BODY_LENGTH = 20_000
 MAX_PROJECT_LENGTH = 64
 MAX_SOURCE_LENGTH = 64
@@ -15,6 +17,7 @@ MAX_SOURCE_LENGTH = 64
 _PROJECT_RE = re.compile(r"[a-z0-9._-]+\Z")
 _SOURCE_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}\Z")
 _ULID_RE = re.compile(r"[0-7][0-9A-HJKMNP-TV-Z]{25}\Z")
+_REVISION_RE = re.compile(r"[0-9a-f]{64}\Z")
 _TIMESTAMP_RE = re.compile(
     r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})\Z"
 )
@@ -34,6 +37,7 @@ _WINDOWS_RESERVED_NAMES = {
 class Memory:
     id: str
     title: str
+    summary: str
     source: str
     created_at: str
     updated_at: str
@@ -58,11 +62,40 @@ class MemorySnapshot:
 
 
 @dataclass(frozen=True, slots=True)
-class WriteReceipt:
+class PatchEdit:
+    old_text: str
+    new_text: str
+
+
+@dataclass(frozen=True, slots=True)
+class MutationReceipt:
     memory: Memory
     operation: str
+    changed: bool
+    previous_memory: Memory | None
     previous_commit: str | None
     commit: str
+
+
+@dataclass(frozen=True, slots=True)
+class SearchPassage:
+    text: str
+    start_char: int
+    end_char: int
+
+
+@dataclass(frozen=True, slots=True)
+class SearchMatch:
+    memory: Memory
+    revision: str
+    rank: int
+    passages: Sequence[SearchPassage]
+
+
+@dataclass(frozen=True, slots=True)
+class SearchResults:
+    matches: Sequence[SearchMatch]
+    truncated: bool
 
 
 def normalize_title(value: str) -> str:
@@ -81,6 +114,20 @@ def normalize_title(value: str) -> str:
 
 def title_key(value: str) -> str:
     return normalize_title(value).casefold()
+
+
+def normalize_summary(value: str) -> str:
+    if not isinstance(value, str):
+        raise ValueError("summary must be a string")
+    normalized = unicodedata.normalize("NFKC", value)
+    normalized = _WHITESPACE_RE.sub(" ", normalized).strip()
+    if not normalized:
+        raise ValueError("summary is empty")
+    if any(unicodedata.category(character) in {"Cc", "Cs"} for character in normalized):
+        raise ValueError("summary contains a control character")
+    if len(normalized) > MAX_SUMMARY_LENGTH:
+        raise ValueError("summary is too long")
+    return normalized
 
 
 def normalize_body(value: str) -> str:
@@ -140,6 +187,12 @@ def memory_path(memory_id: str, project: str | None) -> str:
 def validate_ulid(value: str) -> str:
     if not isinstance(value, str) or _ULID_RE.fullmatch(value) is None:
         raise ValueError("id is not a valid ULID")
+    return value
+
+
+def validate_revision(value: str) -> str:
+    if not isinstance(value, str) or _REVISION_RE.fullmatch(value) is None:
+        raise ValueError("revision is not a lowercase SHA-256 digest")
     return value
 
 

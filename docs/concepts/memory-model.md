@@ -3,91 +3,80 @@
 Perenna models permanent memory as a versioned collection of named Markdown
 notes.
 
-## A memory is a named note
+## A memory is a curated current state
 
-A memory has a stable topic title and a complete body. It may hold several
-closely related statements when they form one durable subject.
+A memory has a stable title, a stable coverage summary, and a complete body. It
+may hold several related statements when they form one durable subject.
 
-Good topic boundaries:
+```text
+Title    = durable topic name
+Summary  = what this memory covers
+Body     = current valid state of that subject
+Git      = prior states
+```
 
-- `AI collaboration preferences`
-- `Release workflow`
-- `Storage authority`
-- `API compatibility policy`
+The summary is not a dynamic TL;DR. A detail changing inside the same subject
+normally changes only the body. Change the summary when the subject's coverage
+changes.
 
-Poor topic boundaries:
+Good topic boundaries include `AI collaboration preferences`, `Release
+workflow`, and `Storage authority`. Temporary debugging state, transcripts,
+daily journals, and task lists belong elsewhere.
 
-- `Something from yesterday`
-- `Current debugging status`
-- one file per tiny fact that belongs to the same long-term subject.
+## Identity and scopes
 
-Perenna is not an atomic fact database, conversation archive, daily journal,
-or task tracker.
+Perenna assigns every memory a stable ULID. Read, patch, replace, and delete
+operations address that ID; a title is not an update selector.
 
-## Scopes
-
-Perenna supports two scope forms:
+Two scopes are supported:
 
 - `global` applies across projects;
 - `project:<slug>` applies to one project.
 
-Scope comes from the memory path and is not stored in frontmatter. Global and
-project memories may share a title because title uniqueness is evaluated
-within one scope.
+Scope comes from the memory path. Global and project memories may share a
+title, but normalized titles remain unique inside one scope. The first MCP
+version keeps title and scope unchanged after creation.
 
-Use global scope for cross-project preferences and constraints. Use project
-scope for repository-specific architecture, workflow, history, and policy.
+## Reads are separated by purpose
 
-## Title identity and upsert
+The read tool provides three paths:
 
-The normalized title is the topic identity inside a scope. A write performs an
-upsert:
+- `list` returns lightweight IDs, titles, scopes, and summaries;
+- `search` returns bounded ranked candidate passages and revisions;
+- `get` returns one complete committed memory and revision.
 
-```text
-No matching normalized title  → create a new memory and ULID
-Matching normalized title     → update the existing memory
-```
+Search chunks are derived cache data. They help choose a memory without loading
+every complete body. The first version does not apply a minimum relevance
+threshold, so ranked candidates are not a claim that a true match exists.
 
-An update keeps the ID and creation time. It replaces the normalized title and
-complete body, then records the latest source and update time.
+## Mutations are explicit
 
-The exact normalization algorithm and size limits are defined in the
-[memory file format](../reference/memory-format.md).
+- `create` adds a new named memory and assigns its ID;
+- `patch` applies exact local edits while preserving all unnamed body text;
+- `replace` intentionally supplies the complete summary and body;
+- `delete` removes one memory from the current tree.
 
-## Current state and history
+Patch and replace require the per-memory revision returned by search or get.
+The revision covers canonical frontmatter, including summary, and body. This
+prevents an edit based on stale state without making unrelated memory commits
+conflict.
 
-The body represents the current valid state of the topic. It should not become
-a hand-written changelog.
+There is no append action. Adding content is an exact patch against an existing
+anchor, which keeps placement and surrounding context explicit.
 
-```text
-Memory body  = current state
-Git history  = previous states
-```
+## History and deletion
 
-This keeps recalled content concise while preserving every older version for
-audit and recovery.
+Every changed mutation creates one Git commit containing only the target memory
+path. Delete removes the memory from current reads and search but ordinary Git
+history retains its prior contents. It is recoverable deletion, not sensitive
+data purging.
 
 ## Source attribution
 
-Every memory records the host that most recently wrote it. The host injects
-`source` when it starts Perenna, so the model cannot claim another source in a
-tool call. Earlier sources remain visible in Git history.
+Every changed memory records the host that most recently changed it. The host
+injects `source` when Perenna starts, so a tool call cannot claim another
+source. Earlier sources remain visible in Git history.
 
-## Two query modes
-
-The same MCP action provides two different read behaviors:
-
-- no query text returns a lightweight topic index;
-- non-empty query text performs semantic recall and returns full memories.
-
-Project recall searches global memories plus the selected project. Recall
-without a project searches every scope.
-
-## No MCP deletion
-
-The `memory` tool has no delete action. An agent can replace an outdated topic
-with its current state. A user can delete a file through Git when true removal
-is necessary, while older content remains recoverable from history.
-
-For practical examples, see
-[Using permanent memory](../guides/using-memory.md).
+The exact API and file rules are in the
+[MCP API reference](../reference/mcp-api.md) and
+[memory file format](../reference/memory-format.md).

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from hashlib import sha256
 from pathlib import PurePosixPath
 from typing import Any
 
@@ -12,12 +13,13 @@ from perenna.models import (
     normalize_body,
     normalize_project,
     normalize_source,
+    normalize_summary,
     normalize_title,
     parse_timestamp,
     validate_ulid,
 )
 
-FRONTMATTER_FIELDS = ("id", "title", "source", "created_at", "updated_at")
+FRONTMATTER_FIELDS = ("id", "title", "summary", "source", "created_at", "updated_at")
 
 
 class _UniqueSafeLoader(yaml.SafeLoader):
@@ -66,6 +68,12 @@ def serialize_memory(memory: Memory) -> str:
     return "\n".join(lines) + "\n"
 
 
+def memory_revision(memory: Memory) -> str:
+    """Return the opaque revision of one canonical committed memory."""
+
+    return sha256(serialize_memory(memory).encode("utf-8")).hexdigest()
+
+
 def parse_memory(text: str, relative_path: str) -> Memory:
     normalized_text = text.replace("\r\n", "\n").replace("\r", "\n")
     if not normalized_text.startswith("---\n"):
@@ -98,6 +106,7 @@ def parse_memory(text: str, relative_path: str) -> Memory:
     try:
         memory_id = validate_ulid(raw["id"])
         title = normalize_title(raw["title"])
+        summary = normalize_summary(raw["summary"])
         source = normalize_source(raw["source"])
         created_at = _timestamp_string(raw["created_at"])
         updated_at = _timestamp_string(raw["updated_at"])
@@ -107,6 +116,8 @@ def parse_memory(text: str, relative_path: str) -> Memory:
 
     if title != raw["title"]:
         raise _invalid(relative_path, "title is not normalized")
+    if summary != raw["summary"]:
+        raise _invalid(relative_path, "summary is not normalized")
     if source != raw["source"]:
         raise _invalid(relative_path, "source is not normalized")
     if parse_timestamp(updated_at) < parse_timestamp(created_at):
@@ -118,6 +129,7 @@ def parse_memory(text: str, relative_path: str) -> Memory:
     return Memory(
         id=memory_id,
         title=title,
+        summary=summary,
         source=source,
         created_at=created_at,
         updated_at=updated_at,

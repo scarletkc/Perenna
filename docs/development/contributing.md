@@ -32,11 +32,11 @@ Use pytest temporary directories or an explicit disposable home.
 src/perenna/
 ├── cli.py          # command parsing and stderr logging setup
 ├── mcp_server.py   # exact stdio MCP adapter
-├── core.py         # list, recall, write orchestration
+├── core.py         # read, mutation, lock, and backup orchestration
 ├── config.py       # startup precedence and runtime paths
 ├── models.py       # memory types and normalization
 ├── markdown.py     # strict Markdown serialization and parsing
-├── store.py        # title upsert and write transaction
+├── store.py        # revision-guarded mutation transactions
 ├── git.py          # isolated Git operations and optional push
 ├── locking.py      # cross-process reader/writer and push locks
 ├── index.py        # Vexor collection and commit marker
@@ -57,10 +57,10 @@ Changes must preserve these rules:
    speculative generic transport interface.
 4. The implemented server remains local stdio. Do not add HTTP, authentication,
    deployment, or multi-user placeholders without an approved product change.
-5. MCP continues to expose one `memory` tool. Internal Git and index operations
-   do not become agent-facing tools.
-6. A successful write always means that one target memory file is committed to
-   local Git.
+5. MCP exposes `memory_read`, `memory_write`, and `memory_delete`. Internal Git
+   and index operations do not become agent-facing tools.
+6. A successful changed mutation always means that one target memory path is
+   committed to local Git.
 7. An index or backup failure never rolls back an existing memory commit.
 
 Read [Architecture](../concepts/architecture.md) and
@@ -74,7 +74,8 @@ locking, or retrieval.
 - Reject links, non-regular Git blobs, path traversal, and non-portable project
   names.
 - Pin every snapshot read to one captured commit.
-- Keep memory body and recall query text out of logs and unexpected errors.
+- Keep memory summaries, bodies, and search query text out of logs and
+  unexpected errors.
 
 The public validation contract belongs in
 [Memory file format](../reference/memory-format.md).
@@ -91,13 +92,14 @@ Runtime Git calls must:
 - isolate hooks during the Perenna commit;
 - stage and commit only the intended memory path;
 - preserve safe rollback when commit creation fails;
-- keep push best effort and separate from the write lock.
+- keep push best effort and separate from the repository mutation lock.
 
 Do not introduce automatic fetch, pull, force-push, or conflict resolution.
 
 ## MCP and user-visible output
 
-- Keep `MEMORY_TOOL_SCHEMA` exact and reject extra arguments server-side.
+- Keep all three tool schemas and structured output schemas exact; reject extra
+  or action-incompatible arguments server-side.
 - Run synchronous core operations in worker threads so the MCP event loop does
   not serialize all reads.
 - Reserve stdout for protocol messages during stdio operation.

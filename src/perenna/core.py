@@ -1,14 +1,22 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable, Sequence
 from pathlib import Path
+from typing import Any
 
 from perenna.config import RuntimeSettings
-from perenna.errors import ConfigurationError, IndexUnavailableError, MemoryValidationError
+from perenna.errors import (
+    ConfigurationError,
+    IndexUnavailableError,
+    MemoryNotFoundError,
+    MemoryValidationError,
+)
 from perenna.git import GitRepository
-from perenna.index import VexorIndex
+from perenna.index import DEFAULT_SEARCH_LIMIT, MAX_SEARCH_MATCHES, VexorIndex
 from perenna.locking import RepositoryLocks
-from perenna.models import Memory, normalize_project
+from perenna.markdown import memory_revision
+from perenna.models import Memory, MutationReceipt, PatchEdit, normalize_project, validate_ulid
 from perenna.store import MemoryStore
 
 logger = logging.getLogger(__name__)
@@ -36,18 +44,12 @@ class PerennaCore:
         self.store = store or MemoryStore(self.repository)
         self.index = index or VexorIndex(settings.paths.index)
 
-    def list_index(self, *, project: str | None = None) -> str:
+    def list_memories(self, *, project: str | None = None) -> dict[str, Any]:
         normalized_project = _project(project)
         with self.locks.shared():
             snapshot = self.store.snapshot()
-        global_titles = sorted(
-            (memory.title for memory in snapshot.memories if memory.scope == "global"),
-            key=str.casefold,
-        )
-        lines = ["Global memories:"]
-        lines.extend(_title_lines(global_titles))
-
         if normalized_project is None:
+            selected = [memory for memory in snapshot.memories if memory.scope == "global"]
             projects = sorted(
                 {
                     memory.project
@@ -55,54 +57,49 @@ class PerennaCore:
                     if memory.project is not None
                 }
             )
-            lines.extend(("", "Projects:"))
-            lines.extend(_title_lines(projects))
-            displayed_count = len(global_titles) + len(projects)
         else:
-            project_titles = sorted(
-                (
-                    memory.title
-                    for memory in snapshot.memories
-                    if memory.scope == f"project:{normalized_project}"
-                ),
-                key=str.casefold,
-            )
-            lines.extend(("", f"Project: {normalized_project}"))
-            lines.extend(_title_lines(project_titles))
-            displayed_count = len(global_titles) + len(project_titles)
-
+            allowed = {"global", f"project:{normalized_project}"}
+            selected = [memory for memory in snapshot.memories if memory.scope in allowed]
+            projects = []
+        memories = [_memory_ref(memory) for memory in sorted(selected, key=_memory_sort_key)]
         logger.info(
-            "action=query mode=index source=%s project=%s results=%d",
+            "tool=memory_read action=list source=%s project=%s results=%d",
             self.settings.source,
             normalized_project or "all",
-            displayed_count,
+            len(memories),
         )
-        return "\n".join(lines)
+        return {
+            "action": "list",
+            "project": normalized_project,
+            "memories": memories,
+            "projects": projects,
+        }
 
-    def recall(self, *, query: str, project: str | None = None) -> str:
-        normalized_query = query.strip() if isinstance(query, str) else ""
-        if not normalized_query:
-            raise MemoryValidationError(
-                "Memory query is empty. Omit query to read the lightweight memory index, or "
-                "provide text to recall matching memories."
-            )
-        if "\x00" in normalized_query or any(
-            0xD800 <= ord(character) <= 0xDFFF for character in normalized_query
-        ):
-            raise MemoryValidationError(
-                "Memory query contains an unsupported control character. Provide plain text or "
-                "omit query to read the lightweight memory index."
-            )
+    def search(
+        self,
+        *,
+        query: str,
+        project: str | None = None,
+        limit: int = DEFAULT_SEARCH_LIMIT,
+    ) -> dict[str, Any]:
+        normalized_query = _query(query)
         normalized_project = _project(project)
+        normalized_limit = _limit(limit)
 
         while True:
             try:
                 with self.locks.shared():
                     snapshot = self.store.snapshot()
                     if not snapshot.memories:
-                        return "No permanent memories have been written yet."
+                        results = None
+                        break
                     if self.index.is_current(snapshot):
-                        memories = self.index.search(snapshot, normalized_query, normalized_project)
+                        results = self.index.search(
+                            snapshot,
+                            normalized_query,
+                            normalized_project,
+                            normalized_limit,
+                        )
                         break
             except IndexUnavailableError:
                 self._invalidate_failed_index()
@@ -118,79 +115,252 @@ class PerennaCore:
                 if not current:
                     self.index.rebuild(snapshot)
 
+        matches = [] if results is None else [_match_payload(match) for match in results.matches]
+        truncated = False if results is None else results.truncated
         logger.info(
-            "action=query mode=recall source=%s project=%s results=%d",
+            "tool=memory_read action=search source=%s project=%s results=%d",
             self.settings.source,
             normalized_project or "all",
-            len(memories),
+            len(matches),
         )
-        return _format_recall(memories)
+        return {
+            "action": "search",
+            "project": normalized_project,
+            "limit": normalized_limit,
+            "matches": matches,
+            "truncated": truncated,
+        }
 
-    def write(
+    def get(self, *, memory_id: str) -> dict[str, Any]:
+        normalized_id = _memory_id(memory_id)
+        with self.locks.shared():
+            snapshot = self.store.snapshot()
+            memory = snapshot.by_id().get(normalized_id)
+        if memory is None:
+            raise MemoryNotFoundError(
+                f"Memory {normalized_id} was not found in the committed snapshot. List or search "
+                "memories again, then retry with a current memory ID."
+            )
+        logger.info(
+            "tool=memory_read action=get source=%s project=%s results=1",
+            self.settings.source,
+            memory.project or "global",
+        )
+        return {"action": "get", "memory": _memory_payload(memory)}
+
+    def create(
         self,
         *,
         title: str,
+        summary: str,
         body: str,
         project: str | None = None,
-    ) -> str:
-        index_synchronized = True
-        with self.locks.exclusive():
-            receipt = self.store.write(
+    ) -> dict[str, Any]:
+        return self._mutate(
+            lambda: self.store.create(
                 title=title,
+                summary=summary,
                 body=body,
                 source=self.settings.source,
                 project=project,
             )
+        )
+
+    def patch(
+        self,
+        *,
+        memory_id: str,
+        base_revision: str,
+        edits: Sequence[PatchEdit],
+        summary: str | None = None,
+    ) -> dict[str, Any]:
+        return self._mutate(
+            lambda: self.store.patch(
+                memory_id=memory_id,
+                base_revision=base_revision,
+                edits=edits,
+                source=self.settings.source,
+                summary=summary,
+            )
+        )
+
+    def replace(
+        self,
+        *,
+        memory_id: str,
+        base_revision: str,
+        summary: str,
+        body: str,
+    ) -> dict[str, Any]:
+        return self._mutate(
+            lambda: self.store.replace(
+                memory_id=memory_id,
+                base_revision=base_revision,
+                summary=summary,
+                body=body,
+                source=self.settings.source,
+            )
+        )
+
+    def delete(
+        self,
+        *,
+        memory_id: str,
+        expected_title: str,
+        base_revision: str,
+    ) -> dict[str, Any]:
+        return self._mutate(
+            lambda: self.store.delete(
+                memory_id=memory_id,
+                expected_title=expected_title,
+                base_revision=base_revision,
+            )
+        )
+
+    def _mutate(self, operation: Callable[[], MutationReceipt]) -> dict[str, Any]:
+        index_status = "current"
+        with self.locks.exclusive():
+            receipt = operation()
             snapshot = self.store.snapshot()
-            try:
-                self.index.synchronize_after_write(receipt, snapshot)
-            except Exception as exc:
-                index_synchronized = False
-                logger.warning(
-                    "action=write index=failed source=%s project=%s error_type=%s",
-                    self.settings.source,
-                    receipt.memory.project or "global",
-                    type(exc).__name__,
-                )
+            if receipt.changed:
+                try:
+                    self.index.synchronize_after_mutation(receipt, snapshot)
+                except Exception as exc:
+                    index_status = "pending"
+                    logger.warning(
+                        "memory_index=failed operation=%s source=%s project=%s error_type=%s",
+                        receipt.operation,
+                        self.settings.source,
+                        receipt.memory.project or "global",
+                        type(exc).__name__,
+                    )
+            else:
+                try:
+                    if not self.index.is_current(snapshot):
+                        index_status = "pending"
+                except Exception:
+                    index_status = "pending"
 
         logger.info(
-            "action=write operation=%s source=%s project=%s commit=%s",
+            "tool=%s action=%s changed=%s source=%s project=%s commit=%s",
+            "memory_delete" if receipt.operation == "delete" else "memory_write",
             receipt.operation,
+            str(receipt.changed).lower(),
             self.settings.source,
             receipt.memory.project or "global",
             receipt.commit[:12],
         )
-        if self.settings.git_remote is not None:
-            try:
-                with self.locks.push():
-                    outcome = self.repository.push(self.settings.git_remote)
-            except Exception as exc:
-                logger.warning("git_push=failed error_type=%s", type(exc).__name__)
-            else:
-                if outcome.attempted and not outcome.succeeded:
-                    logger.warning("git_push=%s", outcome.reason)
-                elif outcome.succeeded:
-                    logger.info("git_push=succeeded")
+        if receipt.changed:
+            self._push_best_effort()
+        return _mutation_payload(receipt, index_status)
 
-        verb = "created" if receipt.operation == "add" else "updated"
-        scope = "global" if receipt.memory.project is None else f"project:{receipt.memory.project}"
-        result = f"Memory {verb} in {scope} and committed to Git."
-        if not index_synchronized:
-            result += " Retrieval indexing is pending and will be retried on the next recall."
-        return result
+    def _push_best_effort(self) -> None:
+        if self.settings.git_remote is None:
+            return
+        try:
+            with self.locks.push():
+                outcome = self.repository.push(self.settings.git_remote)
+        except Exception as exc:
+            logger.warning("git_push=failed error_type=%s", type(exc).__name__)
+            return
+        if outcome.attempted and not outcome.succeeded:
+            logger.warning("git_push=%s", outcome.reason)
+        elif outcome.succeeded:
+            logger.info("git_push=succeeded")
 
     def _invalidate_failed_index(self) -> None:
         with self.locks.exclusive():
             self.index.invalidate()
 
 
-def _ensure_directory(path: Path, label: str) -> None:
-    if path.exists() and not path.is_dir():
-        raise ConfigurationError(
-            f"{label} path {path} is not a directory. Move that file or choose a different "
-            "--home, then restart Perenna."
+def _memory_ref(memory: Memory) -> dict[str, str]:
+    return {
+        "memory_id": memory.id,
+        "title": memory.title,
+        "scope": memory.scope,
+        "summary": memory.summary,
+    }
+
+
+def _memory_payload(memory: Memory) -> dict[str, str]:
+    return {
+        **_memory_ref(memory),
+        "source": memory.source,
+        "created_at": memory.created_at,
+        "updated_at": memory.updated_at,
+        "revision": memory_revision(memory),
+        "body": memory.body,
+    }
+
+
+def _match_payload(match: Any) -> dict[str, Any]:
+    return {
+        **_memory_ref(match.memory),
+        "revision": match.revision,
+        "rank": match.rank,
+        "passages": [
+            {
+                "text": passage.text,
+                "start_char": passage.start_char,
+                "end_char": passage.end_char,
+            }
+            for passage in match.passages
+        ],
+    }
+
+
+def _mutation_payload(receipt: MutationReceipt, index_status: str) -> dict[str, Any]:
+    memory = _memory_ref(receipt.memory)
+    if receipt.operation != "delete":
+        memory["revision"] = memory_revision(receipt.memory)
+    payload: dict[str, Any] = {
+        "action": receipt.operation,
+        "changed": receipt.changed,
+        "memory": memory,
+        "commit": receipt.commit,
+        "index_status": index_status,
+    }
+    if receipt.operation == "delete":
+        payload["recoverable_via_git"] = True
+    return payload
+
+
+def _memory_sort_key(memory: Memory) -> tuple[str, str]:
+    return memory.scope, memory.title.casefold()
+
+
+def _query(value: str) -> str:
+    normalized = value.strip() if isinstance(value, str) else ""
+    if not normalized:
+        raise MemoryValidationError("Memory search query is empty. Provide non-empty search text.")
+    if "\x00" in normalized or any(
+        0xD800 <= ord(character) <= 0xDFFF for character in normalized
+    ):
+        raise MemoryValidationError(
+            "Memory search query contains an unsupported control character. Provide plain text."
         )
-    path.mkdir(parents=True, exist_ok=True)
+    return normalized
+
+
+def _memory_id(value: str) -> str:
+    try:
+        return validate_ulid(value)
+    except (TypeError, ValueError) as exc:
+        raise MemoryValidationError(
+            "Memory ID is invalid. List or search memories and use a returned memory_id."
+        ) from exc
+
+
+def _limit(value: int) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise MemoryValidationError(
+            f"Memory search limit is invalid. Use an integer from 1 to {MAX_SEARCH_MATCHES}."
+        )
+    if not 1 <= value <= MAX_SEARCH_MATCHES:
+        raise MemoryValidationError(
+            f"Memory search limit is invalid. Use an integer from 1 to {MAX_SEARCH_MATCHES}."
+        )
+    return value
 
 
 def _project(project: str | None) -> str | None:
@@ -205,27 +375,10 @@ def _project(project: str | None) -> str | None:
         ) from exc
 
 
-def _title_lines(values: list[str] | list[str | None]) -> list[str]:
-    strings = [value for value in values if value is not None]
-    return [f"- {value}" for value in strings] if strings else ["- (none)"]
-
-
-def _format_recall(memories: list[Memory]) -> str:
-    if not memories:
-        return "No matching permanent memories were found."
-    blocks = []
-    for memory in memories:
-        label = "Global" if memory.project is None else f"Project: {memory.project}"
-        blocks.append(
-            "\n".join(
-                (
-                    f"[{label}]",
-                    f"Title: {memory.title}",
-                    f"Source: {memory.source}",
-                    f"Updated: {memory.updated_at}",
-                    "",
-                    memory.body,
-                )
-            )
+def _ensure_directory(path: Path, label: str) -> None:
+    if path.exists() and not path.is_dir():
+        raise ConfigurationError(
+            f"{label} path {path} is not a directory. Move that file or choose a different "
+            "--home, then restart Perenna."
         )
-    return "\n\n---\n\n".join(blocks)
+    path.mkdir(parents=True, exist_ok=True)

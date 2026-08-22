@@ -6,7 +6,6 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -15,20 +14,29 @@ from perenna.core import PerennaCore
 from perenna.errors import (
     ConfigurationError,
     IndexUnavailableError,
+    MemoryNotFoundError,
     MemoryValidationError,
     RepositoryError,
 )
 from perenna.git import PushOutcome
-from perenna.models import MemorySnapshot, WriteReceipt
+from perenna.markdown import memory_revision
+from perenna.models import (
+    MemorySnapshot,
+    MutationReceipt,
+    PatchEdit,
+    SearchMatch,
+    SearchPassage,
+    SearchResults,
+)
 
 
 class MemoryBackedIndex:
     def __init__(self) -> None:
         self.current = True
 
-    def synchronize_after_write(
+    def synchronize_after_mutation(
         self,
-        _receipt: WriteReceipt,
+        _receipt: MutationReceipt,
         _snapshot: MemorySnapshot,
     ) -> None:
         self.current = True
@@ -41,11 +49,22 @@ class MemoryBackedIndex:
         snapshot: MemorySnapshot,
         _query: str,
         project: str | None,
-    ) -> list[Any]:
+        limit: int,
+    ) -> SearchResults:
         allowed = {"global"} if project is None else {"global", f"project:{project}"}
-        if project is None:
-            return list(snapshot.memories)
-        return [memory for memory in snapshot.memories if memory.scope in allowed]
+        memories = list(snapshot.memories)
+        if project is not None:
+            memories = [memory for memory in memories if memory.scope in allowed]
+        matches = tuple(
+            SearchMatch(
+                memory=memory,
+                revision=memory_revision(memory),
+                rank=rank,
+                passages=(SearchPassage(memory.body, 0, len(memory.body)),),
+            )
+            for rank, memory in enumerate(memories[:limit], start=1)
+        )
+        return SearchResults(matches, len(memories) > limit)
 
     def rebuild(self, _snapshot: MemorySnapshot) -> None:
         self.current = True
@@ -54,26 +73,70 @@ class MemoryBackedIndex:
         self.current = False
 
 
-class FailingWriteIndex(MemoryBackedIndex):
-    def synchronize_after_write(
+class FailingMutationIndex(MemoryBackedIndex):
+    def synchronize_after_mutation(
         self,
-        _receipt: WriteReceipt,
+        _receipt: MutationReceipt,
         _snapshot: MemorySnapshot,
     ) -> None:
         raise IndexUnavailableError("offline")
 
 
 def test_index_failure_keeps_committed_memory(tmp_path: Path) -> None:
-    core = _core(tmp_path, index=FailingWriteIndex())
+    core = _core(tmp_path, index=FailingMutationIndex())
 
-    result = core.write(title="Durable topic", body="committed body")
+    result = core.create(
+        title="Durable topic",
+        summary="A durable topic.",
+        body="committed body",
+    )
 
-    assert "committed to Git" in result
-    assert "indexing is pending" in result
+    assert result["changed"]
+    assert result["index_status"] == "pending"
     assert core.repository.head() is not None
     assert core.repository._run(["rev-list", "--count", "HEAD"]).stdout.strip() == "1"
     assert core.store.snapshot().memories[0].body == "committed body"
     core.repository.assert_clean()
+
+
+def test_create_get_patch_replace_and_delete_return_current_revisions(tmp_path: Path) -> None:
+    core = _core(tmp_path)
+    created = core.create(
+        title="Policy",
+        summary="Rules covered by this policy.",
+        body="Alpha rule.",
+    )
+    memory_id = created["memory"]["memory_id"]
+    first_revision = created["memory"]["revision"]
+
+    fetched = core.get(memory_id=memory_id)
+    assert fetched["memory"]["body"] == "Alpha rule."
+    assert fetched["memory"]["revision"] == first_revision
+
+    patched = core.patch(
+        memory_id=memory_id,
+        base_revision=first_revision,
+        edits=(PatchEdit("Alpha", "Current alpha"),),
+        summary="Current rules covered by this policy.",
+    )
+    assert patched["memory"]["summary"] == "Current rules covered by this policy."
+    assert patched["memory"]["revision"] != first_revision
+    replaced = core.replace(
+        memory_id=memory_id,
+        base_revision=patched["memory"]["revision"],
+        summary="The complete replacement policy.",
+        body="Complete replacement.",
+    )
+    deleted = core.delete(
+        memory_id=memory_id,
+        expected_title="Policy",
+        base_revision=replaced["memory"]["revision"],
+    )
+
+    assert deleted["action"] == "delete"
+    assert deleted["recoverable_via_git"]
+    assert core.list_memories()["memories"] == []
+    assert core.repository._run(["rev-list", "--count", "HEAD"]).stdout.strip() == "4"
 
 
 def test_push_lock_failure_is_best_effort(tmp_path: Path, monkeypatch) -> None:
@@ -86,9 +149,9 @@ def test_push_lock_failure_is_best_effort(tmp_path: Path, monkeypatch) -> None:
 
     monkeypatch.setattr(core.locks, "push", failed_push_lock)
 
-    result = core.write(title="Topic", body="Body")
+    result = core.create(title="Topic", summary="A topic.", body="Body")
 
-    assert result == "Memory created in global and committed to Git."
+    assert result["changed"]
     assert len(core.store.snapshot().memories) == 1
 
 
@@ -101,38 +164,55 @@ def test_disabled_remote_does_not_wait_for_push_lock(tmp_path: Path, monkeypatch
         yield
 
     monkeypatch.setattr(core.locks, "push", forbidden_push_lock)
-    assert "committed to Git" in core.write(title="Topic", body="Body")
+    assert core.create(title="Topic", summary="A topic.", body="Body")["changed"]
 
 
-def test_dirty_worktree_recall_uses_committed_snapshot(tmp_path: Path) -> None:
+def test_dirty_worktree_reads_use_committed_snapshot(tmp_path: Path) -> None:
     core = _core(tmp_path)
-    core.write(title="Stable topic", body="committed body")
+    created = core.create(
+        title="Stable topic",
+        summary="A stable topic.",
+        body="committed body",
+    )
+    memory_id = created["memory"]["memory_id"]
     memory = core.store.snapshot().memories[0]
     target = core.repository.worktree_path(memory.relative_path)
     target.write_text(target.read_text(encoding="utf-8").replace("committed body", "dirty body"))
 
-    index_text = core.list_index()
-    recalled = core.recall(query="topic")
+    listed = core.list_memories()
+    fetched = core.get(memory_id=memory_id)
 
-    assert "Stable topic" in index_text
-    assert "committed body" in recalled
-    assert "dirty body" not in recalled
+    assert listed["memories"][0]["title"] == "Stable topic"
+    assert fetched["memory"]["body"] == "committed body"
 
 
-def test_logs_do_not_include_body_or_query(tmp_path: Path, caplog) -> None:
+def test_logs_do_not_include_body_query_or_patch_text(tmp_path: Path, caplog) -> None:
     caplog.set_level(logging.INFO)
     core = _core(tmp_path)
     body = "BODY-SHOULD-NOT-APPEAR-73d2"
+    summary = "SUMMARY-SHOULD-NOT-APPEAR-12ae"
     query = "QUERY-SHOULD-NOT-APPEAR-a9f1"
+    replacement = "PATCH-SHOULD-NOT-APPEAR-4c8e"
 
-    core.write(title="Private logging topic", body=body)
-    core.recall(query=query)
+    created = core.create(
+        title="Private logging topic",
+        summary=summary,
+        body=body,
+    )
+    core.search(query=query)
+    core.patch(
+        memory_id=created["memory"]["memory_id"],
+        base_revision=created["memory"]["revision"],
+        edits=(PatchEdit(body, replacement),),
+    )
 
     assert body not in caplog.text
+    assert summary not in caplog.text
     assert query not in caplog.text
+    assert replacement not in caplog.text
 
 
-def test_shared_recall_operations_overlap(tmp_path: Path) -> None:
+def test_shared_search_operations_overlap(tmp_path: Path) -> None:
     barrier = threading.Barrier(2)
 
     class ConcurrentIndex(MemoryBackedIndex):
@@ -141,22 +221,23 @@ def test_shared_recall_operations_overlap(tmp_path: Path) -> None:
             snapshot: MemorySnapshot,
             query: str,
             project: str | None,
-        ) -> list[Any]:
+            limit: int,
+        ) -> SearchResults:
             barrier.wait(timeout=5)
-            return super().search(snapshot, query, project)
+            return super().search(snapshot, query, project, limit)
 
     core = _core(tmp_path)
-    core.write(title="Concurrent topic", body="Body")
+    core.create(title="Concurrent topic", summary="A concurrent topic.", body="Body")
     core.index = ConcurrentIndex()
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        futures = [executor.submit(core.recall, query=f"query-{index}") for index in range(2)]
+        futures = [executor.submit(core.search, query=f"query-{index}") for index in range(2)]
         results = [future.result(timeout=10) for future in futures]
 
-    assert all("Concurrent topic" in result for result in results)
+    assert all(result["matches"][0]["title"] == "Concurrent topic" for result in results)
 
 
-def test_rebuild_and_write_are_mutually_exclusive(tmp_path: Path) -> None:
+def test_rebuild_and_mutation_are_mutually_exclusive(tmp_path: Path) -> None:
     rebuild_entered = threading.Event()
     release_rebuild = threading.Event()
 
@@ -168,58 +249,87 @@ def test_rebuild_and_write_are_mutually_exclusive(tmp_path: Path) -> None:
 
     index = BlockingIndex()
     core = _core(tmp_path, index=index)
-    core.write(title="Existing topic", body="Body")
+    core.create(title="Existing topic", summary="An existing topic.", body="Body")
     index.current = False
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        recall = executor.submit(core.recall, query="existing")
+        search = executor.submit(core.search, query="existing")
         assert rebuild_entered.wait(timeout=5)
-        write = executor.submit(core.write, title="Second topic", body="Second body")
+        create = executor.submit(
+            core.create,
+            title="Second topic",
+            summary="A second topic.",
+            body="Second body",
+        )
         time.sleep(0.2)
-        assert not write.done()
+        assert not create.done()
         release_rebuild.set()
-        assert "Existing topic" in recall.result(timeout=10)
-        assert "committed to Git" in write.result(timeout=10)
+        assert search.result(timeout=10)["matches"][0]["title"] == "Existing topic"
+        assert create.result(timeout=10)["changed"]
 
     assert len(core.store.snapshot().memories) == 2
 
 
-def test_project_index_lists_global_and_selected_project_only(tmp_path: Path) -> None:
+def test_project_list_contains_global_and_selected_project_only(tmp_path: Path) -> None:
     core = _core(tmp_path)
-    core.write(title="Global topic", body="Global")
-    core.write(title="Vexor topic", body="Vexor", project="vexor")
-    core.write(title="Other topic", body="Other", project="other")
+    core.create(title="Global topic", summary="A global topic.", body="Global")
+    core.create(
+        title="Vexor topic",
+        summary="A Vexor topic.",
+        body="Vexor",
+        project="vexor",
+    )
+    core.create(
+        title="Other topic",
+        summary="Another project topic.",
+        body="Other",
+        project="other",
+    )
 
-    result = core.list_index(project="VEXOR")
+    result = core.list_memories(project="VEXOR")
 
-    assert "Global topic" in result
-    assert "Project: vexor" in result
-    assert "Vexor topic" in result
-    assert "Other topic" not in result
+    assert {memory["title"] for memory in result["memories"]} == {
+        "Global topic",
+        "Vexor topic",
+    }
+    assert result["projects"] == []
+    all_scopes = core.list_memories()
+    assert all_scopes["projects"] == ["other", "vexor"]
 
 
-def test_empty_and_invalid_recall_inputs_have_clear_results(tmp_path: Path) -> None:
+def test_empty_search_and_invalid_inputs_have_clear_results(tmp_path: Path) -> None:
     core = _core(tmp_path)
-    assert core.recall(query="anything") == "No permanent memories have been written yet."
+    assert core.search(query="anything")["matches"] == []
     with pytest.raises(MemoryValidationError, match="query is empty"):
-        core.recall(query="  ")
+        core.search(query="  ")
+    with pytest.raises(MemoryValidationError, match="limit is invalid"):
+        core.search(query="topic", limit=0)
+    with pytest.raises(MemoryValidationError, match="limit is invalid"):
+        core.search(query="topic", limit=True)
+    with pytest.raises(MemoryValidationError, match="control character"):
+        core.search(query="bad\x00query")
     with pytest.raises(MemoryValidationError, match="project is invalid"):
-        core.list_index(project="../escape")
+        core.list_memories(project="../escape")
+    with pytest.raises(MemoryValidationError, match="ID is invalid"):
+        core.get(memory_id="bad-id")
+    with pytest.raises(MemoryNotFoundError, match="was not found"):
+        core.get(memory_id="01ARZ3NDEKTSV4RRFFQ69G5FAV")
 
 
-def test_recall_with_no_matches_has_lightweight_message(tmp_path: Path) -> None:
-    class EmptySearchIndex(MemoryBackedIndex):
-        def search(
-            self,
-            _snapshot: MemorySnapshot,
-            _query: str,
-            _project: str | None,
-        ) -> list[Any]:
-            return []
+def test_search_limit_is_counted_after_memory_deduplication(tmp_path: Path) -> None:
+    core = _core(tmp_path)
+    for number in range(4):
+        core.create(
+            title=f"Topic {number}",
+            summary=f"Summary for topic {number}.",
+            body=f"Body {number}",
+        )
 
-    core = _core(tmp_path, index=EmptySearchIndex())
-    core.write(title="Topic", body="Body")
-    assert core.recall(query="missing") == "No matching permanent memories were found."
+    result = core.search(query="topic", limit=2)
+
+    assert len(result["matches"]) == 2
+    assert result["limit"] == 2
+    assert result["truncated"]
 
 
 def test_search_failure_invalidates_marker_and_surfaces_error(tmp_path: Path) -> None:
@@ -233,7 +343,8 @@ def test_search_failure_invalidates_marker_and_surfaces_error(tmp_path: Path) ->
             _snapshot: MemorySnapshot,
             _query: str,
             _project: str | None,
-        ) -> list[Any]:
+            _limit: int,
+        ) -> SearchResults:
             raise IndexUnavailableError("search unavailable")
 
         def invalidate(self) -> None:
@@ -242,10 +353,10 @@ def test_search_failure_invalidates_marker_and_surfaces_error(tmp_path: Path) ->
 
     index = FailingSearchIndex()
     core = _core(tmp_path, index=index)
-    core.write(title="Topic", body="Body")
+    core.create(title="Topic", summary="A topic.", body="Body")
 
     with pytest.raises(IndexUnavailableError, match="search unavailable"):
-        core.recall(query="topic")
+        core.search(query="topic")
     assert index.invalidations == 1
 
 
@@ -269,9 +380,9 @@ def test_exclusive_recheck_failure_rebuilds_before_search(tmp_path: Path) -> Non
 
     index = FailingRecheckIndex()
     core = _core(tmp_path, index=index)
-    core.write(title="Topic", body="Body")
+    core.create(title="Topic", summary="A topic.", body="Body")
 
-    assert "Topic" in core.recall(query="topic")
+    assert core.search(query="topic")["matches"][0]["title"] == "Topic"
     assert index.rebuilds == 1
 
 
@@ -294,9 +405,9 @@ def test_push_outcomes_only_affect_logs(
     core = _core(tmp_path, git_remote="origin")
     monkeypatch.setattr(core.repository, "push", lambda _remote: outcome)
 
-    result = core.write(title="Topic", body="Body")
+    result = core.create(title="Topic", summary="A topic.", body="Body")
 
-    assert "committed to Git" in result
+    assert result["changed"]
     assert log_text in caplog.text
 
 

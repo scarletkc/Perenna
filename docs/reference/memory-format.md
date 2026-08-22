@@ -35,6 +35,7 @@ body:
 ---
 id: "01K35Z9V6Y8X2W4T7R1Q5M3N0P"
 title: "AI collaboration preferences"
+summary: "Stable preferences for collaborating with AI agents."
 source: "claude-code"
 created_at: "2026-08-23T07:10:00.000000Z"
 updated_at: "2026-08-23T07:10:00.000000Z"
@@ -45,11 +46,12 @@ Complete clear tasks autonomously.
 Explain decisions that materially affect architecture or risk.
 ```
 
-Frontmatter permits exactly five fields:
+Frontmatter permits exactly six fields, in this order:
 
 ```text
 id
 title
+summary
 source
 created_at
 updated_at
@@ -63,10 +65,11 @@ string. Perenna serializes each value as a quoted YAML string.
 | Field | Meaning |
 | --- | --- |
 | `id` | Stable Perenna-generated ULID |
-| `title` | Normalized long-term topic and upsert identity within the scope |
-| `source` | Host that most recently wrote the memory |
-| `created_at` | RFC 3339 creation timestamp; preserved on update |
-| `updated_at` | RFC 3339 timestamp of the latest write |
+| `title` | Normalized long-term topic, unique within one scope |
+| `summary` | Stable one-sentence description of what the memory covers |
+| `source` | Host that most recently changed the memory |
+| `created_at` | RFC 3339 creation timestamp; preserved on mutation |
+| `updated_at` | RFC 3339 timestamp of the latest mutation |
 
 Perenna writes UTC timestamps with a `Z` suffix. A manually written timestamp
 must include an RFC 3339 timezone. `updated_at` cannot precede `created_at`.
@@ -79,7 +82,7 @@ excludes `I`, `L`, `O`, and `U`.
 
 The frontmatter ID and filename stem must be identical.
 
-## Title normalization
+## Title normalization and uniqueness
 
 Perenna applies these steps before writing:
 
@@ -96,8 +99,26 @@ The uniqueness key adds Unicode case folding:
 (scope, normalized_title.casefold())
 ```
 
-Titles that differ only by case or compatible Unicode forms therefore update
-the same memory inside one scope.
+Titles that differ only by case or compatible Unicode forms therefore conflict
+inside one scope. MCP patch and replace operations address an existing memory
+by ID and do not rename it.
+
+## Summary normalization
+
+Summary is authoritative memory data, not generated cache metadata. It must
+state what the memory covers rather than restate every current detail.
+
+Perenna applies NFKC normalization, collapses all whitespace to one ASCII
+space, and removes surrounding whitespace. The result must:
+
+- contain at least one non-whitespace character;
+- remain one plain-text line;
+- contain no control characters or invalid surrogates;
+- contain at most 300 Unicode characters.
+
+Perenna never generates a summary and never substitutes the first characters
+of the body. Patch preserves the existing summary unless the caller explicitly
+provides a complete replacement. Replace always requires the complete summary.
 
 ## Project slug normalization
 
@@ -136,18 +157,25 @@ The body must:
 - contain no NUL, unsupported control characters, or invalid surrogates;
 - contain at most 20,000 Unicode characters.
 
-Perenna stores the complete body without truncation, summarization, or merge.
+Perenna stores the complete body without summarizing or merging it. Semantic
+search uses bounded derived chunks; `memory_read get` returns the authoritative
+complete body.
 
-## Create and update behavior
+## Mutation behavior
 
-| Value | Create | Update |
-| --- | --- | --- |
-| `id` | Generate | Preserve |
-| `title` | Store normalized input | Replace with normalized input |
-| `source` | Current host | Current host |
-| `created_at` | Current time | Preserve |
-| `updated_at` | Current time | Advance |
-| body | Store complete input | Replace completely |
+| Value | Create | Patch | Replace |
+| --- | --- | --- | --- |
+| `id` | Generate | Preserve | Preserve |
+| `title` | Store normalized input | Preserve | Preserve |
+| scope | Derive from project | Preserve | Preserve |
+| `summary` | Store complete input | Preserve or replace explicitly | Replace completely |
+| `source` | Current host | Current host | Current host |
+| `created_at` | Current time | Preserve | Preserve |
+| `updated_at` | Current time | Advance | Advance |
+| body | Store complete input | Apply exact edits | Replace completely |
+
+Deleting removes the file from the current tree. Git history retains the prior
+document.
 
 ## Committed-repository integrity
 
@@ -162,16 +190,16 @@ Perenna rejects a committed snapshot instead of silently skipping data when:
 - an ID appears more than once;
 - one scope contains duplicate normalized titles;
 - a timestamp is invalid or ordered incorrectly;
-- a title, body, source, or project violates this contract.
+- a title, summary, body, source, or project violates this contract.
 
 The error identifies the trusted relative path and asks the user to repair and
-commit the file. It does not log the body.
+commit the file. It does not log the summary or body.
 
 ## Manual editing
 
 Users may edit committed memories with ordinary tools. Perenna reads only
 committed snapshots, so a manual edit becomes visible after the user validates
 and commits it. While the working tree is dirty, reads continue from the prior
-commit and automated writes remain paused.
+commit and automated mutations remain paused.
 
 See [Maintenance and recovery](../guides/maintenance.md) for the safe workflow.

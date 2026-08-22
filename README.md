@@ -4,7 +4,7 @@ Perenna is a local-first permanent memory service for AI agents. Claude Code,
 Codex, ChatGPT Desktop, Cursor, and other local MCP clients can share durable
 memories without sharing a vendor account or conversation history.
 
-- One stdio MCP tool with `query` and `write` actions
+- Separate stdio MCP tools for reading, writing, and deleting memories
 - Human-readable Markdown stored in an independent Git repository
 - Local Vexor retrieval index that can always be rebuilt from Git
 - Cross-process locking for multiple local agent processes

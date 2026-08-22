@@ -16,7 +16,12 @@ from perenna.core import PerennaCore
 
 settings = resolve_settings(cli_home=sys.argv[1], cli_source=sys.argv[2])
 core = PerennaCore(settings)
-core.write(title=sys.argv[3], body=sys.argv[4], project='shared-project')
+core.create(
+    title=sys.argv[3],
+    summary=f'Concurrent memory from {sys.argv[3]}.',
+    body=sys.argv[4],
+    project='shared-project',
+)
 """
 
 

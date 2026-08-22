@@ -22,5 +22,13 @@ class MemoryIntegrityError(PerennaError):
     """Committed memory documents conflict with each other."""
 
 
+class MemoryConflictError(PerennaError):
+    """A mutation was refused because the target state changed or conflicts."""
+
+
+class MemoryNotFoundError(PerennaError):
+    """The requested memory does not exist in the committed snapshot."""
+
+
 class IndexUnavailableError(PerennaError):
     """The Vexor retrieval index is unavailable."""

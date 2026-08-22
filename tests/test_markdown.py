@@ -1,19 +1,22 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
 import yaml
 
 from perenna.errors import MemoryValidationError
-from perenna.markdown import FRONTMATTER_FIELDS, parse_memory, serialize_memory
+from perenna.markdown import FRONTMATTER_FIELDS, memory_revision, parse_memory, serialize_memory
 from perenna.models import (
     MAX_BODY_LENGTH,
+    MAX_SUMMARY_LENGTH,
     Memory,
     memory_path,
     new_ulid,
     normalize_body,
     normalize_project,
+    normalize_summary,
     normalize_title,
     title_key,
     validate_ulid,
@@ -27,6 +30,7 @@ def _memory(*, relative_path: str | None = None, scope: str = "global") -> Memor
     return Memory(
         id=MEMORY_ID,
         title="Release notes",
+        summary="What the release notes cover.",
         source="codex",
         created_at=CREATED_AT,
         updated_at=CREATED_AT,
@@ -53,6 +57,14 @@ def test_body_normalizes_line_endings_and_enforces_limits() -> None:
         normalize_body("\r\n \t\r\n")
     with pytest.raises(ValueError, match="too long"):
         normalize_body("x" * (MAX_BODY_LENGTH + 1))
+
+
+def test_summary_is_required_single_line_plain_text() -> None:
+    assert normalize_summary("  What\nthis\tmemory covers.  ") == "What this memory covers."
+    with pytest.raises(ValueError, match="empty"):
+        normalize_summary(" \n ")
+    with pytest.raises(ValueError, match="too long"):
+        normalize_summary("x" * (MAX_SUMMARY_LENGTH + 1))
 
 
 @pytest.mark.parametrize(
@@ -85,7 +97,14 @@ def test_serialized_frontmatter_has_only_the_canonical_fields_in_order() -> None
     loaded = yaml.safe_load(frontmatter)
 
     assert tuple(loaded) == FRONTMATTER_FIELDS
-    assert set(loaded) == {"id", "title", "source", "created_at", "updated_at"}
+    assert set(loaded) == {
+        "id",
+        "title",
+        "summary",
+        "source",
+        "created_at",
+        "updated_at",
+    }
     assert text.endswith("First line\nSecond line\n")
 
 
@@ -105,9 +124,18 @@ def test_memory_round_trip_uses_scope_from_the_trusted_path(
     assert parse_memory(serialize_memory(original), relative_path) == original
 
 
+def test_revision_covers_authoritative_summary() -> None:
+    original = _memory()
+
+    assert memory_revision(replace(original, summary="Different coverage.")) != memory_revision(
+        original
+    )
+
+
 @pytest.mark.parametrize(
     "mutate",
     [
+        lambda text: text.replace('summary: "What the release notes cover."\n', ""),
         lambda text: text.replace('source: "codex"\n', ""),
         lambda text: text.replace(
             'source: "codex"\n',

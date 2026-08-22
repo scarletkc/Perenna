@@ -18,6 +18,10 @@ def test_configured_vexor_provider_smoke(tmp_path: Path) -> None:
             git_remote=None,
         )
     )
-    result = core.write(title="Provider smoke", body="Temporary provider smoke test memory.")
-    assert "committed to Git" in result
-    assert "Provider smoke" in core.recall(query="provider smoke")
+    result = core.create(
+        title="Provider smoke",
+        summary="A temporary configured-provider smoke test.",
+        body="Temporary provider smoke test memory.",
+    )
+    assert result["changed"]
+    assert core.search(query="provider smoke")["matches"][0]["title"] == "Provider smoke"

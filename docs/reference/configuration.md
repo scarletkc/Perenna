@@ -55,7 +55,8 @@ Source normalization and validation:
 
 Stable examples include `claude-code`, `codex`, and `cursor`.
 
-The host injects source into writes. `source` is not an MCP tool field.
+The host injects source into changed mutations. `source` is not an MCP tool
+field.
 
 ## Git remote backup
 
@@ -71,9 +72,9 @@ Perenna skips a missing remote. If the current branch has no upstream, the
 first successful push may establish one. Push uses a fixed timeout and a
 separate lock.
 
-Remote backup never participates in query, title upsert, local commit
-creation, or write success. Perenna performs no automatic fetch, pull, merge,
-or force-push.
+Remote backup never participates in reads, mutation validation, local commit
+creation, or mutation success. Perenna performs no automatic fetch, pull,
+merge, or force-push.
 
 ### Set up a backup remote
 
@@ -160,20 +161,21 @@ Perenna uses one Vexor collection:
 
 ```text
 collection name: perenna-memories
-record id:       memory ULID
-record text:     normalized title + body
-metadata:        scope + trusted relative path
+record id:       memory ULID + chunk ordinal
+record text:     normalized title + authoritative summary + body chunk
+metadata:        memory ID + scope + path + revision + chunk range
 cache directory: <home>/index
 ```
 
-For project recall, Perenna applies this metadata filter before scoring:
+For project search, Perenna applies this metadata filter before scoring:
 
 ```text
 scope in [global, project:<slug>]
 ```
 
-The collection is derived data. Perenna cross-checks returned IDs and metadata
-against committed Markdown before returning a memory.
+The collection is derived data. Perenna cross-checks returned IDs, revisions,
+paths, scopes, ordinals, and ranges against committed Markdown before returning
+a passage.
 
 ## Vexor provider configuration
 
@@ -205,15 +207,15 @@ for its complete provider field and precedence contract.
 
 When Vexor uses a remote embedding provider, that provider receives:
 
-- each memory title and body during create, update, or rebuild;
-- each recall query when generating its query vector.
+- each memory title, summary, and body chunk during mutation or rebuild;
+- each search query when generating its query vector.
 
 The Markdown repository remains local, but local storage does not mean the
 embedded content stays on the machine. Review the selected provider and
 endpoint before writing sensitive information.
 
-Perenna logs do not include bodies, recall query text, or API keys. That logging
-rule does not prevent configured embedding traffic.
+Perenna logs do not include summaries, bodies, search query text, or API keys.
+That logging rule does not prevent configured embedding traffic.
 
 ## Local provider installation
 
@@ -241,7 +243,7 @@ To change that contract:
 2. update Vexor configuration;
 3. move or delete `<home>/index`;
 4. restart Perenna;
-5. run a recall query to rebuild from committed Markdown.
+5. run a search query to rebuild from committed Markdown.
 
 Do not edit `collections.db` or `indexed_commit` to imitate compatibility.
 
@@ -251,5 +253,5 @@ During `perenna mcp`, stdout is reserved for MCP protocol messages. Perenna
 sends diagnostics and redacted operational logs to stderr.
 
 Logs may include action, source, project, operation, result count, short commit
-ID, and exception type. They must not include a memory body, recall query,
-provider key, or complete MCP request payload.
+ID, and exception type. They must not include a memory summary, body, search
+query, provider key, or complete MCP request payload.

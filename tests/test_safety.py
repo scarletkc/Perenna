@@ -59,7 +59,13 @@ def test_timestamp_requires_rfc3339_separator_and_timezone() -> None:
 def test_snapshot_pins_every_git_read_to_captured_commit(tmp_path: Path, monkeypatch) -> None:
     repository = GitRepository.initialize(tmp_path / "memory")
     store = MemoryStore(repository)
-    store.write(title="Pinned", body="Original", source="codex", project=None)
+    store.create(
+        title="Pinned",
+        summary="A pinned memory.",
+        body="Original",
+        source="codex",
+        project=None,
+    )
     captured_head = repository.head()
     original_paths = repository.memory_paths_at_commit
     observed_commits: list[str] = []
@@ -89,11 +95,23 @@ def test_snapshot_pins_every_git_read_to_captured_commit(tmp_path: Path, monkeyp
 def test_unfinished_git_operation_blocks_write(tmp_path: Path) -> None:
     repository = GitRepository.initialize(tmp_path / "memory")
     store = MemoryStore(repository)
-    store.write(title="Existing", body="Body", source="codex", project=None)
+    store.create(
+        title="Existing",
+        summary="An existing memory.",
+        body="Body",
+        source="codex",
+        project=None,
+    )
     repository._git_path("MERGE_HEAD").write_text(f"{repository.head()}\n", encoding="ascii")
 
     with pytest.raises(RepositoryDirtyError, match="unfinished Git operation"):
-        store.write(title="Second", body="Body", source="codex", project=None)
+        store.create(
+            title="Second",
+            summary="A second memory.",
+            body="Body",
+            source="codex",
+            project=None,
+        )
 
 
 def test_perenna_commit_ignores_repository_hooks(tmp_path: Path) -> None:
@@ -105,8 +123,9 @@ def test_perenna_commit_ignores_repository_hooks(tmp_path: Path) -> None:
     hook.chmod(hook.stat().st_mode | stat.S_IXUSR)
     repository._run(["config", "--local", "core.hooksPath", os.fspath(hooks)])
 
-    receipt = MemoryStore(repository).write(
+    receipt = MemoryStore(repository).create(
         title="Hook-independent",
+        summary="A hook-independent memory.",
         body="Body",
         source="codex",
         project=None,
@@ -223,7 +242,13 @@ def test_git_repository_ignores_host_repository_and_identity_overrides(
     monkeypatch.setenv("GIT_CONFIG_VALUE_0", "injected@example.invalid")
 
     repository = GitRepository.initialize(tmp_path / "memory")
-    MemoryStore(repository).write(title="Isolated", body="Body", source="codex", project=None)
+    MemoryStore(repository).create(
+        title="Isolated",
+        summary="An isolated memory.",
+        body="Body",
+        source="codex",
+        project=None,
+    )
 
     identity = repository._run(
         ["show", "-s", "--format=%an|%ae|%cn|%ce", "HEAD"]
@@ -237,12 +262,24 @@ def test_git_repository_ignores_host_repository_and_identity_overrides(
 def test_detached_head_refuses_memory_write(tmp_path: Path) -> None:
     repository = GitRepository.initialize(tmp_path / "memory")
     store = MemoryStore(repository)
-    store.write(title="Attached", body="Body", source="codex", project=None)
+    store.create(
+        title="Attached",
+        summary="An attached memory.",
+        body="Body",
+        source="codex",
+        project=None,
+    )
     repository._run(["checkout", "--quiet", "--detach", "HEAD"])
     original_head = repository.head()
 
     with pytest.raises(RepositoryError, match="not on a branch"):
-        store.write(title="Detached", body="Body", source="codex", project=None)
+        store.create(
+            title="Detached",
+            summary="A detached memory.",
+            body="Body",
+            source="codex",
+            project=None,
+        )
 
     assert repository.head() == original_head
     assert len(store.snapshot().memories) == 1
@@ -261,6 +298,7 @@ def test_frontmatter_non_string_keys_return_recoverable_validation_error(
         f"{frontmatter_key}: \"unexpected\"\n"
         f'id: "{memory_id}"\n'
         'title: "Title"\n'
+        'summary: "What this memory covers."\n'
         'source: "codex"\n'
         'created_at: "2026-08-22T00:00:00.000000Z"\n'
         'updated_at: "2026-08-22T00:00:00.000000Z"\n'

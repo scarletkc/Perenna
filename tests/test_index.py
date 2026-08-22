@@ -8,8 +8,13 @@ from typing import Any
 import pytest
 
 from perenna.errors import IndexUnavailableError
-from perenna.index import COLLECTION_NAME, VexorIndex
-from perenna.models import Memory, MemorySnapshot, WriteReceipt
+from perenna.index import (
+    COLLECTION_NAME,
+    MAX_SEARCH_CANDIDATES,
+    VexorIndex,
+)
+from perenna.markdown import memory_revision
+from perenna.models import Memory, MemorySnapshot, MutationReceipt
 
 
 @dataclass
@@ -17,18 +22,18 @@ class FakeCollection:
     records: dict[str, dict[str, Any]]
     exists: bool = False
     fail_upsert: bool = False
-    upsert_batches: list[list[dict[str, Any]]] | None = None
-    searches: list[dict[str, Any]] | None = None
 
     def __post_init__(self) -> None:
-        self.upsert_batches = [] if self.upsert_batches is None else self.upsert_batches
-        self.searches = [] if self.searches is None else self.searches
+        self.exists = bool(self.records) or self.exists
+        self.upsert_batches: list[list[dict[str, Any]]] = []
+        self.searches: list[dict[str, Any]] = []
+        self.scores: dict[str, float] = {}
 
     def info(self) -> object | None:
         return object() if self.exists else None
 
     def count(self) -> int:
-        return len(self.records) if self.exists else 0
+        return len(self.records)
 
     def drop(self) -> bool:
         existed = self.exists
@@ -59,9 +64,10 @@ class FakeCollection:
                         id=record["id"],
                         text=record["text"],
                         metadata=metadata,
-                        score=1.0,
+                        score=self.scores.get(str(record["id"]), 1.0),
                     )
                 )
+        results.sort(key=lambda result: result.score, reverse=True)
         return results[: kwargs["top_k"]]
 
 
@@ -89,7 +95,7 @@ class FakeClientFactory:
         return FakeClient(self.collection, Path(cache_dir))
 
 
-def test_rebuild_records_and_project_filter(tmp_path: Path) -> None:
+def test_rebuild_creates_chunk_records_and_applies_project_filter(tmp_path: Path) -> None:
     collection = FakeCollection({})
     factory = FakeClientFactory(collection)
     index = VexorIndex(tmp_path / "index", client_factory=factory)
@@ -111,69 +117,169 @@ def test_rebuild_records_and_project_filter(tmp_path: Path) -> None:
     assert index.indexed_commit() == snapshot.commit
     assert index.is_current(snapshot)
     assert factory.cache_dirs and set(factory.cache_dirs) == {tmp_path / "index"}
-    assert collection.records[global_memory.id]["text"] == "Title\n\nBody"
-    assert collection.records[project_memory.id]["metadata"] == {
-        "scope": "project:vexor",
-        "path": "projects/vexor/b.md",
+    global_record = collection.records[f"{global_memory.id}:0"]
+    assert global_record["text"] == "Title\n\nWhat this memory covers.\n\nBody"
+    assert global_record["metadata"] == {
+        "memory_id": global_memory.id,
+        "scope": "global",
+        "path": "global/a.md",
+        "revision": memory_revision(global_memory),
+        "chunk_index": 0,
+        "start_char": 0,
+        "end_char": 4,
     }
 
-    results = index.search(snapshot, "topic", "vexor")
+    results = index.search(snapshot, "topic", "vexor", limit=5)
 
-    assert [memory.id for memory in results] == [global_memory.id, project_memory.id]
+    assert [match.memory.id for match in results.matches] == [
+        global_memory.id,
+        project_memory.id,
+    ]
     assert collection.searches[-1]["filters"] == {
         "scope": {"in": ["global", "project:vexor"]}
     }
-    assert collection.searches[-1]["top_k"] == 5
+    assert collection.searches[-1]["top_k"] == MAX_SEARCH_CANDIDATES
 
 
-def test_incremental_update_upserts_one_record(tmp_path: Path) -> None:
+def test_long_memory_is_chunked_with_exact_overlapping_passages(tmp_path: Path) -> None:
     collection = FakeCollection({})
     index = VexorIndex(tmp_path, client_factory=FakeClientFactory(collection))
-    previous = _memory("01K00000000000000000000001", "global", "global/a.md")
-    old_snapshot = MemorySnapshot("a" * 40, (previous,))
-    index.rebuild(old_snapshot)
-    collection.upsert_batches.clear()
-    updated = replace(
-        previous,
-        body="Updated",
-        source="cursor",
-        updated_at="2026-08-22T00:00:01.000000Z",
+    memory = replace(
+        _memory("01K00000000000000000000001", "global", "global/a.md"),
+        body="x" * 2_500,
     )
-    receipt = WriteReceipt(updated, "update", old_snapshot.commit, "b" * 40)
-    new_snapshot = MemorySnapshot(receipt.commit, (updated,))
+    snapshot = MemorySnapshot("a" * 40, (memory,))
 
-    index.synchronize_after_write(receipt, new_snapshot)
+    index.rebuild(snapshot)
 
-    assert len(collection.upsert_batches) == 1
-    assert collection.upsert_batches[0][0]["text"] == "Title\n\nUpdated"
-    assert index.indexed_commit() == receipt.commit
+    assert list(collection.records) == [f"{memory.id}:{index}" for index in range(3)]
+    assert collection.records[f"{memory.id}:0"]["metadata"]["start_char"] == 0
+    assert collection.records[f"{memory.id}:1"]["metadata"]["start_char"] == 1_000
+    assert collection.records[f"{memory.id}:2"]["metadata"]["end_char"] == 2_500
+    assert index.is_current(snapshot)
 
 
-def test_missing_or_deleted_index_rebuilds(tmp_path: Path) -> None:
+def test_search_deduplicates_memories_and_honors_public_limit(tmp_path: Path) -> None:
     collection = FakeCollection({})
-    index_dir = tmp_path / "index"
-    index = VexorIndex(index_dir, client_factory=FakeClientFactory(collection))
-    snapshot = MemorySnapshot(
-        "c" * 40,
-        (_memory("01K00000000000000000000001", "global", "global/a.md"),),
+    index = VexorIndex(tmp_path, client_factory=FakeClientFactory(collection))
+    first = replace(
+        _memory("01K00000000000000000000001", "global", "global/a.md"),
+        body="a" * 2_500,
     )
+    second = _memory("01K00000000000000000000002", "global", "global/b.md")
+    third = _memory("01K00000000000000000000003", "global", "global/c.md")
+    snapshot = MemorySnapshot("b" * 40, (first, second, third))
     index.rebuild(snapshot)
-    assert index.is_current(snapshot)
+    collection.scores.update(
+        {
+            f"{first.id}:0": 0.9,
+            f"{first.id}:1": 0.8,
+            f"{second.id}:0": 0.7,
+            f"{third.id}:0": 0.6,
+        }
+    )
 
-    for child in list(index_dir.iterdir()):
-        if child.is_file():
-            child.unlink()
-    assert not index.is_current(snapshot)
+    results = index.search(snapshot, "topic", None, limit=2)
 
+    assert [match.memory.id for match in results.matches] == [first.id, second.id]
+    assert [match.rank for match in results.matches] == [1, 2]
+    assert results.truncated
+
+
+def test_search_has_no_relevance_threshold_and_enforces_character_budget(
+    tmp_path: Path,
+) -> None:
+    collection = FakeCollection({})
+    index = VexorIndex(tmp_path, client_factory=FakeClientFactory(collection))
+    memories = tuple(
+        replace(
+            _memory(
+                f"01K0000000000000000000000{number}",
+                "global",
+                f"global/{number}.md",
+            ),
+            body=str(number) * 1_200,
+        )
+        for number in range(1, 6)
+    )
+    snapshot = MemorySnapshot("c" * 40, memories)
     index.rebuild(snapshot)
-    assert index.is_current(snapshot)
+    collection.scores.update(
+        {f"{memory.id}:0": -0.1 * number for number, memory in enumerate(memories, start=1)}
+    )
+
+    results = index.search(snapshot, "unrelated", None, limit=5)
+
+    assert len(results.matches) == 4
+    assert memories[0].id in {match.memory.id for match in results.matches}
+    assert sum(len(match.passages[0].text) for match in results.matches) == 4_800
+    assert results.truncated
+
+
+def test_stale_result_metadata_and_non_finite_scores_are_rejected(tmp_path: Path) -> None:
+    collection = FakeCollection({})
+    index = VexorIndex(tmp_path, client_factory=FakeClientFactory(collection))
+    memory = _memory("01K00000000000000000000001", "global", "global/a.md")
+    snapshot = MemorySnapshot("d" * 40, (memory,))
+    index.rebuild(snapshot)
+    record_id = f"{memory.id}:0"
+    collection.records[record_id]["metadata"]["revision"] = "0" * 64
+
+    with pytest.raises(IndexUnavailableError, match="stale record metadata"):
+        index.search(snapshot, "topic", None)
+
+    collection.records[record_id]["metadata"]["revision"] = memory_revision(memory)
+    collection.scores[record_id] = "invalid"  # type: ignore[assignment]
+    with pytest.raises(IndexUnavailableError, match="invalid score"):
+        index.search(snapshot, "topic", None)
+
+    collection.scores[record_id] = float("nan")
+    with pytest.raises(IndexUnavailableError, match="non-finite"):
+        index.search(snapshot, "topic", None)
+
+
+def test_mutation_rebuilds_from_new_snapshot_and_deletion_removes_chunks(tmp_path: Path) -> None:
+    collection = FakeCollection({})
+    index = VexorIndex(tmp_path, client_factory=FakeClientFactory(collection))
+    previous = replace(
+        _memory("01K00000000000000000000001", "global", "global/a.md"),
+        body="x" * 2_500,
+    )
+    old_snapshot = MemorySnapshot("e" * 40, (previous,))
+    index.rebuild(old_snapshot)
+    updated = replace(previous, body="Updated")
+    update = MutationReceipt(
+        updated,
+        "replace",
+        True,
+        previous,
+        old_snapshot.commit,
+        "f" * 40,
+    )
+
+    index.synchronize_after_mutation(update, MemorySnapshot(update.commit, (updated,)))
+
+    assert list(collection.records) == [f"{updated.id}:0"]
+    assert collection.records[f"{updated.id}:0"]["text"].endswith("Updated")
+
+    delete = MutationReceipt(
+        updated,
+        "delete",
+        True,
+        updated,
+        update.commit,
+        "1" * 40,
+    )
+    index.synchronize_after_mutation(delete, MemorySnapshot(delete.commit, ()))
+    assert collection.records == {}
+    assert index.indexed_commit() == delete.commit
 
 
 def test_provider_failure_does_not_advance_marker_and_can_retry(tmp_path: Path) -> None:
     collection = FakeCollection({}, fail_upsert=True)
     index = VexorIndex(tmp_path, client_factory=FakeClientFactory(collection))
     snapshot = MemorySnapshot(
-        "d" * 40,
+        "2" * 40,
         (_memory("01K00000000000000000000001", "global", "global/a.md"),),
     )
 
@@ -186,109 +292,63 @@ def test_provider_failure_does_not_advance_marker_and_can_retry(tmp_path: Path) 
     assert index.is_current(snapshot)
 
 
-def test_stale_result_metadata_is_rejected(tmp_path: Path) -> None:
+def test_sync_mismatch_and_search_provider_failure_are_wrapped(tmp_path: Path) -> None:
     collection = FakeCollection({})
     index = VexorIndex(tmp_path, client_factory=FakeClientFactory(collection))
     memory = _memory("01K00000000000000000000001", "global", "global/a.md")
-    snapshot = MemorySnapshot("e" * 40, (memory,))
+    receipt = MutationReceipt(memory, "create", True, None, None, "7" * 40)
+
+    with pytest.raises(IndexUnavailableError, match="could not synchronize"):
+        index.synchronize_after_mutation(receipt, MemorySnapshot("8" * 40, (memory,)))
+
+    snapshot = MemorySnapshot("9" * 40, (memory,))
     index.rebuild(snapshot)
-    collection.records[memory.id]["metadata"] = {
-        "scope": "global",
-        "path": "global/other.md",
-    }
 
-    with pytest.raises(IndexUnavailableError, match="stale record metadata"):
-        index.search(snapshot, "topic", None)
+    def fail_search(_query: str, **_kwargs: Any) -> None:
+        raise RuntimeError("provider unavailable")
+
+    collection.search = fail_search  # type: ignore[method-assign]
+    with pytest.raises(IndexUnavailableError, match="index is unavailable"):
+        index.search(snapshot, "query", None)
 
 
-def test_empty_repository_and_empty_committed_tree_are_current(tmp_path: Path) -> None:
+def test_empty_snapshots_and_invalid_limits_have_clear_behavior(tmp_path: Path) -> None:
     collection = FakeCollection({})
     index = VexorIndex(tmp_path, client_factory=FakeClientFactory(collection))
 
     assert index.is_current(MemorySnapshot(None, ()))
-    committed_empty = MemorySnapshot("1" * 40, ())
+    committed_empty = MemorySnapshot("3" * 40, ())
     index.rebuild(committed_empty)
     assert index.is_current(committed_empty)
-    assert collection.upsert_batches == []
+    with pytest.raises(ValueError, match="between 1 and 5"):
+        index.search(committed_empty, "query", None, limit=0)
 
 
-def test_collection_inspection_failure_is_index_unavailable(tmp_path: Path) -> None:
+def test_collection_failures_and_marker_errors_are_wrapped(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     collection = FakeCollection({})
     index = VexorIndex(tmp_path, client_factory=FakeClientFactory(collection))
     snapshot = MemorySnapshot(
-        "2" * 40,
+        "4" * 40,
         (_memory("01K00000000000000000000001", "global", "global/a.md"),),
     )
     index.rebuild(snapshot)
 
-    def fail_info():
+    def fail_info() -> None:
         raise RuntimeError("broken database")
 
     collection.info = fail_info  # type: ignore[method-assign]
     with pytest.raises(IndexUnavailableError, match="index is unavailable"):
         index.is_current(snapshot)
 
-
-def test_sync_rejects_snapshot_that_does_not_match_receipt(tmp_path: Path) -> None:
-    collection = FakeCollection({})
-    index = VexorIndex(tmp_path, client_factory=FakeClientFactory(collection))
-    memory = _memory("01K00000000000000000000001", "global", "global/a.md")
-    receipt = WriteReceipt(memory, "add", None, "3" * 40)
-
-    with pytest.raises(IndexUnavailableError, match="could not synchronize"):
-        index.synchronize_after_write(receipt, MemorySnapshot("4" * 40, (memory,)))
-
-
-def test_incremental_sync_rebuilds_when_collection_disappeared(tmp_path: Path) -> None:
-    collection = FakeCollection({})
-    index = VexorIndex(tmp_path, client_factory=FakeClientFactory(collection))
-    previous = _memory("01K00000000000000000000001", "global", "global/a.md")
-    old_snapshot = MemorySnapshot("5" * 40, (previous,))
-    index.rebuild(old_snapshot)
-    collection.exists = False
-    updated = replace(previous, body="Updated")
-    receipt = WriteReceipt(updated, "update", old_snapshot.commit, "6" * 40)
-
-    index.synchronize_after_write(receipt, MemorySnapshot(receipt.commit, (updated,)))
-
-    assert index.indexed_commit() == receipt.commit
-    assert collection.exists
-    assert collection.records[updated.id]["text"].endswith("Updated")
-
-
-def test_incremental_and_search_provider_failures_are_wrapped(tmp_path: Path) -> None:
-    collection = FakeCollection({})
-    index = VexorIndex(tmp_path, client_factory=FakeClientFactory(collection))
-    previous = _memory("01K00000000000000000000001", "global", "global/a.md")
-    old_snapshot = MemorySnapshot("7" * 40, (previous,))
-    index.rebuild(old_snapshot)
-    updated = replace(previous, body="Updated")
-    receipt = WriteReceipt(updated, "update", old_snapshot.commit, "0" * 40)
-    collection.fail_upsert = True
-
-    with pytest.raises(IndexUnavailableError, match="index is unavailable"):
-        index.synchronize_after_write(receipt, MemorySnapshot(receipt.commit, (updated,)))
-    assert index.indexed_commit() == old_snapshot.commit
-
-    collection.fail_upsert = False
-
-    def fail_search(_query: str, **_kwargs: Any):
-        raise RuntimeError("provider unavailable")
-
-    collection.search = fail_search  # type: ignore[method-assign]
-    with pytest.raises(IndexUnavailableError, match="index is unavailable"):
-        index.search(old_snapshot, "query", None)
-
-
-def test_marker_write_errors_are_wrapped(tmp_path: Path, monkeypatch) -> None:
-    index = VexorIndex(tmp_path, client_factory=FakeClientFactory(FakeCollection({})))
-
     def fail_replace(_path: Path, _data: bytes) -> None:
         raise PermissionError("denied")
 
     monkeypatch.setattr("perenna.index.atomic_replace", fail_replace)
     with pytest.raises(IndexUnavailableError, match="index is unavailable"):
-        index.rebuild(MemorySnapshot("a" * 40, ()))
+        index.rebuild(MemorySnapshot("5" * 40, ()))
 
 
 def test_client_without_close_method_is_supported(tmp_path: Path) -> None:
@@ -303,14 +363,15 @@ def test_client_without_close_method_is_supported(tmp_path: Path) -> None:
             return collection
 
     index = VexorIndex(tmp_path, client_factory=ClientWithoutClose)
-    index.rebuild(MemorySnapshot("b" * 40, ()))
-    assert index.indexed_commit() == "b" * 40
+    index.rebuild(MemorySnapshot("6" * 40, ()))
+    assert index.indexed_commit() == "6" * 40
 
 
 def _memory(memory_id: str, scope: str, path: str) -> Memory:
     return Memory(
         id=memory_id,
         title="Title",
+        summary="What this memory covers.",
         source="codex",
         created_at="2026-08-22T00:00:00.000000Z",
         updated_at="2026-08-22T00:00:00.000000Z",

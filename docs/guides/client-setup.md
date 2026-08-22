@@ -4,7 +4,7 @@ This guide connects supported local MCP clients to the same Perenna home. It
 assumes that `perenna` is installed and available on `PATH`.
 
 Each client must supply a trusted `source` when it starts Perenna. The source
-is stored with every write and is intentionally absent from the MCP tool
+is stored with every changed mutation and is intentionally absent from MCP tool
 schema.
 
 ## Claude Code

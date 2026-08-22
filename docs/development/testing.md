@@ -46,12 +46,12 @@ coverage threshold are owned by `pyproject.toml`.
 | --- | --- |
 | Configuration | CLI and environment precedence, missing source, remote selection |
 | Markdown and models | normalization, ULID, frontmatter, paths, duplicate integrity |
-| Store and Git | create, update, atomic replacement, one-file commits, rollback |
-| Index | incremental upsert, scope filtering, stale rebuild, marker failures |
+| Store and Git | create, patch, replace, delete, revisions, one-file commits, rollback |
+| Index | chunk rebuild, scope filtering, limits, budgets, stale metadata, marker failures |
 | Core | committed reads, index failure isolation, push behavior, concurrent readers |
 | MCP | exact schema, action validation, safe errors, real stdio subprocess |
 | Multiprocess | first-run races, concurrent writers, clean Git history |
-| End to end | one client writes, another recalls, a third updates the same memory |
+| End to end | agents create, search, get, patch, and delete one shared memory |
 | Safety | environment isolation, links, device names, Git states, control characters |
 
 The real Vexor integration tests use a controlled local OpenAI-compatible
@@ -73,8 +73,8 @@ Run the full suite before committing a cross-cutting change.
 ## Live provider smoke test
 
 The `live_provider` marker is excluded from default pytest runs. It uses the
-effective Vexor provider configuration and may send its temporary title, body,
-and query to a remote provider.
+  effective Vexor provider configuration and may send its temporary title,
+  summary, body, and query to a remote provider.
 
 PowerShell:
 
@@ -98,8 +98,8 @@ temporary data.
 
 Concurrency behavior is part of the product contract:
 
-- multiple recalls must overlap under shared locks;
-- a rebuild and write must not overlap;
+- multiple searches must overlap under shared locks;
+- a rebuild and mutation must not overlap;
 - concurrent processes must create valid commits without losing Markdown;
 - first-run initialization must remain safe when more than one process starts.
 
@@ -111,8 +111,8 @@ real Git repository.
 The stdio suite starts Perenna with the official MCP Python client. It verifies
 that:
 
-- only the `memory` tool is listed;
-- the advertised schema is exact;
+- exactly the three memory tools are listed;
+- every advertised input and output schema is exact;
 - extra arguments are rejected even though the SDK does not validate tool
   input automatically;
 - stdout contains no text outside the protocol;

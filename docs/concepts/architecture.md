@@ -34,7 +34,7 @@ through file locks in the shared Perenna home.
 
 The adapter:
 
-- advertises exactly one `memory` tool;
+- advertises separate `memory_read`, `memory_write`, and `memory_delete` tools;
 - validates action-specific arguments;
 - dispatches to the core in a worker thread;
 - converts expected domain failures into MCP error results;
@@ -44,11 +44,8 @@ It does not own storage, indexing, source resolution, or Git behavior.
 
 ### Core
 
-The core exposes three operations to the adapter:
-
-- list the lightweight memory index;
-- recall full memories;
-- write a memory.
+The core exposes list, search, get, create, patch, replace, and delete
+operations to the adapter.
 
 It coordinates locks, committed snapshots, storage, index synchronization, and
 best-effort backup. It has no dependency on stdio and no generic transport
@@ -57,8 +54,8 @@ interface.
 ### Markdown store
 
 The store parses and writes the canonical memory format. It performs
-normalization, path derivation, duplicate detection, title-based upsert, atomic
-replacement, and Git commit creation.
+normalization, path derivation, duplicate detection, per-memory revision
+checks, exact patching, atomic replacement or deletion, and Git commit creation.
 
 ### Git repository
 
@@ -68,10 +65,10 @@ repository.
 
 ### Vexor collection
 
-Vexor embeds memory titles and bodies, applies scope filters before scoring,
-and returns candidate memory IDs. Perenna resolves final results against the
-trusted committed Markdown snapshot instead of trusting an arbitrary path from
-index metadata.
+Vexor embeds each memory title, authoritative summary, and bounded body chunks.
+It applies scope filters before scoring and returns ranked chunk candidates.
+Perenna validates chunk identity, revision, range, and path against the trusted
+committed Markdown snapshot before returning a passage.
 
 ## Trust boundaries
 

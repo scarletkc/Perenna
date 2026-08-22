@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import mcp.types as types
 import pytest
@@ -11,66 +12,153 @@ from pydantic import ValidationError
 
 from perenna.errors import MemoryValidationError
 from perenna.mcp_server import (
-    MEMORY_TOOL_SCHEMA,
-    MemoryArguments,
+    MEMORY_DELETE_OUTPUT_SCHEMA,
+    MEMORY_DELETE_SCHEMA,
+    MEMORY_READ_OUTPUT_SCHEMA,
+    MEMORY_READ_SCHEMA,
+    MEMORY_WRITE_OUTPUT_SCHEMA,
+    MEMORY_WRITE_SCHEMA,
+    MemoryDeleteArguments,
+    MemoryReadArguments,
+    MemoryWriteArguments,
     create_server,
     run_stdio,
 )
 from tests.helpers import perenna_session, result_text
 
+MEMORY_ID = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+REVISION = "a" * 64
 
-def test_memory_schema_is_exact_and_source_is_not_agent_controlled() -> None:
-    assert MEMORY_TOOL_SCHEMA == {
-        "type": "object",
-        "properties": {
-            "action": {"type": "string", "enum": ["query", "write"]},
-            "query": {"type": "string"},
-            "title": {"type": "string"},
-            "body": {"type": "string"},
-            "project": {"type": "string"},
-        },
-        "required": ["action"],
-        "additionalProperties": False,
+
+def test_tool_schemas_are_separate_exact_and_source_is_trusted() -> None:
+    assert MEMORY_READ_SCHEMA["properties"] == {
+        "action": {"type": "string", "enum": ["list", "search", "get"]},
+        "query": {"type": "string"},
+        "project": {"type": "string"},
+        "memory_id": {"type": "string"},
+        "limit": {"type": "integer", "minimum": 1, "maximum": 5},
     }
-    assert "source" not in MEMORY_TOOL_SCHEMA["properties"]
+    assert MEMORY_WRITE_SCHEMA["properties"]["action"] == {
+        "type": "string",
+        "enum": ["create", "patch", "replace"],
+    }
+    assert MEMORY_DELETE_SCHEMA["required"] == [
+        "memory_id",
+        "expected_title",
+        "base_revision",
+    ]
+    assert "source" not in MEMORY_WRITE_SCHEMA["properties"]
+    assert all(
+        schema["additionalProperties"] is False
+        for schema in (MEMORY_READ_SCHEMA, MEMORY_WRITE_SCHEMA, MEMORY_DELETE_SCHEMA)
+    )
 
 
 @pytest.mark.parametrize(
-    "arguments",
+    ("model", "arguments"),
     [
-        {"action": "query", "title": "not allowed"},
-        {"action": "query", "query": None},
-        {"action": "write", "title": "missing body"},
-        {"action": "write", "title": "x", "body": "y", "query": "not allowed"},
-        {"action": "query", "unknown": "field"},
+        (MemoryReadArguments, {"action": "list", "query": "not allowed"}),
+        (MemoryReadArguments, {"action": "search"}),
+        (MemoryReadArguments, {"action": "search", "query": "x", "limit": 0}),
+        (MemoryReadArguments, {"action": "get", "memory_id": None}),
+        (MemoryWriteArguments, {"action": "create", "title": "missing summary", "body": "x"}),
+        (
+            MemoryWriteArguments,
+            {"action": "patch", "memory_id": MEMORY_ID, "base_revision": REVISION, "edits": []},
+        ),
+        (
+            MemoryWriteArguments,
+            {
+                "action": "replace",
+                "memory_id": MEMORY_ID,
+                "base_revision": REVISION,
+                "summary": "Missing body.",
+            },
+        ),
+        (
+            MemoryDeleteArguments,
+            {"memory_id": MEMORY_ID, "expected_title": "Title", "base_revision": REVISION, "x": 1},
+        ),
     ],
 )
-def test_action_specific_argument_validation(arguments: dict[str, object]) -> None:
+def test_action_specific_argument_validation(
+    model: type[Any],
+    arguments: dict[str, object],
+) -> None:
     with pytest.raises(ValidationError):
-        MemoryArguments.model_validate(arguments)
+        model.model_validate(arguments)
 
 
 @pytest.mark.asyncio
-async def test_low_level_handlers_dispatch_all_actions_and_safe_errors(caplog) -> None:
+async def test_low_level_handlers_dispatch_every_tool_and_keep_errors_safe(caplog) -> None:
     class FakeCore:
         def __init__(self) -> None:
             self.calls: list[tuple[str, object]] = []
 
-        def list_index(self, *, project: str | None) -> str:
-            self.calls.append(("index", project))
-            return "index result"
+        def list_memories(self, *, project: str | None) -> dict[str, Any]:
+            self.calls.append(("list", project))
+            return {"action": "list", "project": project, "memories": [], "projects": []}
 
-        def recall(self, *, query: str, project: str | None) -> str:
-            self.calls.append(("recall", (query, project)))
+        def search(self, *, query: str, project: str | None, limit: int) -> dict[str, Any]:
+            self.calls.append(("search", (query, project, limit)))
             if query == "expected-error":
                 raise MemoryValidationError("safe expected error")
             if query == "unexpected-error":
                 raise RuntimeError("private provider detail")
-            return "recall result"
+            return {
+                "action": "search",
+                "project": project,
+                "limit": limit,
+                "matches": [],
+                "truncated": False,
+            }
 
-        def write(self, *, title: str, body: str, project: str | None) -> str:
-            self.calls.append(("write", (title, body, project)))
-            return "write result"
+        def get(self, *, memory_id: str) -> dict[str, Any]:
+            self.calls.append(("get", memory_id))
+            return {"action": "get", "memory": _memory_payload()}
+
+        def create(
+            self,
+            *,
+            title: str,
+            summary: str,
+            body: str,
+            project: str | None,
+        ) -> dict[str, Any]:
+            self.calls.append(("create", (title, summary, body, project)))
+            return _mutation("create")
+
+        def patch(
+            self,
+            *,
+            memory_id: str,
+            base_revision: str,
+            edits: object,
+            summary: str | None,
+        ) -> dict[str, Any]:
+            self.calls.append(("patch", (memory_id, base_revision, edits, summary)))
+            return _mutation("patch")
+
+        def replace(
+            self,
+            *,
+            memory_id: str,
+            base_revision: str,
+            summary: str,
+            body: str,
+        ) -> dict[str, Any]:
+            self.calls.append(("replace", (memory_id, base_revision, summary, body)))
+            return _mutation("replace")
+
+        def delete(
+            self,
+            *,
+            memory_id: str,
+            expected_title: str,
+            base_revision: str,
+        ) -> dict[str, Any]:
+            self.calls.append(("delete", (memory_id, expected_title, base_revision)))
+            return {**_mutation("delete"), "recoverable_via_git": True}
 
     core = FakeCore()
     server = create_server(core)  # type: ignore[arg-type]
@@ -78,55 +166,141 @@ async def test_low_level_handlers_dispatch_all_actions_and_safe_errors(caplog) -
     call_handler = server._request_handlers["tools/call"].handler
 
     listed = await list_handler(None, None)
-    assert [tool.name for tool in listed.tools] == ["memory"]
-    unknown = await call_handler(None, types.CallToolRequestParams(name="other"))
+    assert [tool.name for tool in listed.tools] == [
+        "memory_read",
+        "memory_write",
+        "memory_delete",
+    ]
+    assert listed.tools[0].annotations.read_only_hint
+    assert listed.tools[1].annotations.destructive_hint
+    assert listed.tools[2].annotations.destructive_hint
+    assert [tool.output_schema for tool in listed.tools] == [
+        MEMORY_READ_OUTPUT_SCHEMA,
+        MEMORY_WRITE_OUTPUT_SCHEMA,
+        MEMORY_DELETE_OUTPUT_SCHEMA,
+    ]
+
+    unknown = await call_handler(None, types.CallToolRequestParams(name="memory"))
     invalid = await call_handler(
         None,
-        types.CallToolRequestParams(name="memory", arguments={"action": "query", "extra": 1}),
-    )
-    indexed = await call_handler(
-        None,
-        types.CallToolRequestParams(name="memory", arguments={"action": "query"}),
-    )
-    recalled = await call_handler(
-        None,
         types.CallToolRequestParams(
-            name="memory",
-            arguments={"action": "query", "query": "topic", "project": "vexor"},
+            name="memory_read",
+            arguments={"action": "search", "query": "x", "limit": 6},
         ),
     )
-    written = await call_handler(
+    invalid_write = await call_handler(
         None,
         types.CallToolRequestParams(
-            name="memory",
-            arguments={"action": "write", "title": "Title", "body": "Body"},
+            name="memory_write",
+            arguments={"action": "create", "title": "Title", "body": "Body"},
+        ),
+    )
+    invalid_delete = await call_handler(
+        None,
+        types.CallToolRequestParams(
+            name="memory_delete",
+            arguments={"memory_id": MEMORY_ID},
+        ),
+    )
+    listed_result = await call_handler(
+        None,
+        types.CallToolRequestParams(name="memory_read", arguments={"action": "list"}),
+    )
+    searched = await call_handler(
+        None,
+        types.CallToolRequestParams(
+            name="memory_read",
+            arguments={"action": "search", "query": "topic", "project": "vexor", "limit": 2},
+        ),
+    )
+    fetched = await call_handler(
+        None,
+        types.CallToolRequestParams(
+            name="memory_read",
+            arguments={"action": "get", "memory_id": MEMORY_ID},
+        ),
+    )
+    created = await call_handler(
+        None,
+        types.CallToolRequestParams(
+            name="memory_write",
+            arguments={
+                "action": "create",
+                "title": "Title",
+                "summary": "What this memory covers.",
+                "body": "Body",
+            },
+        ),
+    )
+    patched = await call_handler(
+        None,
+        types.CallToolRequestParams(
+            name="memory_write",
+            arguments={
+                "action": "patch",
+                "memory_id": MEMORY_ID,
+                "base_revision": REVISION,
+                "summary": "Updated coverage.",
+                "edits": [{"old_text": "Body", "new_text": "Updated"}],
+            },
+        ),
+    )
+    replaced = await call_handler(
+        None,
+        types.CallToolRequestParams(
+            name="memory_write",
+            arguments={
+                "action": "replace",
+                "memory_id": MEMORY_ID,
+                "base_revision": REVISION,
+                "summary": "Replacement coverage.",
+                "body": "Replacement",
+            },
+        ),
+    )
+    deleted = await call_handler(
+        None,
+        types.CallToolRequestParams(
+            name="memory_delete",
+            arguments={
+                "memory_id": MEMORY_ID,
+                "expected_title": "Title",
+                "base_revision": REVISION,
+            },
         ),
     )
     expected = await call_handler(
         None,
         types.CallToolRequestParams(
-            name="memory",
-            arguments={"action": "query", "query": "expected-error"},
+            name="memory_read",
+            arguments={"action": "search", "query": "expected-error"},
         ),
     )
     unexpected = await call_handler(
         None,
         types.CallToolRequestParams(
-            name="memory",
-            arguments={"action": "query", "query": "unexpected-error"},
+            name="memory_read",
+            arguments={"action": "search", "query": "unexpected-error"},
         ),
     )
 
-    assert unknown.is_error and invalid.is_error
-    assert result_text(indexed) == "index result"
-    assert result_text(recalled) == "recall result"
-    assert result_text(written) == "write result"
+    assert all(result.is_error for result in (unknown, invalid, invalid_write, invalid_delete))
+    assert all(
+        not result.is_error
+        for result in (listed_result, searched, fetched, created, patched, replaced, deleted)
+    )
+    assert searched.structured_content["limit"] == 2
+    assert created.structured_content["memory"]["summary"] == "What this memory covers."
     assert result_text(expected) == "safe expected error"
     assert "private provider detail" not in result_text(unexpected)
-    assert core.calls[:3] == [
-        ("index", None),
-        ("recall", ("topic", "vexor")),
-        ("write", ("Title", "Body", None)),
+    assert [call[0] for call in core.calls[:7]] == [
+        "list",
+        "search",
+        "get",
+        "create",
+        "patch",
+        "replace",
+        "delete",
     ]
     assert "private provider detail" not in caplog.text
 
@@ -157,7 +331,7 @@ async def test_run_stdio_wires_streams_to_server(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_real_stdio_process_lists_only_memory_and_keeps_protocol_clean(
+async def test_real_stdio_process_lists_three_tools_and_returns_structured_content(
     tmp_path: Path,
 ) -> None:
     async with perenna_session(tmp_path / "home", "codex") as (
@@ -167,16 +341,28 @@ async def test_real_stdio_process_lists_only_memory_and_keeps_protocol_clean(
     ):
         tools = await session.list_tools()
         assert initialized.server_info.name == "Perenna"
-        assert [tool.name for tool in tools.tools] == ["memory"]
-        assert tools.tools[0].input_schema == MEMORY_TOOL_SCHEMA
+        assert [tool.name for tool in tools.tools] == [
+            "memory_read",
+            "memory_write",
+            "memory_delete",
+        ]
+        assert tools.tools[0].input_schema == MEMORY_READ_SCHEMA
 
-        bad = await session.call_tool("memory", {"action": "query", "extra": "rejected"})
+        bad = await session.call_tool(
+            "memory_read",
+            {"action": "search", "query": "x", "limit": 9},
+        )
         assert bad.is_error
-        assert "Invalid memory arguments" in result_text(bad)
+        assert "Invalid memory_read arguments" in result_text(bad)
 
-        index = await session.call_tool("memory", {"action": "query"})
+        index = await session.call_tool("memory_read", {"action": "list"})
         assert not index.is_error
-        assert "Global memories:" in result_text(index)
+        assert index.structured_content == {
+            "action": "list",
+            "project": None,
+            "memories": [],
+            "projects": [],
+        }
 
     assert "Traceback" not in stderr.getvalue()
 
@@ -199,3 +385,33 @@ def test_missing_source_exits_on_stderr_without_protocol_output(tmp_path: Path) 
     assert result.returncode == 2
     assert result.stdout == ""
     assert "Memory source is missing" in result.stderr
+
+
+def _memory_payload() -> dict[str, str]:
+    return {
+        "memory_id": MEMORY_ID,
+        "title": "Title",
+        "scope": "global",
+        "summary": "What this memory covers.",
+        "source": "codex",
+        "created_at": "2026-08-23T00:00:00.000000Z",
+        "updated_at": "2026-08-23T00:00:00.000000Z",
+        "revision": REVISION,
+        "body": "Body",
+    }
+
+
+def _mutation(action: str) -> dict[str, Any]:
+    return {
+        "action": action,
+        "changed": True,
+        "memory": {
+            "memory_id": MEMORY_ID,
+            "title": "Title",
+            "scope": "global",
+            "summary": "What this memory covers.",
+            **({} if action == "delete" else {"revision": REVISION}),
+        },
+        "commit": "b" * 40,
+        "index_status": "current",
+    }

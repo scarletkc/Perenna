@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Linear Gradients -->
+    <linearGradient id="pStemGradT" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="45%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+
+    <linearGradient id="pLoopGradT" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06b6d4"/>
+      <stop offset="28%" stop-color="#3b82f6"/>
+      <stop offset="68%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#f43f5e"/>
+    </linearGradient>
+
+    <linearGradient id="gitTraceGradT" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="35%" stop-color="#22d3ee"/>
+      <stop offset="75%" stop-color="#ec4899"/>
+      <stop offset="100%" stop-color="#fb7185"/>
+    </linearGradient>
+
+    <!-- Node Radial Glows -->
+    <radialGradient id="cyanGlowT" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="35%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0284c7" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="pinkGlowT" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="35%" stop-color="#fb7185"/>
+      <stop offset="100%" stop-color="#e11d48" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="purpleGlowT" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="35%" stop-color="#c084fc"/>
+      <stop offset="100%" stop-color="#7e22ce" stop-opacity="0"/>
+    </radialGradient>
+
+    <filter id="glowFilterT" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="shadowFilterT" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- Logo Graphics Group -->
+  <g filter="url(#shadowFilterT)">
+
+    <!-- P-Loop Solid Ribbon -->
+    <path d="M 172 124
+             C 274 124, 368 160, 368 238
+             C 368 316, 274 352, 172 352
+             L 172 294
+             C 238 294, 308 270, 308 238
+             C 308 206, 238 182, 172 182
+             Z"
+          fill="url(#pLoopGradT)"/>
+
+    <!-- P-Stem (Git Trunk) -->
+    <rect x="136" y="124" width="50" height="268" rx="25" fill="url(#pStemGradT)"/>
+
+    <!-- Git Branch Circuit Path 1 -->
+    <path d="M 161 340
+             L 161 240
+             C 161 176, 232 152, 285 174
+             C 338 196, 338 274, 285 298
+             C 238 318, 188 288, 161 254"
+          fill="none"
+          stroke="url(#gitTraceGradT)"
+          stroke-width="8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          filter="url(#glowFilterT)"/>
+
+    <!-- Git Nodes / Neural Synapses -->
+    <circle cx="161" cy="340" r="18" fill="url(#cyanGlowT)" opacity="0.7"/>
+    <circle cx="161" cy="340" r="13" fill="#0f172a" stroke="#4f46e5" stroke-width="4"/>
+    <circle cx="161" cy="340" r="5" fill="#ffffff"/>
+
+    <circle cx="161" cy="228" r="22" fill="url(#cyanGlowT)" opacity="0.85"/>
+    <circle cx="161" cy="228" r="15" fill="#0f172a" stroke="#06b6d4" stroke-width="4"/>
+    <circle cx="161" cy="228" r="6" fill="#ffffff"/>
+
+    <circle cx="278" cy="160" r="18" fill="url(#purpleGlowT)" opacity="0.7"/>
+    <circle cx="278" cy="160" r="13" fill="#0f172a" stroke="#a855f7" stroke-width="3.5"/>
+    <circle cx="278" cy="160" r="5" fill="#ffffff"/>
+
+    <circle cx="342" cy="238" r="24" fill="url(#pinkGlowT)" opacity="0.9"/>
+    <circle cx="342" cy="238" r="16" fill="#0f172a" stroke="#f43f5e" stroke-width="4.5"/>
+    <circle cx="342" cy="238" r="6.5" fill="#ffffff"/>
+
+    <!-- Central Spark -->
+    <g transform="translate(244, 238)">
+      <polygon points="0,-12 3.5,-3.5 12,0 3.5,3.5 0,12 -3.5,3.5 -12,0 -3.5,-3.5" fill="#ffffff" opacity="0.65"/>
+      <circle cx="0" cy="0" r="2.5" fill="#22d3ee" opacity="0.75"/>
+    </g>
+  </g>
+</svg>

@@ -117,11 +117,14 @@ def build_expected_files(repo_root: Path, version: str) -> dict[Path, bytes]:
         )
 
     metadata = _read_project_metadata(repo_root)
+    environment_variables = _read_registry_environment_variable_names(repo_root)
     expected = {
         CODEX_PLUGIN_ROOT / ".codex-plugin/plugin.json": _json_bytes(
             _codex_manifest(metadata, version)
         ),
-        CODEX_PLUGIN_ROOT / ".mcp.json": _json_bytes(_mcp_manifest("codex")),
+        CODEX_PLUGIN_ROOT / ".mcp.json": _json_bytes(
+            _mcp_manifest("codex", env_vars=environment_variables)
+        ),
         CLAUDE_PLUGIN_ROOT / ".claude-plugin/plugin.json": _json_bytes(
             _claude_manifest(metadata, version)
         ),
@@ -177,6 +180,28 @@ def _read_project_metadata(repo_root: Path) -> dict[str, Any]:
     return required
 
 
+def _read_registry_environment_variable_names(repo_root: Path) -> list[str]:
+    path = repo_root / "server.json"
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    packages = manifest.get("packages")
+    if not isinstance(packages, list) or len(packages) != 1:
+        raise RuntimeError(f"{path} must declare exactly one package")
+
+    environment_variables = packages[0].get("environmentVariables")
+    if not isinstance(environment_variables, list):
+        raise RuntimeError(f"{path} package is missing environmentVariables")
+
+    names: list[str] = []
+    for variable in environment_variables:
+        name = variable.get("name") if isinstance(variable, dict) else None
+        if not isinstance(name, str) or not name:
+            raise RuntimeError(f"{path} contains an invalid environment variable declaration")
+        if name in names:
+            raise RuntimeError(f"{path} declares environment variable {name!r} more than once")
+        names.append(name)
+    return names
+
+
 def _codex_manifest(metadata: dict[str, Any], version: str) -> dict[str, Any]:
     return {
         "name": PLUGIN_NAME,
@@ -224,13 +249,16 @@ def _claude_manifest(metadata: dict[str, Any], version: str) -> dict[str, Any]:
     }
 
 
-def _mcp_manifest(source: str) -> dict[str, Any]:
+def _mcp_manifest(source: str, *, env_vars: list[str] | None = None) -> dict[str, Any]:
+    server = {
+        "command": "perenna",
+        "args": ["mcp", "--source", source],
+    }
+    if env_vars:
+        server["env_vars"] = env_vars
     return {
         "mcpServers": {
-            "perenna": {
-                "command": "perenna",
-                "args": ["mcp", "--source", source],
-            }
+            "perenna": server,
         }
     }
 

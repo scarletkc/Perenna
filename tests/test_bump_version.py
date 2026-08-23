@@ -91,7 +91,13 @@ def _write_server_manifest(root: Path) -> None:
         json.dumps(
             {
                 "version": "0.1.0",
-                "packages": [{"identifier": "perenna", "version": "0.1.0"}],
+                "packages": [
+                    {
+                        "identifier": "perenna",
+                        "version": "0.1.0",
+                        "environmentVariables": [{"name": "VEXOR_API_KEY"}],
+                    }
+                ],
             },
             indent=2,
         )

@@ -33,13 +33,18 @@ def test_repository_plugin_artifacts_are_synchronized() -> None:
     )
     assert codex_mcp["mcpServers"]["perenna"]["args"][-1] == "codex"
     assert claude_mcp["mcpServers"]["perenna"]["args"][-1] == "claude-code"
+    server = json.loads((REPO_ROOT / "server.json").read_text(encoding="utf-8"))
+    environment_variables = server["packages"][0]["environmentVariables"]
+    assert codex_mcp["mcpServers"]["perenna"]["env_vars"] == [
+        variable["name"] for variable in environment_variables
+    ]
+    assert "env_vars" not in claude_mcp["mcpServers"]["perenna"]
     assert (
         REPO_ROOT / "plugins/codex/perenna/skills/perenna-memory/SKILL.md"
     ).read_bytes() == (REPO_ROOT / "skills/perenna-memory/SKILL.md").read_bytes()
     assert (
         REPO_ROOT / "plugins/claude/perenna/skills/perenna-memory/SKILL.md"
     ).read_bytes() == (REPO_ROOT / "skills/perenna-memory/SKILL.md").read_bytes()
-    server = json.loads((REPO_ROOT / "server.json").read_text(encoding="utf-8"))
     assert server["version"] == __version__
     assert all(package["version"] == __version__ for package in server["packages"])
 
@@ -104,6 +109,21 @@ keywords = ["memory", "mcp"]
 [project.urls]
 Repository = "https://github.com/scarletkc/Perenna"
 """,
+        encoding="utf-8",
+    )
+    (root / "server.json").write_text(
+        json.dumps(
+            {
+                "packages": [
+                    {
+                        "environmentVariables": [
+                            {"name": "VEXOR_API_KEY"},
+                            {"name": "VEXOR_CONFIG_JSON"},
+                        ]
+                    }
+                ]
+            }
+        ),
         encoding="utf-8",
     )
     plugins = root / "plugins"

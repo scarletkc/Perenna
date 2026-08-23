@@ -6,6 +6,11 @@
         "mcp",
         "--source",
         "codex"
+      ],
+      "env_vars": [
+        "VEXOR_API_KEY",
+        "VEXOR_REMOTE_RERANK_API_KEY",
+        "VEXOR_CONFIG_JSON"
       ]
     }
   }

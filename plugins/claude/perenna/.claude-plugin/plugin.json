@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "perenna",
+  "displayName": "Perenna",
+  "version": "0.1.0",
+  "description": "A lightweight, Git-backed permanent memory for AI agents.",
+  "author": {
+    "name": "scarletkc"
+  },
+  "homepage": "https://github.com/scarletkc/Perenna",
+  "repository": "https://github.com/scarletkc/Perenna",
+  "license": "MIT",
+  "keywords": [
+    "ai",
+    "agents",
+    "llm",
+    "memory",
+    "mcp",
+    "git",
+    "local-first",
+    "semantic-search"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
+}

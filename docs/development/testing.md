@@ -17,6 +17,13 @@ Run linting:
 uv run ruff check .
 ```
 
+Check that both plugin manifests, Marketplaces, and the bundled Skill mirror
+match their canonical sources:
+
+```bash
+uv run python scripts/sync_plugin.py --check
+```
+
 Run the default test suite:
 
 ```bash
@@ -163,8 +170,9 @@ domain, certificate, or OAuth tenant is configured correctly.
 ## Continuous integration
 
 `.github/workflows/validate.yml` owns the validation runner and Python version. Each
-run performs dependency synchronization, Ruff, pytest with coverage, and
-package build. The live-provider marker remains excluded.
+run performs dependency synchronization, Ruff, plugin synchronization checks,
+pytest with coverage, and package build. The live-provider marker remains
+excluded.
 
 CI validates buildability but does not publish packages directly. A successful
 `main` push can trigger the separate workflow documented in

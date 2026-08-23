@@ -1,0 +1,20 @@
+{
+  "name": "perenna",
+  "interface": {
+    "displayName": "Perenna"
+  },
+  "plugins": [
+    {
+      "name": "perenna",
+      "source": {
+        "source": "local",
+        "path": "./plugins/codex/perenna"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

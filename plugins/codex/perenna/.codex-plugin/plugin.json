@@ -1,0 +1,40 @@
+{
+  "name": "perenna",
+  "version": "0.1.0",
+  "description": "A lightweight, Git-backed permanent memory for AI agents.",
+  "author": {
+    "name": "scarletkc"
+  },
+  "homepage": "https://github.com/scarletkc/Perenna",
+  "repository": "https://github.com/scarletkc/Perenna",
+  "license": "MIT",
+  "keywords": [
+    "ai",
+    "agents",
+    "llm",
+    "memory",
+    "mcp",
+    "git",
+    "local-first",
+    "semantic-search"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Perenna",
+    "shortDescription": "Permanent shared memory for AI agents",
+    "longDescription": "Use Git-backed permanent memory across sessions, clients, and instances.",
+    "developerName": "scarletkc",
+    "category": "Productivity",
+    "capabilities": [
+      "Read memory",
+      "Write memory",
+      "Delete memory"
+    ],
+    "websiteURL": "https://github.com/scarletkc/Perenna",
+    "defaultPrompt": [
+      "Recall relevant permanent memory before starting this task.",
+      "Save this durable decision to Perenna."
+    ]
+  }
+}

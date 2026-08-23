@@ -15,6 +15,7 @@ more exact layers only when you need them.
 | Document | Use it to |
 | --- | --- |
 | [Client setup](guides/client-setup.md) | Connect Claude Code, Codex, ChatGPT Desktop, or Cursor |
+| [Plugin setup](guides/plugin-setup.md) | Install the combined Skill and MCP plugin for Codex or Claude Code |
 | [Self-hosting](guides/self-hosting.md) | Run one OAuth-protected Perenna instance for ChatGPT web |
 | [Using permanent memory](guides/using-memory.md) | List, search, get, create, patch, replace, and delete memories |
 | [`perenna-memory` Agent Skill](../skills/perenna-memory/SKILL.md) | Teach a compatible AI client when and how to curate permanent memory |
@@ -53,6 +54,7 @@ docs/
 ├── getting-started.md
 ├── guides/
 │   ├── client-setup.md
+│   ├── plugin-setup.md
 │   ├── self-hosting.md
 │   ├── using-memory.md
 │   └── maintenance.md

@@ -6,6 +6,11 @@ assumes that `perenna` is installed and available on `PATH`.
 For an OAuth-protected ChatGPT web connection to a VPS, use the separate
 [self-hosting guide](self-hosting.md).
 
+Codex and Claude Code users can instead follow the combined
+[Plugin setup](plugin-setup.md), which installs the Agent Skill and MCP
+connection together. The commands below are the standalone setup path; do not
+combine both paths for the same client.
+
 Each client must supply a trusted `source` when it starts Perenna. The source
 is stored with every changed mutation and is intentionally absent from MCP tool
 schema.

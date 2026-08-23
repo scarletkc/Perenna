@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "perenna": {
+      "command": "perenna",
+      "args": [
+        "mcp",
+        "--source",
+        "codex"
+      ]
+    }
+  }
+}

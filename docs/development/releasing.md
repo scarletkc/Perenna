@@ -24,7 +24,7 @@ token.
 
 ```mermaid
 flowchart TD
-    A[Update __version__ in a branch] --> B[Open or update a pull request]
+    A[Run scripts/bump_version.py in a branch] --> B[Open or update a pull request]
     B --> C[CI validates the pull request]
     C -- Failed --> X[Stop without releasing]
     C -- Passed and merged --> D[Push to main]
@@ -70,14 +70,27 @@ Omit the file when the generated changelog is sufficient.
 
 ## Publish a version
 
-1. Update `__version__` in
-   [`src/perenna/__init__.py`](../../src/perenna/__init__.py). Hatchling reads
-   the package version from that single source.
+1. Run the version tool from the repository root:
+
+   ```bash
+   uv run python scripts/bump_version.py <version>
+   ```
+
+   It updates `src/perenna/__init__.py`, `server.json`, both plugin manifests,
+   both repository Marketplaces, and the plugin's generated Skill mirror.
+   Versions must use strict semantic versioning, such as `0.2.0` or
+   `0.2.0-rc.1`.
 2. Optionally add the matching hand-written release note described above.
+   You can start it in the same command with
+   `--note "<release-note-title>"`, then write its body.
 3. Run the standard checks in [Testing](testing.md).
 4. Commit the release change and merge it through the normal review path.
 5. After `main` CI succeeds, verify that the publish workflow created the
    GitHub Release and completed the PyPI upload.
 6. Install `perenna` in a new process and confirm the reported version.
 
+Do not edit generated plugin copies directly. After changing the canonical
+Skill or plugin metadata, run `uv run python scripts/sync_plugin.py`. Installed
+Marketplace copies use the plugin version as their update key, so bump the
+Perenna version before distributing those changes to existing plugin users.
 Changing other files without changing `__version__` does not create a release.

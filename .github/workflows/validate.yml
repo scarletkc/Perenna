@@ -25,6 +25,9 @@ jobs:
       - name: Lint
         run: uv run ruff check .
 
+      - name: Check plugin artifacts
+        run: uv run python scripts/sync_plugin.py --check
+
       - name: Test
         run: uv run coverage run -m pytest
 

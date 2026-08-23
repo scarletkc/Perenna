@@ -118,6 +118,11 @@ Repeat `--agent` in one command when both clients should receive the skill.
 The [configuration reference](https://github.com/scarletkc/Perenna/blob/main/docs/reference/configuration.md#bundled-agent-skill)
 documents user and project scope, destinations, and replacement safeguards.
 
+Codex and Claude Code can instead install the combined Skill and MCP connection
+from Perenna's repository Marketplace. Follow the
+[Plugin setup guide](https://github.com/scarletkc/Perenna/blob/main/docs/guides/plugin-setup.md)
+and choose one setup path per client.
+
 Perenna needs a working Vexor embedding provider. For interactive provider
 selection and configuration, run:
 
@@ -175,6 +180,7 @@ then follow the path for your task:
 
 - [Getting started](https://github.com/scarletkc/Perenna/blob/main/docs/getting-started.md)
 - [Client setup](https://github.com/scarletkc/Perenna/blob/main/docs/guides/client-setup.md)
+- [Plugin setup](https://github.com/scarletkc/Perenna/blob/main/docs/guides/plugin-setup.md)
 - [Self-hosting for ChatGPT](https://github.com/scarletkc/Perenna/blob/main/docs/guides/self-hosting.md)
 - [Using permanent memory](https://github.com/scarletkc/Perenna/blob/main/docs/guides/using-memory.md)
 - [`perenna-memory` Agent Skill](https://github.com/scarletkc/Perenna/blob/main/skills/perenna-memory)

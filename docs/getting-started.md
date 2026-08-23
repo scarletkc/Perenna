@@ -48,6 +48,11 @@ inside a Git working tree when the skill should apply only to that repository.
 See [Bundled Agent Skill](reference/configuration.md#bundled-agent-skill) for
 the destination paths and replacement safeguards.
 
+For Codex or Claude Code, the combined
+[Plugin setup](guides/plugin-setup.md) installs the Skill and local MCP
+connection together. Choose either the plugin path or the standalone Skill plus
+client configuration; do not install both.
+
 ### Install local embedding support
 
 The base installation follows your existing Vexor provider configuration. To

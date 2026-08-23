@@ -1,0 +1,24 @@
+{
+  "name": "perenna",
+  "metadata": {
+    "description": "Marketplace for the Perenna memory plugin."
+  },
+  "owner": {
+    "name": "scarletkc"
+  },
+  "plugins": [
+    {
+      "name": "perenna",
+      "source": "./plugins/claude/perenna",
+      "description": "A lightweight, Git-backed permanent memory for AI agents.",
+      "category": "productivity",
+      "tags": [
+        "memory",
+        "mcp",
+        "git",
+        "agents"
+      ],
+      "strict": true
+    }
+  ]
+}

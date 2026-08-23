@@ -34,5 +34,19 @@ jobs:
       - name: Coverage report
         run: uv run coverage report
 
+      - name: Generate coverage XML
+        run: uv run coverage xml
+
+      # CODECOV_TOKEN is configured in repository secrets
+      - name: Upload coverage to Codecov
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
+          flags: unittests
+          fail_ci_if_error: false
+          verbose: false
+
       - name: Build distributions
         run: uv build

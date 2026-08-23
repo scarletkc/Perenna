@@ -23,6 +23,9 @@ jobs:
     permissions:
       contents: write
       id-token: write
+    outputs:
+      release_changed: ${{ steps.version.outputs.release_changed }}
+      version: ${{ steps.version.outputs.version }}
 
     steps:
       - name: Check out the validated commit
@@ -178,3 +181,81 @@ jobs:
       - name: Publish to PyPI
         if: steps.version.outputs.release_changed == 'true'
         uses: pypa/gh-action-pypi-publish@v1.14.2
+
+  publish_mcp_registry:
+    name: Publish to MCP registry
+    needs: publish
+    if: >-
+      needs.publish.outputs.release_changed == 'true' &&
+      !contains(needs.publish.outputs.version, 'a') &&
+      !contains(needs.publish.outputs.version, 'b') &&
+      !contains(needs.publish.outputs.version, 'rc')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Check out the validated commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Sync server.json version
+        shell: bash
+        env:
+          VERSION: ${{ needs.publish.outputs.version }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import pathlib
+
+          version = os.environ["VERSION"]
+          path = pathlib.Path("server.json")
+          data = json.loads(path.read_text(encoding="utf-8"))
+          data["version"] = version
+          for package in data.get("packages", []):
+              package["version"] = version
+          path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+          print(f"server.json synced to {version}")
+          PY
+
+      - name: Wait for PyPI to serve the release
+        shell: bash
+        env:
+          VERSION: ${{ needs.publish.outputs.version }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            if curl -fsS "https://pypi.org/pypi/perenna/${VERSION}/json" > /dev/null; then
+              echo "PyPI serves perenna ${VERSION}."
+              exit 0
+            fi
+            echo "Waiting for PyPI (${attempt}/30)..."
+            sleep 10
+          done
+          echo "PyPI did not serve perenna ${VERSION} in time." >&2
+          exit 1
+
+      - name: Install mcp-publisher
+        shell: bash
+        env:
+          MCP_PUBLISHER_VERSION: v1.7.9
+          MCP_PUBLISHER_SHA256: ab128162b0616090b47cf245afe0a23f3ef08936fdce19074f5ba0a4469281ac
+        run: |
+          set -euo pipefail
+          archive="mcp-publisher_linux_amd64.tar.gz"
+          curl -fsSL \
+            "https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}/${archive}" \
+            -o "${archive}"
+          echo "${MCP_PUBLISHER_SHA256}  ${archive}" | sha256sum --check --strict
+          tar xzf "${archive}" mcp-publisher
+
+      - name: Publish to MCP registry
+        shell: bash
+        run: |
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish

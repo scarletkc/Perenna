@@ -1,0 +1,58 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.scarletkc/perenna",
+  "title": "Perenna",
+  "description": "A lightweight, Git-backed permanent memory for AI agents.",
+  "repository": {
+    "url": "https://github.com/scarletkc/Perenna",
+    "source": "github",
+    "id": "1342284671"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "registryBaseUrl": "https://pypi.org",
+      "identifier": "perenna",
+      "version": "0.1.0",
+      "runtimeHint": "uvx",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp",
+          "description": "Run the local MCP server over stdio"
+        },
+        {
+          "type": "named",
+          "name": "--source",
+          "description": "Stable identifier for the MCP client writing memories",
+          "placeholder": "codex",
+          "isRequired": true
+        },
+        {
+          "type": "named",
+          "name": "--home",
+          "description": "Perenna data directory; defaults to ~/.perenna",
+          "format": "filepath",
+          "isRequired": false
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "VEXOR_API_KEY",
+          "description": "Embedding provider API key",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "VEXOR_CONFIG_JSON",
+          "description": "Non-secret Vexor configuration as a JSON object",
+          "isRequired": false
+        }
+      ]
+    }
+  ]
+}

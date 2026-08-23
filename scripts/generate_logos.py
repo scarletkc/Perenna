@@ -686,7 +686,7 @@ HTML_PREVIEW = """<!DOCTYPE html>
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr));
       gap: 24px;
     }
 
@@ -745,6 +745,7 @@ HTML_PREVIEW = """<!DOCTYPE html>
     .size-strip {
       display: flex;
       align-items: center;
+      flex-wrap: wrap;
       gap: 24px;
       margin-top: 10px;
     }
@@ -754,9 +755,16 @@ HTML_PREVIEW = """<!DOCTYPE html>
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
       margin-top: auto;
       padding-top: 16px;
       border-top: 1px solid var(--border-dark);
+    }
+
+    .card-info {
+      flex: 1 1 220px;
+      min-width: 0;
     }
 
     .card-info h3 {
@@ -799,7 +807,7 @@ HTML_PREVIEW = """<!DOCTYPE html>
 
     .story-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
       gap: 24px;
       margin-top: 20px;
     }
@@ -981,7 +989,7 @@ def main() -> int:
 
     for filename, content in files.items():
         path = assets_dir / filename
-        path.write_text(content + "\n", encoding="utf-8")
+        path.write_bytes((content + "\n").encode("utf-8"))
         print(f"Generated assets/{filename}")
 
     return 0

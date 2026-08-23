@@ -28,11 +28,6 @@
       <stop offset="100%" stop-color="#fb7185"/>
     </linearGradient>
 
-    <linearGradient id="branchDashedGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#22d3ee"/>
-      <stop offset="100%" stop-color="#a855f7"/>
-    </linearGradient>
-
     <!-- Node Radial Glows -->
     <radialGradient id="cyanGlow" cx="50%" cy="50%" r="50%">
       <stop offset="0%" stop-color="#ffffff"/>
@@ -116,7 +111,7 @@
              Z"
           fill="url(#pLoopGrad)"/>
 
-    <!-- P-Stem (Git Master Trunk) -->
+    <!-- P-Stem (Git Trunk) -->
     <rect x="136" y="124" width="50" height="268" rx="25" fill="url(#pStemGrad)"/>
 
     <!-- Git Branch Circuit Path 1: Fork from trunk, loops through the head, converges back -->
@@ -127,21 +122,10 @@
              C 238 318, 188 288, 161 254"
           fill="none"
           stroke="url(#gitTraceGrad)"
-          stroke-width="6.5"
+          stroke-width="8"
           stroke-linecap="round"
           stroke-linejoin="round"
           filter="url(#glowFilter)"/>
-
-    <!-- Git Branch Circuit Path 2: Sub-branch bridge (Agent interconnect) -->
-    <path d="M 161 210
-             C 200 210, 246 220, 274 246
-             C 298 268, 280 294, 252 308"
-          fill="none"
-          stroke="url(#branchDashedGrad)"
-          stroke-width="4.5"
-          stroke-dasharray="6 6"
-          stroke-linecap="round"
-          opacity="0.85"/>
 
     <!-- Git Nodes / Neural Synapses -->
 
@@ -155,29 +139,20 @@
     <circle cx="161" cy="228" r="15" fill="#0d1120" stroke="#06b6d4" stroke-width="4"/>
     <circle cx="161" cy="228" r="6" fill="#ffffff"/>
 
-    <!-- 3. Top Anchor Node -->
-    <circle cx="161" cy="150" r="11" fill="#0d1120" stroke="#38bdf8" stroke-width="3.5"/>
-    <circle cx="161" cy="150" r="4" fill="#ffffff"/>
-
-    <!-- 4. Upper Intelligent Apex Node -->
+    <!-- 3. Upper Node -->
     <circle cx="278" cy="160" r="20" fill="url(#purpleGlow)" opacity="0.7"/>
     <circle cx="278" cy="160" r="13" fill="#0d1120" stroke="#a855f7" stroke-width="3.5"/>
     <circle cx="278" cy="160" r="5" fill="#ffffff"/>
 
-    <!-- 5. Permanent Storage Apex (Vexor & Git merge) -->
+    <!-- 4. Outer Node -->
     <circle cx="342" cy="238" r="26" fill="url(#pinkGlow)" opacity="0.9"/>
     <circle cx="342" cy="238" r="16" fill="#0d1120" stroke="#f43f5e" stroke-width="4.5"/>
     <circle cx="342" cy="238" r="6.5" fill="#ffffff"/>
 
-    <!-- 6. Bottom Convergence Node -->
-    <circle cx="268" cy="304" r="20" fill="url(#purpleGlow)" opacity="0.75"/>
-    <circle cx="268" cy="304" r="13" fill="#0d1120" stroke="#c084fc" stroke-width="3.5"/>
-    <circle cx="268" cy="304" r="5" fill="#ffffff"/>
-
-    <!-- Central Eternal Spark (Durable Memory Nucleus) -->
+    <!-- Central Spark -->
     <g transform="translate(244, 238)">
-      <polygon points="0,-16 4.5,-4.5 16,0 4.5,4.5 0,16 -4.5,4.5 -16,0 -4.5,-4.5" fill="#ffffff" filter="url(#glowFilter)"/>
-      <circle cx="0" cy="0" r="3" fill="#22d3ee"/>
+      <polygon points="0,-12 3.5,-3.5 12,0 3.5,3.5 0,12 -3.5,3.5 -12,0 -3.5,-3.5" fill="#ffffff" opacity="0.65"/>
+      <circle cx="0" cy="0" r="2.5" fill="#22d3ee" opacity="0.75"/>
     </g>
 
   </g>

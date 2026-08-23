@@ -13,7 +13,7 @@ from perenna.git import GitRepository
 
 
 @dataclass(frozen=True, slots=True)
-class BackupReport:
+class SyncReport:
     repository: Path
     remote_name: str
     remote_url: str
@@ -36,18 +36,18 @@ class DeployKey:
     created: bool
 
 
-def setup_backup(
+def setup_sync(
     memory_path: Path,
     repository_url: str,
     *,
     remote_name: str | None,
     replace: bool,
     deploy_key: bool = False,
-) -> BackupReport:
+) -> SyncReport:
     if remote_name is None:
         raise ConfigurationError(
-            "Automatic Git backup is disabled because PERENNA_GIT_REMOTE is empty. Remove the "
-            "empty override from the Perenna host configuration, then retry."
+            "Git synchronization is disabled because PERENNA_GIT_REMOTE is unset or empty. "
+            "Set it to the remote name used by the Perenna host, then retry."
         )
     url = _validated_repository_url(repository_url)
     if deploy_key:
@@ -67,7 +67,7 @@ def setup_backup(
         )
 
     branch = repository.current_branch()
-    head = repository.head()
+    local_head = repository.head()
     key = None
     changed = previous_url != url
     if deploy_key:
@@ -83,15 +83,15 @@ def setup_backup(
             return _deploy_key_pending_report(repository, remote_name, url, branch, key)
     else:
         heads = repository.remote_heads(url)
-    _require_compatible_remote(heads, branch, head)
-    if head is not None:
-        repository.verify_push(url, branch)
+    _require_compatible_remote(heads, branch, local_head)
 
     if changed:
         repository.set_remote_url(remote_name, url)
     try:
-        if head is None:
-            return BackupReport(
+        remote_head = repository.fetch(remote_name, branch)
+        if local_head is None and remote_head is None:
+            repository.clear_sync_conflict()
+            return SyncReport(
                 repository=repository.path,
                 remote_name=remote_name,
                 remote_url=url,
@@ -103,21 +103,56 @@ def setup_backup(
                 deploy_key_fingerprint=key.fingerprint if key is not None else None,
             )
 
-        outcome = repository.push(remote_name)
-        if not outcome.succeeded:
-            remote_head = repository.remote_heads(url).get(branch)
-            if remote_head != head:
-                configuration_result = (
-                    "restored the previous remote configuration"
-                    if changed
-                    else "left the existing remote configuration unchanged"
-                )
-                raise RepositoryError(
-                    f"Git could not complete the initial backup of branch {branch!r} "
-                    f"({outcome.reason}). Perenna {configuration_result}; "
-                    "check the network, credentials, and branch rules, then retry."
-                )
-        return BackupReport(
+        if remote_head is None:
+            assert local_head is not None
+            repository.verify_push(url, branch, commit=local_head)
+            outcome = repository.push(remote_name, commit=local_head, branch=branch)
+            if not outcome.succeeded:
+                confirmed = repository.fetch(remote_name, branch)
+                if confirmed != local_head:
+                    configuration_result = (
+                        "restored the previous remote configuration"
+                        if changed
+                        else "left the existing remote configuration unchanged"
+                    )
+                    raise RepositoryError(
+                        f"Git could not publish local branch {branch!r} to the synchronized "
+                        f"repository ({outcome.reason}). Perenna {configuration_result}; check "
+                        "the network, credentials, and branch rules, then retry."
+                    )
+        elif local_head is None:
+            repository.verify_push(url, branch, commit=remote_head)
+            repository.reset_to(remote_head)
+        elif local_head == remote_head:
+            repository.verify_push(url, branch, commit=remote_head)
+        elif repository.is_ancestor(local_head, remote_head):
+            repository.verify_push(url, branch, commit=remote_head)
+            repository.reset_to(remote_head)
+        elif repository.is_ancestor(remote_head, local_head):
+            repository.verify_push(url, branch, commit=local_head)
+            outcome = repository.push(remote_name, commit=local_head, branch=branch)
+            if not outcome.succeeded:
+                confirmed = repository.fetch(remote_name, branch)
+                if confirmed != local_head:
+                    configuration_result = (
+                        "restored the previous remote configuration"
+                        if changed
+                        else "left the existing remote configuration unchanged"
+                    )
+                    raise RepositoryError(
+                        f"Git could not synchronize local branch {branch!r} "
+                        f"({outcome.reason}). Perenna {configuration_result}; check the network, "
+                        "credentials, and branch rules, then retry."
+                    )
+        else:
+            raise RepositoryError(
+                f"Local branch {branch!r} and the synchronized repository have diverged. "
+                "Perenna did not merge, rebase, or force-push either history. Reconcile them "
+                "manually, then run sync setup again."
+            )
+
+        repository.clear_sync_conflict()
+        return SyncReport(
             repository=repository.path,
             remote_name=remote_name,
             remote_url=url,
@@ -134,19 +169,19 @@ def setup_backup(
         raise
 
 
-def inspect_backup(memory_path: Path, *, remote_name: str | None) -> BackupReport | None:
+def inspect_sync(memory_path: Path, *, remote_name: str | None) -> SyncReport | None:
     repository = GitRepository.open(memory_path)
     if remote_name is None:
         return None
     url = repository.remote_url(remote_name)
     if url is None:
         raise RepositoryError(
-            f"Automatic backup uses Git remote {remote_name!r}, but that remote is missing from "
-            f"{repository.path}. Run 'perenna backup setup REPOSITORY_URL' to configure it."
+            f"Git synchronization uses remote {remote_name!r}, but that remote is missing from "
+            f"{repository.path}. Run 'perenna sync setup REPOSITORY_URL' to configure it."
         )
 
     branch = repository.current_branch()
-    head = repository.head()
+    local_head = repository.head()
     key = _configured_deploy_key(repository)
     try:
         heads = repository.remote_heads(url)
@@ -154,13 +189,14 @@ def inspect_backup(memory_path: Path, *, remote_name: str | None) -> BackupRepor
         if key is None:
             raise
         raise RepositoryError(
-            "Git could not access the backup repository with its configured deploy key. "
+            "Git could not access the synchronized repository with its configured deploy key. "
             "Confirm the public key is registered, the network is available, and the recorded "
             "SSH host key is current, then retry."
         ) from exc
-    _require_compatible_remote(heads, branch, head)
-    if head is None:
-        return BackupReport(
+    _require_compatible_remote(heads, branch, local_head)
+    remote_head = repository.fetch(remote_name, branch)
+    if local_head is None and remote_head is None:
+        return SyncReport(
             repository=repository.path,
             remote_name=remote_name,
             remote_url=url,
@@ -172,9 +208,22 @@ def inspect_backup(memory_path: Path, *, remote_name: str | None) -> BackupRepor
             deploy_key_fingerprint=key.fingerprint if key is not None else None,
         )
 
-    repository.verify_push(url, branch)
-    state = "synchronized" if heads.get(branch) == head else "pending-push"
-    return BackupReport(
+    test_commit = remote_head or local_head
+    assert test_commit is not None
+    repository.verify_push(url, branch, commit=test_commit)
+    if local_head == remote_head:
+        state = "synchronized"
+    elif local_head is None:
+        state = "local-behind"
+    elif remote_head is None:
+        state = "local-ahead"
+    elif repository.is_ancestor(local_head, remote_head):
+        state = "local-behind"
+    elif repository.is_ancestor(remote_head, local_head):
+        state = "local-ahead"
+    else:
+        state = "diverged"
+    return SyncReport(
         repository=repository.path,
         remote_name=remote_name,
         remote_url=url,
@@ -229,7 +278,7 @@ def _prepare_deploy_key(home: Path, repository_url: str) -> DeployKey:
                     "-N",
                     "",
                     "-C",
-                    f"perenna-backup-{key_id}",
+                    f"perenna-sync-{key_id}",
                     "-f",
                     os.fspath(private_key),
                 ],
@@ -275,7 +324,7 @@ def _configured_deploy_key(repository: GitRepository) -> DeployKey | None:
     if not private_key.is_file() or not public_key_path.is_file():
         raise RepositoryError(
             f"The configured deploy key {private_key} is missing. Restore its credential "
-            "directory or run backup setup with --deploy-key again."
+            "directory or run sync setup with --deploy-key again."
         )
     public_key = public_key_path.read_text(encoding="utf-8").strip()
     return DeployKey(
@@ -341,8 +390,8 @@ def _deploy_key_pending_report(
     repository_url: str,
     branch: str,
     key: DeployKey,
-) -> BackupReport:
-    return BackupReport(
+) -> SyncReport:
+    return SyncReport(
         repository=repository.path,
         remote_name=remote_name,
         remote_url=repository_url,
@@ -399,8 +448,8 @@ def _validated_repository_url(value: str) -> str:
     url = value.strip()
     if not url or url.startswith("-") or any(character in url for character in ("\0", "\r", "\n")):
         raise ConfigurationError(
-            "The backup repository URL is empty, option-like, or contains control characters. "
-            "Provide one Git HTTPS or SSH repository address."
+            "The synchronized repository URL is empty, option-like, or contains control "
+            "characters. Provide one Git HTTPS or SSH repository address."
         )
     if "://" not in url:
         return url
@@ -408,18 +457,20 @@ def _validated_repository_url(value: str) -> str:
     parsed = urlsplit(url)
     if parsed.scheme.casefold() == "http":
         raise ConfigurationError(
-            "The backup repository uses insecure HTTP. Use an HTTPS or SSH repository address."
+            "The synchronized repository uses insecure HTTP. Use an HTTPS or SSH repository "
+            "address."
         )
     if parsed.scheme.casefold() in {"http", "https"} and (
         parsed.username is not None or parsed.password is not None
     ):
         raise ConfigurationError(
-            "The backup repository URL contains embedded HTTPS credentials. Save the credential "
-            "in Git Credential Manager and pass a credential-free repository URL instead."
+            "The synchronized repository URL contains embedded HTTPS credentials. Save the "
+            "credential in Git Credential Manager and pass a credential-free repository URL "
+            "instead."
         )
     if parsed.password is not None or parsed.query or parsed.fragment:
         raise ConfigurationError(
-            "The backup repository URL contains a password, query, or fragment. Use a "
+            "The synchronized repository URL contains a password, query, or fragment. Use a "
             "credential-free Git HTTPS or SSH repository address."
         )
     return url
@@ -438,9 +489,9 @@ def _require_compatible_remote(
     else:
         detail = f"it has no {branch!r} branch to compare"
     raise RepositoryError(
-        f"The backup repository already has branch history ({remote_branches}), and {detail}. "
-        "Perenna did not create a parallel history. Use an empty repository or configure this "
-        "remote manually."
+        f"The synchronized repository already has branch history ({remote_branches}), and "
+        f"{detail}. Perenna did not create a parallel history. Use an empty repository or "
+        "configure this remote manually."
     )
 
 

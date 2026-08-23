@@ -17,7 +17,7 @@ ChatGPT ── HTTPS/OAuth ── proxy ── HTTP Perenna
                        Git + Markdown         Vexor
                        permanent data         index
                               │
-                              └── optional best-effort push
+                              └── optional sync
                                            │
                                            ▼
                                     private Git remote
@@ -50,7 +50,7 @@ The core exposes list, search, get, create, patch, replace, and delete
 operations to the adapter.
 
 It coordinates locks, committed snapshots, storage, index synchronization, and
-best-effort backup. It has no dependency on either transport.
+optional Git synchronization. It has no dependency on either transport.
 
 ### Markdown store
 
@@ -60,9 +60,11 @@ checks, exact patching, atomic replacement or deletion, and Git commit creation.
 
 ### Git repository
 
-Git provides durability, history, auditability, manual recovery, and optional
-remote backup. The runtime repository is separate from the Perenna source-code
-repository.
+Git provides local durability, history, auditability, manual recovery, and an
+optional portable remote copy. Setup can import or fast-forward compatible
+history. Diverged histories require explicit user reconciliation; the remote is
+not a multi-writer coordination service. The runtime repository is separate
+from the Perenna source-code repository.
 
 ### Vexor collection
 
@@ -94,13 +96,13 @@ The exact input and file contracts live in the
 The implemented product deliberately excludes:
 
 - multi-user storage;
-- a remote synchronization protocol;
+- automatic reconciliation for concurrent remote writers;
 - a web UI;
 - an OAuth authorization server;
 - bundled TLS termination, DNS, or reverse-proxy management;
 - automatic memory extraction or context injection.
 
 The container packages Perenna only. The operator owns HTTPS, the reverse
-proxy, OAuth-provider configuration, persistent volumes, and backup
-credentials. Remote mode remains single-user and keeps the same Git, Markdown,
+proxy, OAuth-provider configuration, persistent volumes, and Git credentials.
+Remote mode remains single-user and keeps the same Git, Markdown,
 locking, and retrieval contracts as stdio.

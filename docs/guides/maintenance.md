@@ -1,8 +1,8 @@
 # Maintenance and Recovery
 
-This runbook covers local Git inspection, manual edits, index recovery, backup
-failures, and disaster recovery. Permanent recovery always starts from the
-memory Git repository, never from the Vexor index.
+This runbook covers local Git inspection, manual edits, index recovery, remote
+synchronization failures, and disaster recovery. Permanent recovery always
+starts from the memory Git repository, never from the Vexor index.
 
 In the commands below:
 
@@ -111,28 +111,47 @@ git -C <memory-repository> log -1 --oneline
 If the repository remains dirty, stop new mutations and inspect file permissions,
 disk space, repository state, and stderr diagnostics.
 
-## Recover from a backup push failure
+## Recover from a Git synchronization failure
 
-Remote push is best effort and does not define mutation success. Check the local
-state first. If the remote or its credentials were never configured, follow
-[Set up a backup remote](../reference/configuration.md#set-up-a-backup-remote)
-before treating the warning as a transient failure.
+A mutation with `sync_status: pending` or `sync_status: conflict` is committed
+locally. Do not repeat that memory mutation. Inspect the synchronization state:
 
 ```bash
+perenna sync status
 git -C <memory-repository> remote -v
 git -C <memory-repository> status --branch --short
 ```
 
-You may push manually after confirming the intended remote and branch. Perenna
-does not pull, fetch, force-push, or resolve a remote divergence. Run manual
-authentication checks as the same operating-system user and with the same
-credential or SSH-agent access as the MCP client.
+For `pending`, repair the network or credentials, then rerun setup with the
+already configured repository URL. A strictly ahead local branch pushes; a
+strictly behind clean branch fast-forwards:
+
+```bash
+perenna sync setup <repository-url>
+perenna sync status
+```
+
+For `conflict`, stop Perenna writers and inspect both histories before changing
+either one:
+
+```bash
+git -C <memory-repository> log --oneline --left-right HEAD...<remote>/<branch>
+git -C <memory-repository> diff HEAD...<remote>/<branch> -- global projects
+```
+
+Reconcile the commits manually, validate the resulting Markdown, and leave the
+working tree clean. Perenna does not choose merge versus rebase and never
+force-pushes. Run `perenna sync setup <repository-url>` afterward; successful
+setup clears the write barrier. Perform authentication and Git recovery as the
+same operating-system user and with the same credential or SSH-agent access as
+the MCP process.
 
 ## Disaster recovery
 
 If the memory Git repository survives, the Vexor index is unnecessary:
 
-1. Clone or copy the repository into `<new-home>/memory`.
+1. Run `perenna sync setup <repository-url> --home <new-home>` to import the
+   remote branch, or clone/copy a surviving repository into `<new-home>/memory`.
 2. Check out the intended branch and confirm a clean working tree.
 3. Validate the committed memory files.
 4. Leave `<new-home>/index` absent.

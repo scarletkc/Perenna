@@ -11,6 +11,7 @@ from perenna.errors import (
     IndexUnavailableError,
     MemoryNotFoundError,
     MemoryValidationError,
+    RepositoryError,
 )
 from perenna.git import GitRepository
 from perenna.index import DEFAULT_SEARCH_LIMIT, MAX_SEARCH_MATCHES, VexorIndex
@@ -39,6 +40,7 @@ class PerennaCore:
         if repository is None:
             with self.locks.exclusive():
                 self.repository = GitRepository.initialize(settings.paths.memory)
+                self._refresh_remote_best_effort()
         else:
             self.repository = repository
         self.store = store or MemoryStore(self.repository)
@@ -220,6 +222,13 @@ class PerennaCore:
     def _mutate(self, operation: Callable[[], MutationReceipt]) -> dict[str, Any]:
         index_status = "current"
         with self.locks.exclusive():
+            conflict = self.repository.sync_conflict_commit()
+            if conflict is not None:
+                raise RepositoryError(
+                    f"Memory writes are blocked because local commit {conflict[:12]} conflicts "
+                    "with the configured Git remote. Reconcile the local and remote branches, "
+                    "then run 'perenna sync setup REPOSITORY_URL' before retrying."
+                )
             receipt = operation()
             snapshot = self.store.snapshot()
             if receipt.changed:
@@ -241,6 +250,10 @@ class PerennaCore:
                 except Exception:
                     index_status = "pending"
 
+            sync_status, refreshed_index_status = self._push_after_mutation(receipt)
+            if refreshed_index_status is not None:
+                index_status = refreshed_index_status
+
         logger.info(
             "tool=%s action=%s changed=%s source=%s project=%s commit=%s",
             "memory_delete" if receipt.operation == "delete" else "memory_write",
@@ -250,23 +263,94 @@ class PerennaCore:
             receipt.memory.project or "global",
             receipt.commit[:12],
         )
-        if receipt.changed:
-            self._push_best_effort()
-        return _mutation_payload(receipt, index_status)
+        return _mutation_payload(receipt, index_status, sync_status)
 
-    def _push_best_effort(self) -> None:
-        if self.settings.git_remote is None:
+    def _push_after_mutation(self, receipt: MutationReceipt) -> tuple[str, str | None]:
+        remote = self.settings.git_remote
+        if remote is None:
+            return "local", None
+        if not receipt.changed:
+            return "unchanged", None
+        branch = self.repository.current_branch()
+        outcome = self.repository.push(remote, commit=receipt.commit, branch=branch)
+        if outcome.succeeded:
+            self.repository.clear_sync_conflict()
+            logger.info("git_sync=synchronized")
+            return "synchronized", None
+
+        try:
+            remote_commit = self.repository.fetch(remote, branch)
+        except RepositoryError:
+            logger.warning("git_sync=pending reason=%s", outcome.reason)
+            return "pending", None
+
+        if remote_commit is not None and (
+            remote_commit == receipt.commit
+            or self.repository.is_ancestor(receipt.commit, remote_commit)
+        ):
+            refreshed_index_status = None
+            if self.repository.head() != remote_commit:
+                self.repository.reset_to(remote_commit)
+                try:
+                    self.index.rebuild(self.store.snapshot())
+                    refreshed_index_status = "current"
+                except Exception as exc:
+                    refreshed_index_status = "pending"
+                    logger.warning(
+                        "memory_index=failed operation=%s source=%s project=%s error_type=%s",
+                        receipt.operation,
+                        self.settings.source,
+                        receipt.memory.project or "global",
+                        type(exc).__name__,
+                    )
+            self.repository.clear_sync_conflict()
+            logger.info("git_sync=synchronized-after-check")
+            return "synchronized", refreshed_index_status
+
+        local_commit = self.repository.head()
+        if remote_commit is None or (
+            local_commit is not None and self.repository.is_ancestor(remote_commit, local_commit)
+        ):
+            logger.warning("git_sync=pending reason=%s", outcome.reason)
+            return "pending", None
+
+        assert local_commit is not None
+        self.repository.mark_sync_conflict(local_commit)
+        logger.warning("git_sync=conflict remote=%s", remote)
+        return "conflict", None
+
+    def _refresh_remote_best_effort(self) -> None:
+        remote = self.settings.git_remote
+        if remote is None:
             return
         try:
-            with self.locks.push():
-                outcome = self.repository.push(self.settings.git_remote)
-        except Exception as exc:
-            logger.warning("git_push=failed error_type=%s", type(exc).__name__)
+            if self.repository.remote_url(remote) is None:
+                return
+        except RepositoryError as exc:
+            logger.warning("git_sync=startup-pending error_type=%s", type(exc).__name__)
             return
-        if outcome.attempted and not outcome.succeeded:
-            logger.warning("git_push=%s", outcome.reason)
-        elif outcome.succeeded:
-            logger.info("git_push=succeeded")
+        branch = self.repository.current_branch()
+        try:
+            self.repository.assert_clean()
+            remote_commit = self.repository.fetch(remote, branch)
+        except RepositoryError as exc:
+            logger.warning("git_sync=startup-pending error_type=%s", type(exc).__name__)
+            return
+
+        local_commit = self.repository.head()
+        if local_commit == remote_commit or remote_commit is None:
+            if local_commit == remote_commit:
+                self.repository.clear_sync_conflict()
+            return
+        if local_commit is None or self.repository.is_ancestor(local_commit, remote_commit):
+            self.repository.reset_to(remote_commit)
+            self.repository.clear_sync_conflict()
+            logger.info("git_sync=fast-forward commit=%s", remote_commit[:12])
+            return
+        if self.repository.is_ancestor(remote_commit, local_commit):
+            return
+        self.repository.mark_sync_conflict(local_commit)
+        logger.warning("git_sync=startup-conflict remote=%s", remote)
 
     def _invalidate_failed_index(self) -> None:
         with self.locks.exclusive():
@@ -309,7 +393,11 @@ def _match_payload(match: Any) -> dict[str, Any]:
     }
 
 
-def _mutation_payload(receipt: MutationReceipt, index_status: str) -> dict[str, Any]:
+def _mutation_payload(
+    receipt: MutationReceipt,
+    index_status: str,
+    sync_status: str,
+) -> dict[str, Any]:
     memory = _memory_ref(receipt.memory)
     if receipt.operation != "delete":
         memory["revision"] = memory_revision(receipt.memory)
@@ -319,6 +407,7 @@ def _mutation_payload(receipt: MutationReceipt, index_status: str) -> dict[str, 
         "memory": memory,
         "commit": receipt.commit,
         "index_status": index_status,
+        "sync_status": sync_status,
     }
     if receipt.operation == "delete":
         payload["recoverable_via_git"] = True

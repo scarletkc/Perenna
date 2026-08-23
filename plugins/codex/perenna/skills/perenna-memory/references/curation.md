@@ -58,10 +58,10 @@ subject. For an existing memory, use the current ID and revision returned by
 
 Use `memory_delete` only when the user clearly intends to forget the complete
 subject. Read the current memory first and pass its exact ID, title, and
-revision. Deletion removes it from current recall but does not purge Git
-history or remote backups; disclose that boundary when sensitive deletion is
+revision. Deletion removes it from current recall but does not purge older
+local or remote Git history; disclose that boundary when sensitive deletion is
 requested.
 
-After any mutation, report the affected memory title and scope plus whether the
-write was committed. Do not echo sensitive or unnecessarily complete memory
-content in the response.
+After any mutation, report the affected memory title and scope, whether the
+local write was committed, and any non-synchronized `sync_status`. Do not echo
+sensitive or unnecessarily complete memory content in the response.

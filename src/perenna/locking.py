@@ -16,7 +16,6 @@ class RepositoryLocks:
     def __init__(self, index_dir: Path, *, timeout: int = LOCK_TIMEOUT_SECONDS) -> None:
         self.index_dir = index_dir
         self.repository_path = index_dir / "repository.lock"
-        self.push_path = index_dir / "push.lock"
         self.timeout = timeout
 
     @contextmanager
@@ -27,11 +26,6 @@ class RepositoryLocks:
     @contextmanager
     def exclusive(self) -> Iterator[None]:
         with self._acquire(self.repository_path, portalocker.LockFlags.EXCLUSIVE):
-            yield
-
-    @contextmanager
-    def push(self) -> Iterator[None]:
-        with self._acquire(self.push_path, portalocker.LockFlags.EXCLUSIVE):
             yield
 
     @contextmanager

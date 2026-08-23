@@ -122,25 +122,7 @@ def test_create_and_replace_create_two_commits(
     assert subjects == ['memory(global): replace "Fact"', 'memory(global): create "Fact"']
 
 
-def test_push_reports_disabled_and_missing_remote(repository: GitRepository) -> None:
-    _write_one(repository)
-
-    disabled = repository.push(None)
-    missing = repository.push("origin")
-
-    assert (disabled.attempted, disabled.succeeded, disabled.reason) == (
-        False,
-        False,
-        "disabled",
-    )
-    assert (missing.attempted, missing.succeeded, missing.reason) == (
-        False,
-        False,
-        "remote-missing",
-    )
-
-
-def test_first_push_to_local_bare_repository_sets_upstream(
+def test_pushes_exact_commit_to_local_bare_repository(
     repository: GitRepository,
     tmp_path: Path,
     run_git: Callable[[Path, list[str]], subprocess.CompletedProcess[str]],
@@ -159,7 +141,6 @@ def test_first_push_to_local_bare_repository_sets_upstream(
     outcome = repository.push("backup")
 
     assert (outcome.attempted, outcome.succeeded, outcome.reason) == (True, True, "pushed")
-    assert run_git(repository.path, ["config", "branch.main.remote"]).stdout.strip() == "backup"
     remote_head = subprocess.run(
         ["git", "--git-dir", str(bare), "rev-parse", "refs/heads/main"],
         check=True,
@@ -168,6 +149,31 @@ def test_first_push_to_local_bare_repository_sets_upstream(
         encoding="utf-8",
     ).stdout.strip()
     assert remote_head == commit
+
+
+def test_fetch_and_reset_fast_forward_an_empty_repository(
+    tmp_path: Path,
+) -> None:
+    source = GitRepository.initialize(tmp_path / "source")
+    commit = _write_one(source)
+    bare = tmp_path / "remote.git"
+    subprocess.run(
+        ["git", "init", "--bare", str(bare)],
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    source._run(["push", str(bare), "main:refs/heads/main"])
+    target = GitRepository.initialize(tmp_path / "target")
+    target.set_remote_url("origin", str(bare))
+
+    remote_commit = target.fetch("origin", "main")
+    target.reset_to(remote_commit)
+
+    assert remote_commit == commit
+    assert target.head() == commit
+    assert MemoryStore(target).snapshot().memories[0].title == "Fact"
 
 
 def test_push_timeout_is_a_best_effort_failure(
@@ -194,6 +200,64 @@ def test_push_timeout_is_a_best_effort_failure(
     outcome = repository.push("origin", timeout=1)
 
     assert (outcome.attempted, outcome.succeeded, outcome.reason) == (True, False, "timeout")
+
+
+def test_fetch_reports_timeout_and_command_failure(
+    repository: GitRepository,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository._run(["remote", "add", "origin", str(tmp_path / "remote.git")])
+    original_run = repository._run
+
+    def timeout_fetch(args, *, check=True, timeout=None):
+        if args[0] == "fetch":
+            raise subprocess.TimeoutExpired(["git", *args], timeout)
+        return original_run(args, check=check, timeout=timeout)
+
+    monkeypatch.setattr(repository, "_run", timeout_fetch)
+    with pytest.raises(RepositoryError, match="timed out while synchronizing"):
+        repository.fetch("origin", "main")
+
+    def failed_fetch(args, *, check=True, timeout=None):
+        if args[0] == "fetch":
+            return subprocess.CompletedProcess(["git", *args], 1, "", "failed")
+        return original_run(args, check=check, timeout=timeout)
+
+    monkeypatch.setattr(repository, "_run", failed_fetch)
+    with pytest.raises(RepositoryError, match="could not synchronize"):
+        repository.fetch("origin", "main")
+
+
+def test_verify_push_reports_timeout_and_non_fast_forward(
+    repository: GitRepository,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_one(repository)
+    original_run = repository._run
+
+    def timeout_push(args, *, check=True, timeout=None):
+        if args[0] == "push":
+            raise subprocess.TimeoutExpired(["git", *args], timeout)
+        return original_run(args, check=check, timeout=timeout)
+
+    monkeypatch.setattr(repository, "_run", timeout_push)
+    with pytest.raises(RepositoryError, match="timed out while checking write access"):
+        repository.verify_push("unused", "main")
+
+    def rejected_push(args, *, check=True, timeout=None):
+        if args[0] == "push":
+            return subprocess.CompletedProcess(
+                ["git", *args],
+                1,
+                "",
+                "rejected: non-fast-forward",
+            )
+        return original_run(args, check=check, timeout=timeout)
+
+    monkeypatch.setattr(repository, "_run", rejected_push)
+    with pytest.raises(RepositoryError, match="history incompatible"):
+        repository.verify_push("unused", "main")
 
 
 def test_push_command_failure_does_not_raise(repository: GitRepository, tmp_path: Path) -> None:

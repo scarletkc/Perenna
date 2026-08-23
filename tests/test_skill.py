@@ -43,7 +43,7 @@ def test_perenna_memory_skill_is_discoverable_and_covers_the_tool_surface() -> N
     assert "perenna serve" in combined
     assert "ask the user to configure a persistent Docker deployment" in flattened
     assert "Do not run remote deployment commands" in flattened
-    assert "local persistence succeeded while the remote backup remains unsynchronized" in flattened
-    assert "repeating the same `memory_write`" in flattened
-    assert "perenna backup status" in combined
-    assert "docs/guides/maintenance.md#recover-from-a-backup-push-failure" in combined
+    assert "both the local commit result and the synchronization state" in flattened
+    assert "Do not repeat a successful local mutation" in flattened
+    assert "perenna sync status" in combined
+    assert "docs/guides/maintenance.md#recover-from-a-git-synchronization-failure" in combined

@@ -197,6 +197,11 @@ _MUTATION_MEMORY_SCHEMA: dict[str, object] = {
     "additionalProperties": False,
 }
 
+_SYNC_STATUS_SCHEMA: dict[str, object] = {
+    "type": "string",
+    "enum": ["local", "synchronized", "pending", "conflict", "unchanged"],
+}
+
 MEMORY_WRITE_OUTPUT_SCHEMA: dict[str, object] = {
     "type": "object",
     "properties": {
@@ -205,8 +210,9 @@ MEMORY_WRITE_OUTPUT_SCHEMA: dict[str, object] = {
         "memory": _MUTATION_MEMORY_SCHEMA,
         "commit": {"type": "string"},
         "index_status": {"type": "string", "enum": ["current", "pending"]},
+        "sync_status": _SYNC_STATUS_SCHEMA,
     },
-    "required": ["action", "changed", "memory", "commit", "index_status"],
+    "required": ["action", "changed", "memory", "commit", "index_status", "sync_status"],
     "additionalProperties": False,
 }
 
@@ -218,6 +224,7 @@ MEMORY_DELETE_OUTPUT_SCHEMA: dict[str, object] = {
         "memory": _MEMORY_REF_SCHEMA,
         "commit": {"type": "string"},
         "index_status": {"type": "string", "enum": ["current", "pending"]},
+        "sync_status": _SYNC_STATUS_SCHEMA,
         "recoverable_via_git": {"const": True},
     },
     "required": [
@@ -226,6 +233,7 @@ MEMORY_DELETE_OUTPUT_SCHEMA: dict[str, object] = {
         "memory",
         "commit",
         "index_status",
+        "sync_status",
         "recoverable_via_git",
     ],
     "additionalProperties": False,
@@ -537,7 +545,17 @@ def _summary(payload: dict[str, Any]) -> str:
         return f"Retrieved memory {memory['title']!r} from {memory['scope']}."
     memory = payload["memory"]
     changed = "committed" if payload["changed"] else "already current"
-    suffix = " Retrieval indexing is pending." if payload["index_status"] == "pending" else ""
+    notices = []
+    if payload["index_status"] == "pending":
+        notices.append("Retrieval indexing is pending.")
+    if payload["sync_status"] == "pending":
+        notices.append("Remote synchronization is pending; the local commit remains complete.")
+    elif payload["sync_status"] == "conflict":
+        notices.append(
+            "Remote history conflicts with the local commit; later writes are blocked until "
+            "reconciliation."
+        )
+    suffix = "" if not notices else f" {' '.join(notices)}"
     if action == "delete":
         return f"Deleted memory {memory['title']!r}; the change was committed to Git.{suffix}"
     return f"Memory {action} for {memory['title']!r} is {changed}.{suffix}"

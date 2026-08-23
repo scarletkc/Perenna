@@ -17,7 +17,7 @@ The plugin process must inherit the selected provider configuration and any
 required API key. Remote embedding providers receive memory text and search
 queries.
 
-For complete installation, configuration, privacy, backup, and troubleshooting
+For complete installation, configuration, privacy, synchronization, and troubleshooting
 guidance, see the
 [Perenna documentation](https://github.com/scarletkc/Perenna/blob/main/docs/index.md).
 

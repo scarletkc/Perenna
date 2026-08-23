@@ -22,6 +22,7 @@ from perenna.mcp_server import (
     MemoryDeleteArguments,
     MemoryReadArguments,
     MemoryWriteArguments,
+    _summary,
     create_server,
     run_stdio,
 )
@@ -418,4 +419,15 @@ def _mutation(action: str) -> dict[str, Any]:
         },
         "commit": "b" * 40,
         "index_status": "current",
+        "sync_status": "local",
     }
+
+
+def test_mutation_summary_surfaces_remote_pending_and_conflict_states() -> None:
+    pending = _mutation("create")
+    pending["sync_status"] = "pending"
+    conflict = _mutation("patch")
+    conflict["sync_status"] = "conflict"
+
+    assert "local commit remains complete" in _summary(pending)
+    assert "later writes are blocked" in _summary(conflict)

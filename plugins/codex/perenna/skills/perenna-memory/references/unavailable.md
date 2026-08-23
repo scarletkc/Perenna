@@ -17,26 +17,36 @@ Continue without memory when the current request is self-contained. When prior
 context is necessary, or the user asks to remember or forget something, state
 that Perenna is unavailable and leave memory unchanged.
 
-## Separate local persistence from remote backup
+## Separate local persistence from Git synchronization
 
-When a mutation reports that the local Git commit succeeded but the backup
-push failed, treat the memory as committed locally. Perenna is not unavailable,
-and repeating the same `memory_write` can create an unintended second change.
-Report that local persistence succeeded while the remote backup remains
-unsynchronized.
+Every mutation reports `sync_status`:
+
+- `local` means no Git remote is configured and the local commit is complete;
+- `synchronized` means the changed local commit reached the configured remote;
+- `pending` means the local commit is complete but the remote could not be
+  updated or checked;
+- `conflict` means the local and remote histories diverged. Perenna keeps the
+  local commit and blocks later writes until the histories are reconciled;
+- `unchanged` means the operation created no commit and attempted no push.
+
+Do not repeat a successful local mutation merely because synchronization is
+`pending` or `conflict`; that can create an unintended second change. Report
+both the local commit result and the synchronization state.
 
 If the Git commit itself failed, treat the mutation as failed: preserve the
 error, do not claim the memory changed, and do not retry until the local
 repository state has been inspected.
 
-For a backup failure, use `perenna backup status` in the same environment that
+For a synchronization failure, use `perenna sync status` in the same environment that
 runs Perenna, or guide the user to run it when the current agent cannot access
 that host. Follow the maintained
-[backup recovery guide](https://github.com/scarletkc/Perenna/blob/main/docs/guides/maintenance.md#recover-from-a-backup-push-failure)
-for diagnosis. Do not create or replace a remote, change credentials, fetch,
-pull, merge, force-push, or repeat the memory mutation without the user's
-explicit authorization. After the network or credentials are repaired, verify
-that the reported backup state is synchronized before claiming recovery.
+[synchronization recovery guide](https://github.com/scarletkc/Perenna/blob/main/docs/guides/maintenance.md#recover-from-a-git-synchronization-failure)
+for diagnosis. Perenna automatically imports an existing remote into an empty
+local repository and fast-forwards a clean local branch, but it does not merge,
+rebase, or force-push diverged histories. Do not create or replace a remote,
+change credentials, reconcile commits, or repeat the memory mutation without
+the user's explicit authorization. Verify `perenna sync status` after recovery
+before claiming that the remote is synchronized.
 
 ## Install or reconnect only with authority
 

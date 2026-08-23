@@ -149,7 +149,7 @@ memory:
 ```
 
 Deletion remains recoverable from Git history. It does not purge sensitive data
-from commits or remote backups.
+from local or synchronized remote Git history.
 
 ## What belongs in permanent memory
 

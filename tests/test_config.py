@@ -5,7 +5,6 @@ from pathlib import Path
 import pytest
 
 from perenna.config import (
-    DEFAULT_GIT_REMOTE,
     DEFAULT_HOME,
     REMOTE_SCOPES,
     RemoteSettings,
@@ -70,9 +69,9 @@ def test_source_rejects_invalid_values(source: str) -> None:
         resolve_source(source, {})
 
 
-def test_git_remote_defaults_can_be_overridden_or_disabled() -> None:
-    assert resolve_git_remote({}) == DEFAULT_GIT_REMOTE
-    assert resolve_git_remote({"PERENNA_GIT_REMOTE": " backup "}) == "backup"
+def test_git_remote_is_opt_in_and_can_be_normalized_or_disabled() -> None:
+    assert resolve_git_remote({}) is None
+    assert resolve_git_remote({"PERENNA_GIT_REMOTE": " origin "}) == "origin"
     assert resolve_git_remote({"PERENNA_GIT_REMOTE": "  "}) is None
 
 

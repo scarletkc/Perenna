@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import logging
+import subprocess
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -28,6 +28,7 @@ from perenna.models import (
     SearchPassage,
     SearchResults,
 )
+from perenna.sync import setup_sync
 
 
 class MemoryBackedIndex:
@@ -139,32 +140,30 @@ def test_create_get_patch_replace_and_delete_return_current_revisions(tmp_path: 
     assert core.repository._run(["rev-list", "--count", "HEAD"]).stdout.strip() == "4"
 
 
-def test_push_lock_failure_is_best_effort(tmp_path: Path, monkeypatch) -> None:
+def test_local_mode_does_not_access_a_git_remote(tmp_path: Path, monkeypatch) -> None:
+    core = _core(tmp_path)
+    monkeypatch.setattr(
+        core.repository,
+        "fetch",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("local mode must not fetch")
+        ),
+    )
+
+    created = core.create(title="Topic", summary="A topic.", body="Body")
+
+    assert created["changed"]
+    assert created["sync_status"] == "local"
+    assert core.list_memories()["memories"][0]["title"] == "Topic"
+
+
+def test_missing_configured_remote_keeps_the_local_commit_pending(tmp_path: Path) -> None:
     core = _core(tmp_path, git_remote="origin")
-
-    @contextmanager
-    def failed_push_lock():
-        raise RepositoryError("push lock timeout")
-        yield
-
-    monkeypatch.setattr(core.locks, "push", failed_push_lock)
 
     result = core.create(title="Topic", summary="A topic.", body="Body")
 
-    assert result["changed"]
-    assert len(core.store.snapshot().memories) == 1
-
-
-def test_disabled_remote_does_not_wait_for_push_lock(tmp_path: Path, monkeypatch) -> None:
-    core = _core(tmp_path)
-
-    @contextmanager
-    def forbidden_push_lock():
-        raise AssertionError("push lock should not be acquired")
-        yield
-
-    monkeypatch.setattr(core.locks, "push", forbidden_push_lock)
-    assert core.create(title="Topic", summary="A topic.", body="Body")["changed"]
+    assert result["sync_status"] == "pending"
+    assert core.repository.head() == result["commit"]
 
 
 def test_dirty_worktree_reads_use_committed_snapshot(tmp_path: Path) -> None:
@@ -386,29 +385,265 @@ def test_exclusive_recheck_failure_rebuilds_before_search(tmp_path: Path) -> Non
     assert index.rebuilds == 1
 
 
-@pytest.mark.parametrize(
-    ("outcome", "log_text"),
-    [
-        (PushOutcome(True, False, "failed"), "git_push=failed"),
-        (PushOutcome(True, False, "timeout"), "git_push=timeout"),
-        (PushOutcome(True, True, "pushed"), "git_push=succeeded"),
-    ],
-)
-def test_push_outcomes_only_affect_logs(
-    tmp_path: Path,
-    monkeypatch,
-    caplog,
-    outcome: PushOutcome,
-    log_text: str,
-) -> None:
-    caplog.set_level(logging.INFO)
-    core = _core(tmp_path, git_remote="origin")
-    monkeypatch.setattr(core.repository, "push", lambda _remote: outcome)
+def test_remote_write_is_confirmed_before_success(tmp_path: Path) -> None:
+    remote = _bare_repository(tmp_path / "remote.git")
+    core = _remote_core(tmp_path / "writer", remote)
 
     result = core.create(title="Topic", summary="A topic.", body="Body")
 
+    remote_head = _bare_head(remote)
+    assert result["commit"] == remote_head
+    assert core.repository.head() == remote_head
+
+
+def test_remote_noop_does_not_push_again(tmp_path: Path, monkeypatch) -> None:
+    remote = _bare_repository(tmp_path / "remote.git")
+    core = _remote_core(tmp_path / "writer", remote)
+    core.create(title="Topic", summary="A topic.", body="Body")
+    monkeypatch.setattr(
+        core.repository,
+        "push",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("an unchanged mutation must not push")
+        ),
+    )
+
+    result = core.create(title="Topic", summary="A topic.", body="Body")
+
+    assert not result["changed"]
+    assert result["sync_status"] == "unchanged"
+
+
+def test_remote_noop_reports_a_stale_or_unavailable_index(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    remote = _bare_repository(tmp_path / "remote.git")
+    core = _remote_core(tmp_path / "writer", remote)
+    core.create(title="Topic", summary="A topic.", body="Body")
+    core.index.current = False  # type: ignore[attr-defined]
+
+    stale = core.create(title="Topic", summary="A topic.", body="Body")
+    assert stale["index_status"] == "pending"
+
+    monkeypatch.setattr(
+        core.index,
+        "is_current",
+        lambda _snapshot: (_ for _ in ()).throw(IndexUnavailableError("offline")),
+    )
+    unavailable = core.create(title="Topic", summary="A topic.", body="Body")
+    assert unavailable["index_status"] == "pending"
+
+
+def test_timeout_confirmation_fast_forwards_a_remote_descendant(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    remote = _bare_repository(tmp_path / "remote.git")
+    core = _remote_core(tmp_path / "writer", remote)
+    observer = _remote_core(tmp_path / "observer", remote)
+    original_push = core.repository.push
+
+    def push_then_advance(*args, **kwargs) -> PushOutcome:
+        outcome = original_push(*args, **kwargs)
+        assert outcome.succeeded
+        remote_head = observer.repository.fetch("origin", "main")
+        assert remote_head is not None
+        observer.repository.reset_to(remote_head)
+        later = observer.store.create(
+            title="Later remote memory",
+            summary="A later remote memory.",
+            body="Later",
+            source="other",
+            project=None,
+        )
+        assert observer.repository.push(
+            "origin",
+            commit=later.commit,
+            branch="main",
+        ).succeeded
+        return PushOutcome(True, False, "timeout")
+
+    monkeypatch.setattr(core.repository, "push", push_then_advance)
+
+    result = core.create(title="First", summary="The first memory.", body="First")
+
+    assert result["sync_status"] == "synchronized"
+    assert result["index_status"] == "current"
+    assert core.repository.head() == _bare_head(remote)
+    assert {item["title"] for item in core.list_memories()["memories"]} == {
+        "First",
+        "Later remote memory",
+    }
+
+
+def test_new_instance_setup_imports_an_existing_remote_write(tmp_path: Path) -> None:
+    remote = _bare_repository(tmp_path / "remote.git")
+    writer = _remote_core(tmp_path / "writer", remote)
+    writer.create(title="Shared topic", summary="A shared topic.", body="Body")
+    reader = _remote_core(tmp_path / "reader", remote)
+
+    listed = reader.list_memories()
+
+    assert listed["memories"][0]["title"] == "Shared topic"
+    assert reader.repository.head() == _bare_head(remote)
+
+
+def test_restart_fast_forwards_a_clean_configured_repository(tmp_path: Path) -> None:
+    remote = _bare_repository(tmp_path / "remote.git")
+    writer = _remote_core(tmp_path / "writer", remote)
+    _remote_core(tmp_path / "reader", remote)
+    writer.create(title="After setup", summary="Written after setup.", body="Body")
+
+    restarted = _core(tmp_path / "reader", git_remote="origin")
+
+    assert restarted.list_memories()["memories"][0]["title"] == "After setup"
+    assert restarted.repository.head() == _bare_head(remote)
+
+
+def test_restart_keeps_safe_local_ahead_history(tmp_path: Path) -> None:
+    remote = _bare_repository(tmp_path / "remote.git")
+    core = _remote_core(tmp_path / "writer", remote)
+    core.create(title="Remote base", summary="A remote base.", body="Base")
+    local_only = core.store.create(
+        title="Local pending",
+        summary="A local pending memory.",
+        body="Pending",
+        source="codex",
+        project=None,
+    )
+
+    restarted = _core(tmp_path / "writer", git_remote="origin")
+
+    assert restarted.repository.head() == local_only.commit
+    assert restarted.repository.sync_conflict_commit() is None
+
+
+def test_restart_marks_diverged_history_and_blocks_writes(tmp_path: Path) -> None:
+    remote = _bare_repository(tmp_path / "remote.git")
+    seed = _remote_core(tmp_path / "seed", remote)
+    seed.create(title="Base", summary="A shared base.", body="Base")
+    local = _remote_core(tmp_path / "local", remote)
+    other = _remote_core(tmp_path / "other", remote)
+    local_receipt = local.store.create(
+        title="Local branch",
+        summary="A local branch memory.",
+        body="Local",
+        source="codex",
+        project=None,
+    )
+    other.create(title="Remote branch", summary="A remote branch memory.", body="Remote")
+
+    restarted = _core(tmp_path / "local", git_remote="origin")
+
+    assert restarted.repository.sync_conflict_commit() == local_receipt.commit
+    with pytest.raises(RepositoryError, match="writes are blocked"):
+        restarted.create(title="Blocked", summary="A blocked write.", body="Blocked")
+
+
+def test_concurrent_remote_writers_surface_and_block_a_conflict(tmp_path: Path) -> None:
+    remote = _bare_repository(tmp_path / "remote.git")
+    first = _remote_core(tmp_path / "first", remote)
+    second = _remote_core(tmp_path / "second", remote)
+    barrier = threading.Barrier(2)
+    _pause_first_push(first, barrier)
+    _pause_first_push(second, barrier)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = (
+            executor.submit(
+                first.create,
+                title="Writer A",
+                summary="First writer.",
+                body="First body",
+            ),
+            executor.submit(
+                second.create,
+                title="Writer B",
+                summary="Second writer.",
+                body="Second body",
+            ),
+        )
+        results = [future.result(timeout=15) for future in futures]
+
+    verifier = _remote_core(tmp_path / "verifier", remote)
+    assert len(verifier.list_memories()["memories"]) == 1
+    assert all(result["changed"] for result in results)
+    assert {result["sync_status"] for result in results} == {"synchronized", "conflict"}
+    conflicted_core = first if first.repository.sync_conflict_commit() else second
+    with pytest.raises(RepositoryError, match="writes are blocked"):
+        conflicted_core.create(title="Blocked", summary="Blocked write.", body="Body")
+
+
+def test_remote_push_failure_keeps_a_pending_local_write(tmp_path: Path, monkeypatch) -> None:
+    remote = _bare_repository(tmp_path / "remote.git")
+    core = _remote_core(tmp_path / "writer", remote)
+    monkeypatch.setattr(
+        core.repository,
+        "push",
+        lambda *_args, **_kwargs: PushOutcome(True, False, "failed"),
+    )
+
+    result = core.create(title="Pending", summary="A pending write.", body="Body")
+
+    assert result["sync_status"] == "pending"
+    assert core.repository.head() == result["commit"]
+    core.repository.assert_clean()
+
+
+def test_push_timeout_is_success_when_remote_contains_the_candidate(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    remote = _bare_repository(tmp_path / "remote.git")
+    core = _remote_core(tmp_path / "writer", remote)
+    original_push = core.repository.push
+
+    def push_then_timeout(*args, **kwargs) -> PushOutcome:
+        outcome = original_push(*args, **kwargs)
+        assert outcome.succeeded
+        return PushOutcome(True, False, "timeout")
+
+    monkeypatch.setattr(core.repository, "push", push_then_timeout)
+
+    result = core.create(title="Confirmed", summary="A confirmed write.", body="Body")
+
     assert result["changed"]
-    assert log_text in caplog.text
+    assert result["commit"] == _bare_head(remote)
+
+
+def test_unconfirmed_timeout_remains_a_visible_local_pending_write(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    remote = _bare_repository(tmp_path / "remote.git")
+    core = _remote_core(tmp_path / "writer", remote)
+    monkeypatch.setattr(
+        core.repository,
+        "push",
+        lambda *_args, **_kwargs: PushOutcome(True, False, "timeout"),
+    )
+
+    result = core.create(title="Unconfirmed", summary="An unconfirmed write.", body="Body")
+
+    assert result["sync_status"] == "pending"
+    assert core.list_memories()["memories"][0]["title"] == "Unconfirmed"
+
+
+def test_remote_read_remains_local_when_the_network_is_unavailable(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    remote = _bare_repository(tmp_path / "remote.git")
+    core = _remote_core(tmp_path / "writer", remote)
+    core.create(title="Current", summary="A current memory.", body="Body")
+    monkeypatch.setattr(
+        core.repository,
+        "fetch",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RepositoryError("network unavailable")),
+    )
+
+    assert core.list_memories()["memories"][0]["title"] == "Current"
 
 
 def test_core_accepts_injected_repository_and_rejects_file_home(tmp_path: Path) -> None:
@@ -440,3 +675,48 @@ def _core(
         git_remote=git_remote,
     )
     return PerennaCore(settings, index=index or MemoryBackedIndex())
+
+
+def _bare_repository(path: Path) -> Path:
+    subprocess.run(
+        ["git", "init", "--bare", str(path)],
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    return path
+
+
+def _bare_head(path: Path) -> str:
+    return subprocess.run(
+        ["git", "--git-dir", str(path), "rev-parse", "refs/heads/main"],
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    ).stdout.strip()
+
+
+def _remote_core(path: Path, remote: Path) -> PerennaCore:
+    setup_sync(
+        path / "home" / "memory",
+        str(remote),
+        remote_name="origin",
+        replace=False,
+    )
+    return _core(path, git_remote="origin")
+
+
+def _pause_first_push(core: PerennaCore, barrier: threading.Barrier) -> None:
+    original_push = core.repository.push
+    first = True
+
+    def push(*args, **kwargs) -> PushOutcome:
+        nonlocal first
+        if first:
+            first = False
+            barrier.wait(timeout=5)
+        return original_push(*args, **kwargs)
+
+    core.repository.push = push  # type: ignore[method-assign]

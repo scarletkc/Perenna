@@ -12,6 +12,7 @@ from perenna.errors import RepositoryDirtyError, RepositoryError
 GIT_IDENTITY_NAME = "Perenna"
 GIT_IDENTITY_EMAIL = "perenna@localhost"
 PUSH_TIMEOUT_SECONDS = 15
+SYNC_CONFLICT_REF = "refs/perenna/sync-conflict"
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,7 +51,7 @@ class GitRepository:
         if not resolved.is_dir():
             raise RepositoryError(
                 f"Memory repository {resolved} does not exist. Start Perenna or run "
-                "'perenna backup setup REPOSITORY_URL' first."
+                "'perenna sync setup REPOSITORY_URL' first."
             )
         repo = cls(resolved)
         repo._validate_independent()
@@ -80,7 +81,10 @@ class GitRepository:
             )
 
     def head(self) -> str | None:
-        result = self._run(["rev-parse", "--verify", "HEAD"], check=False)
+        return self.resolve_commit("HEAD")
+
+    def resolve_commit(self, revision: str) -> str | None:
+        result = self._run(["rev-parse", "--verify", f"{revision}^{{commit}}"], check=False)
         return result.stdout.strip() if result.returncode == 0 else None
 
     def current_branch(self) -> str:
@@ -271,6 +275,55 @@ class GitRepository:
         if remote in self.remote_names():
             self._run(["remote", "remove", remote])
 
+    def fetch(self, remote: str, branch: str, timeout: int = PUSH_TIMEOUT_SECONDS) -> str | None:
+        if self.remote_url(remote) is None:
+            raise RepositoryError(
+                f"Configured Git remote {remote!r} is missing from {self.path}. Run "
+                "'perenna sync setup REPOSITORY_URL' in this Perenna home, then retry."
+            )
+        try:
+            result = self._run(
+                ["fetch", "--no-tags", "--prune", remote],
+                check=False,
+                timeout=timeout,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise RepositoryError(
+                f"Git timed out while synchronizing remote {remote!r}. Check the network and "
+                "remote address, then retry."
+            ) from exc
+        if result.returncode != 0:
+            raise RepositoryError(
+                f"Git could not synchronize remote {remote!r} non-interactively. "
+                "Check the network, credentials, SSH host key, and remote address, then retry."
+            )
+        return self.resolve_commit(f"refs/remotes/{remote}/{branch}")
+
+    def is_ancestor(self, ancestor: str, descendant: str) -> bool:
+        result = self._run(
+            ["merge-base", "--is-ancestor", ancestor, descendant],
+            check=False,
+        )
+        if result.returncode not in {0, 1}:
+            raise RepositoryError(
+                f"Git could not compare commits in {self.path}. Inspect the repository, then "
+                "retry."
+            )
+        return result.returncode == 0
+
+    def reset_to(self, commit: str) -> None:
+        self.assert_clean()
+        self._run(["reset", "--hard", "--quiet", commit])
+
+    def sync_conflict_commit(self) -> str | None:
+        return self.resolve_commit(SYNC_CONFLICT_REF)
+
+    def mark_sync_conflict(self, commit: str) -> None:
+        self._run(["update-ref", SYNC_CONFLICT_REF, commit])
+
+    def clear_sync_conflict(self) -> None:
+        self._run(["update-ref", "-d", SYNC_CONFLICT_REF])
+
     def configure_deploy_key(self, private_key: Path, known_hosts: Path) -> None:
         command = " ".join(
             shlex.quote(value)
@@ -287,14 +340,14 @@ class GitRepository:
             )
         )
         self._run(["config", "--local", "core.sshCommand", command])
-        self._run(["config", "--local", "perenna.backupAuth", "deploy-key"])
+        self._run(["config", "--local", "perenna.syncAuth", "deploy-key"])
         self._run(
             ["config", "--local", "perenna.deployKeyPath", os.fspath(private_key)]
         )
 
     def deploy_key_path(self) -> Path | None:
         auth = self._run(
-            ["config", "--local", "--get", "perenna.backupAuth"],
+            ["config", "--local", "--get", "perenna.syncAuth"],
             check=False,
         )
         if auth.returncode != 0 or auth.stdout.strip() != "deploy-key":
@@ -306,7 +359,7 @@ class GitRepository:
         if result.returncode != 0 or not result.stdout.strip():
             raise RepositoryError(
                 "The memory repository declares deploy-key authentication without a key path. "
-                "Run 'perenna backup setup REPOSITORY_URL --deploy-key' to repair it."
+                "Run 'perenna sync setup REPOSITORY_URL --deploy-key' to repair it."
             )
         return Path(result.stdout.strip()).resolve(strict=False)
 
@@ -315,12 +368,12 @@ class GitRepository:
             result = self._run(["ls-remote", "--heads", url], check=False, timeout=timeout)
         except subprocess.TimeoutExpired as exc:
             raise RepositoryError(
-                "Git timed out while checking the backup repository. Check the network and "
+                "Git timed out while checking the synchronized repository. Check the network and "
                 "remote address, then retry."
             ) from exc
         if result.returncode != 0:
             raise RepositoryError(
-                "Git could not read the backup repository non-interactively. Confirm the "
+                "Git could not read the synchronized repository non-interactively. Confirm the "
                 "repository address and prepare HTTPS credentials in Git Credential Manager "
                 "or load the SSH key into an agent, then retry."
             )
@@ -332,26 +385,34 @@ class GitRepository:
                 heads[fields[1][len(prefix) :]] = fields[0]
         return heads
 
-    def verify_push(self, url: str, branch: str, timeout: int = PUSH_TIMEOUT_SECONDS) -> None:
+    def verify_push(
+        self,
+        url: str,
+        branch: str,
+        *,
+        commit: str | None = None,
+        timeout: int = PUSH_TIMEOUT_SECONDS,
+    ) -> None:
+        candidate = commit or branch
         try:
             result = self._run(
-                ["push", "--dry-run", url, f"{branch}:refs/heads/{branch}"],
+                ["push", "--dry-run", url, f"{candidate}:refs/heads/{branch}"],
                 check=False,
                 timeout=timeout,
             )
         except subprocess.TimeoutExpired as exc:
             raise RepositoryError(
-                "Git timed out while checking write access to the backup repository. Check the "
-                "network and credentials, then retry."
+                "Git timed out while checking write access to the synchronized repository. "
+                "Check the network and credentials, then retry."
             ) from exc
         if result.returncode == 0:
             return
         output = f"{result.stdout}\n{result.stderr}".casefold()
         if "non-fast-forward" in output or "fetch first" in output:
             raise RepositoryError(
-                f"The backup repository has history incompatible with local branch {branch!r}. "
-                "Perenna did not fetch, merge, or force-push it. Use an empty repository or "
-                "integrate the histories manually, then retry."
+                "The synchronized repository has history incompatible with local branch "
+                f"{branch!r}. Perenna did not fetch, merge, or force-push it. Use an empty "
+                "repository or integrate the histories manually, then retry."
             )
         raise RepositoryError(
             f"Git could not verify write access for local branch {branch!r}. Confirm that the "
@@ -359,22 +420,19 @@ class GitRepository:
             "push, then retry."
         )
 
-    def push(self, remote: str | None, timeout: int = PUSH_TIMEOUT_SECONDS) -> PushOutcome:
-        if remote is None:
-            return PushOutcome(False, False, "disabled")
-        if remote not in self.remote_names():
-            return PushOutcome(False, False, "remote-missing")
-        if self.head() is None:
+    def push(
+        self,
+        remote: str,
+        *,
+        commit: str | None = None,
+        branch: str | None = None,
+        timeout: int = PUSH_TIMEOUT_SECONDS,
+    ) -> PushOutcome:
+        candidate = commit or self.head()
+        if candidate is None:
             return PushOutcome(False, False, "no-commit")
-
-        branch = self.current_branch()
-        upstream = self._run(
-            ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"],
-            check=False,
-        )
-        args = ["push", remote, branch]
-        if upstream.returncode != 0:
-            args = ["push", "--set-upstream", remote, branch]
+        target_branch = branch or self.current_branch()
+        args = ["push", remote, f"{candidate}:refs/heads/{target_branch}"]
         try:
             result = self._run(args, check=False, timeout=timeout)
         except subprocess.TimeoutExpired:
@@ -500,4 +558,5 @@ def _git_environment() -> dict[str, str]:
     environment["GIT_TERMINAL_PROMPT"] = "0"
     environment["GCM_INTERACTIVE"] = "Never"
     environment["SSH_ASKPASS_REQUIRE"] = "never"
+    environment["LC_ALL"] = "C"
     return environment

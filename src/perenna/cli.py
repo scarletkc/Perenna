@@ -7,7 +7,6 @@ import sys
 from collections.abc import Sequence
 
 from perenna import DESCRIPTION, __version__
-from perenna.backup import BackupReport, inspect_backup, setup_backup
 from perenna.config import (
     RuntimePaths,
     resolve_git_remote,
@@ -25,6 +24,7 @@ from perenna.skill_installer import (
     SkillInstallReport,
     install_bundled_skill,
 )
+from perenna.sync import SyncReport, inspect_sync, setup_sync
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -54,14 +54,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="HTTP listen port. Default: 8000.",
     )
 
-    backup = subparsers.add_parser(
-        "backup",
-        help="Configure or inspect automatic Git backup.",
+    sync = subparsers.add_parser(
+        "sync",
+        help="Configure or inspect optional Git synchronization.",
     )
-    backup_commands = backup.add_subparsers(dest="backup_command", required=True)
-    setup = backup_commands.add_parser(
+    sync_commands = sync.add_subparsers(dest="sync_command", required=True)
+    setup = sync_commands.add_parser(
         "setup",
-        help="Configure a repository and verify non-interactive push access.",
+        help="Configure a repository and synchronize its current branch.",
     )
     setup.add_argument("repository_url", help="Git HTTPS or SSH repository address.")
     setup.add_argument(
@@ -78,9 +78,9 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Generate and use a repository-specific SSH deploy key.",
     )
-    status = backup_commands.add_parser(
+    status = sync_commands.add_parser(
         "status",
-        help="Check the effective remote, access, and backup state.",
+        help="Check the effective remote, access, and synchronization state.",
     )
     status.add_argument(
         "--home",
@@ -141,8 +141,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     _configure_logging()
 
     try:
-        if args.command == "backup":
-            _run_backup(args)
+        if args.command == "sync":
+            _run_sync(args)
             return 0
         if args.command == "skill":
             _run_skill(args)
@@ -170,31 +170,37 @@ def main(argv: Sequence[str] | None = None) -> int:
     return 0
 
 
-def _run_backup(args: argparse.Namespace) -> None:
+def _run_sync(args: argparse.Namespace) -> None:
     paths = RuntimePaths(resolve_home(args.home))
     remote_name = resolve_git_remote()
-    if args.backup_command == "setup":
-        report = setup_backup(
+    if args.sync_command == "setup":
+        setup_remote = remote_name or "origin"
+        report = setup_sync(
             paths.memory,
             args.repository_url,
-            remote_name=remote_name,
+            remote_name=setup_remote,
             replace=args.replace,
             deploy_key=args.deploy_key,
         )
-        _print_backup_report(report)
+        _print_sync_report(report)
+        if remote_name is None:
+            print(
+                f"Runtime mode: local until PERENNA_GIT_REMOTE={setup_remote} is set for "
+                "Perenna."
+            )
         return
 
-    report = inspect_backup(paths.memory, remote_name=remote_name)
+    report = inspect_sync(paths.memory, remote_name=remote_name)
     if report is None:
         print(f"Memory repository: {paths.memory}")
-        print("Automatic backup: disabled (PERENNA_GIT_REMOTE is empty)")
+        print("Git synchronization: disabled (PERENNA_GIT_REMOTE is unset or empty)")
         return
-    _print_backup_report(report)
+    _print_sync_report(report)
 
 
-def _print_backup_report(report: BackupReport) -> None:
+def _print_sync_report(report: SyncReport) -> None:
     print(f"Memory repository: {report.repository}")
-    print(f"Backup remote: {report.remote_name} -> {report.remote_url}")
+    print(f"Git remote: {report.remote_name} -> {report.remote_url}")
     print(f"Branch: {report.branch}")
     if report.authentication == "deploy-key":
         print(f"Authentication: deploy key {report.deploy_key_fingerprint}")
@@ -207,25 +213,29 @@ def _print_backup_report(report: BackupReport) -> None:
     else:
         print("Write access: pending (no local commit is available to test)")
     if report.state == "waiting-deploy-key":
-        print("Backup state: waiting for deploy key authorization")
+        print("Synchronization state: waiting for deploy key authorization")
     elif report.state == "synchronized":
-        print("Backup state: synchronized")
-    elif report.state == "pending-push":
-        print("Backup state: pending push")
+        print("Synchronization state: synchronized")
+    elif report.state == "local-behind":
+        print("Synchronization state: local branch is behind the remote")
+    elif report.state == "local-ahead":
+        print("Synchronization state: local branch has unconfirmed commits")
+    elif report.state == "diverged":
+        print("Synchronization state: local and remote branches have diverged")
     else:
-        print("Backup state: pending first memory commit")
+        print("Synchronization state: waiting for the first memory commit")
     if report.state == "waiting-deploy-key":
-        print(f"Automatic backup: configured (remote: {report.remote_name})")
+        print(f"Git synchronization: authorization pending (remote: {report.remote_name})")
         print()
         print("Add this public key to the repository as a deploy key with write access:")
         if report.deploy_key_settings_url is not None:
             print(f"Open: {report.deploy_key_settings_url}")
-        print(f"Title: Perenna backup ({report.deploy_key_fingerprint})")
+        print(f"Title: Perenna sync ({report.deploy_key_fingerprint})")
         print(f"Public key: {report.deploy_key_public_key}")
         print("Enable: Allow write access")
-        print("Then run the same backup setup command again.")
+        print("Then run the same sync setup command again.")
     else:
-        print(f"Automatic backup: enabled (remote: {report.remote_name})")
+        print(f"Git synchronization: enabled (remote: {report.remote_name})")
 
 
 def _run_skill(args: argparse.Namespace) -> None:

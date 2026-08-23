@@ -12,7 +12,6 @@ from perenna.errors import ConfigurationError
 from perenna.models import normalize_source
 
 DEFAULT_HOME = Path.home() / ".perenna"
-DEFAULT_GIT_REMOTE = "origin"
 REMOTE_SCOPES = ("memory:read", "memory:write", "memory:delete")
 
 
@@ -94,7 +93,7 @@ def resolve_source(cli_source: str | None, environ: Mapping[str, str] | None = N
 def resolve_git_remote(environ: Mapping[str, str] | None = None) -> str | None:
     env = os.environ if environ is None else environ
     if "PERENNA_GIT_REMOTE" not in env:
-        return DEFAULT_GIT_REMOTE
+        return None
     value = env["PERENNA_GIT_REMOTE"].strip()
     return value or None
 

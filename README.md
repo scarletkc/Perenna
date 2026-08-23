@@ -79,11 +79,11 @@ Use these as the source of truth:
    local model according to the Perenna configuration reference. Verify the
    selected provider with `uvx vexor doctor` using the same environment that
    the Perenna process will inherit.
-5. Ask whether I want to back up Perenna to an empty private Git repository. If
+5. Ask whether I want to synchronize Perenna with a private Git repository. If
    I do, ask me to provide or approve its URL, run
-   `perenna backup setup <repository-url>`, and verify it with
-   `perenna backup status`. Treat repository creation, remote replacement, and
-   any existing non-empty remote as separate choices that require my explicit
+   `perenna sync setup <repository-url>`, and verify it with
+   `perenna sync status`. Treat repository creation, remote replacement, and
+   reconciling diverged history as separate choices that require my explicit
    approval.
 6. Register `perenna mcp --source <stable-client-name>` using the client-specific
    method in the setup guide. Preserve unrelated MCP servers and settings. Use
@@ -160,10 +160,11 @@ perenna mcp --source <client-name>
 Perenna creates its local data under `~/.perenna/` unless another home is
 configured.
 
-For best-effort backup, attach an empty private Git repository:
+To import, publish, or fast-forward compatible history through a private Git
+repository, run:
 
 ```bash
-perenna backup setup <repository-url>
+perenna sync setup <repository-url>
 ```
 
 ### Install from source for development

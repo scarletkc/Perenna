@@ -1,15 +1,15 @@
 # Configuration Reference
 
 This page is the canonical reference for Perenna startup configuration, local
-paths, remote OAuth, optional Git backup, and Vexor provider settings.
+paths, remote OAuth, optional Git synchronization, and Vexor provider settings.
 
 ## CLI entry point
 
 ```text
 perenna mcp [--source SOURCE] [--home PATH]
 perenna serve [--source SOURCE] [--home PATH] [--host HOST] [--port PORT]
-perenna backup setup REPOSITORY_URL [--home PATH] [--replace] [--deploy-key]
-perenna backup status [--home PATH]
+perenna sync setup REPOSITORY_URL [--home PATH] [--replace] [--deploy-key]
+perenna sync status [--home PATH]
 perenna skill install --agent AGENT [--agent AGENT] [--scope SCOPE] [--replace]
 ```
 
@@ -68,7 +68,7 @@ The resolved home contains:
 <home>/
 ├── credentials/ # optional repository-specific deploy keys
 ├── memory/      # independent Git repository; permanent source of truth
-└── index/       # Vexor cache, indexed_commit, repository.lock, and push.lock
+└── index/       # Vexor cache, indexed_commit, and repository.lock
 ```
 
 `index/` can be rebuilt from `memory/`. The memory and index directories must
@@ -141,58 +141,68 @@ configuration remain unchanged. Follow the
 [self-hosting guide](../guides/self-hosting.md) for Docker, Nginx, OAuth-provider,
 and ChatGPT setup.
 
-## Git remote backup
+## Git remote synchronization
 
-`PERENNA_GIT_REMOTE` controls automatic best-effort push:
+`PERENNA_GIT_REMOTE` selects optional synchronization:
 
 | Environment state | Behavior |
 | --- | --- |
-| Unset | Look for a remote named `origin` |
-| Non-empty | Use the configured remote name |
-| Empty string | Disable automatic push |
+| Unset | Local-only operation; do not access a Git remote |
+| Non-empty | Use the configured remote name for startup refresh and mutation pushes |
+| Empty string | Local-only operation; do not access a Git remote |
 
-Perenna skips a missing remote. If the current branch has no upstream, the
-first successful push may establish one. Push uses a fixed timeout and a
-separate lock.
+The local Git repository remains the durable write authority. Remote network or
+credential failures do not prevent a local commit. Every mutation result
+reports `sync_status`; the complete state contract is in the
+[consistency model](../concepts/consistency.md#optional-git-synchronization).
 
-Remote backup never participates in reads, mutation validation, local commit
-creation, or mutation success. Perenna performs no automatic fetch, pull,
-merge, or force-push.
+When an already configured remote is accessible at startup, Perenna fetches it
+once and fast-forwards a clean local branch when the local branch is empty or
+strictly behind. Startup continues with local state when the remote is missing
+or unavailable. Perenna does not fetch before every read or coordinate
+concurrent writers on separate homes.
 
-### Set up a backup remote
+### Set up a synchronization remote
 
-Choose an empty private Git repository or a remote whose current branch has
-compatible history, then run:
+Choose a private Git repository, then run:
 
 ```text
-perenna backup setup <repository-url>
+perenna sync setup <repository-url>
 ```
 
-The command initializes `<home>/memory` when necessary and uses the effective
-`PERENNA_GIT_REMOTE`, which is `origin` by default. It checks repository access,
-rejects parallel or non-fast-forward history, and verifies push access with the
-same non-interactive Git environment used during memory writes. When local
-commits exist, setup performs the initial push and verifies that the remote
-branch matches the local commit. Without a local commit, it configures the
-remote and reports that write access remains pending until the first commit.
+The command initializes `<home>/memory` when necessary. It uses the effective
+`PERENNA_GIT_REMOTE`, or `origin` when setup is run without that variable, and
+checks access with the same non-interactive Git environment used by Perenna.
+Set `PERENNA_GIT_REMOTE` in the runtime environment as well; configuring a Git
+remote alone does not enable automatic pushes.
+
+Setup resolves compatible history without creating a merge commit:
+
+- empty local plus existing remote: import and check out the remote branch;
+- existing local plus empty remote: publish the local branch;
+- equal commits: verify access without changing history;
+- local strictly behind: fast-forward locally;
+- local strictly ahead: push locally;
+- diverged histories: stop and require manual reconciliation.
 
 Setup is idempotent when the effective remote already has the requested URL. If
 it points somewhere else, Perenna leaves it unchanged unless replacement is
 explicit:
 
 ```text
-perenna backup setup <repository-url> --replace
+perenna sync setup <repository-url> --replace
 ```
 
 To use a different remote name, set `PERENNA_GIT_REMOTE` to that name in both the
 Perenna host and the environment running setup, then run the same command:
 
 ```text
-perenna backup setup <repository-url>
+perenna sync setup <repository-url>
 ```
 
-An explicitly empty `PERENNA_GIT_REMOTE` disables automatic backup, so setup
-refuses to configure a remote while that override is effective.
+The setup command defaults to the remote name `origin` when
+`PERENNA_GIT_REMOTE` is unset or empty. Its output reminds the operator to set
+the same remote name in the Perenna runtime.
 
 #### Repository-specific deploy key
 
@@ -200,15 +210,15 @@ For an unattended container, use an SSH repository address and let Perenna
 create a repository-specific Ed25519 deploy key:
 
 ```text
-perenna backup setup git@github.com:OWNER/REPOSITORY.git --deploy-key
+perenna sync setup git@github.com:OWNER/REPOSITORY.git --deploy-key
 ```
 
 The first run stores the private key under `<home>/credentials/git`, configures
 that key only for the memory repository, and prints the public key. It never
 prints the private key. For GitHub, open the displayed repository settings URL,
 add the public key as a deploy key, and select **Allow write access**. Run the
-same setup command again to verify repository access and perform the initial
-push. The key directory and memory repository must use the same persistent
+same setup command again to verify repository access and synchronize compatible
+history. The key directory and memory repository must use the same persistent
 Perenna home across restarts.
 
 Deploy-key SSH host keys use a dedicated `known_hosts` file. The first
@@ -243,25 +253,26 @@ Use one of these credential paths:
   use `--deploy-key` for an unattended single-repository installation.
 - **HTTPS:** save a token or credential in the operating system's Git
   credential manager before Perenna starts.
-- **Token in URL:** `perenna backup setup` rejects embedded HTTPS credentials so
+- **Token in URL:** `perenna sync setup` rejects embedded HTTPS credentials so
   they cannot be left in the memory repository's `.git/config`.
 
 A credential that works only after an interactive shell prompt is not ready
 for Perenna. Desktop clients may also inherit a different SSH-agent or
 credential environment from your terminal.
 
-#### Check backup status
+#### Check synchronization status
 
 Run the status check in the same environment that starts Perenna:
 
 ```text
-perenna backup status
+perenna sync status
 ```
 
 Status reports the resolved memory path, effective remote name and complete URL,
-current branch, repository access, write-access check, and whether the local
-commit is synchronized or still pending push. It does not display credentials
-or claim write access when no local commit is available for a dry-run push.
+current branch, repository access, write-access check, and whether the branch is
+synchronized, ahead, behind, or diverged. It does not change the checked-out
+branch, display credentials, or claim write access when no commit is available
+for a dry-run push.
 
 ## Vexor collection contract
 

@@ -33,7 +33,7 @@ Internally, Perenna provides:
 - semantic retrieval through a rebuildable Vexor collection;
 - safe coordination between multiple local Perenna processes;
 - local stdio and single-user authenticated HTTP access;
-- optional best-effort Git push for backup.
+- optional Git import, fast-forward, and push with explicit conflict reporting.
 
 The exact tool contract is documented in the
 [MCP API reference](reference/mcp-api.md).
@@ -67,8 +67,9 @@ ordinary versioned Markdown files that can be read without proprietary tools.
 
 Perenna runs locally over stdio or as one OAuth-protected Streamable HTTP
 service for one owner. It does not provide multi-user accounts, an OAuth
-authorization server, remote synchronization, a web interface, bundled TLS or
-reverse-proxy management, or automatic extraction from conversations.
+authorization server, automatic reconciliation for concurrent remote writers,
+a web interface, bundled TLS or reverse-proxy management, or automatic
+extraction from conversations.
 
 For the technical boundary, see [Architecture](concepts/architecture.md).
 For practical memory choices, see

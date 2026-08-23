@@ -1,15 +1,15 @@
 # Consistency Model
 
 Perenna protects one durable invariant: a successful changed mutation is
-committed Markdown in Git. Retrieval and remote backup are secondary operations
-that cannot invalidate that commit.
+committed Markdown in the local Git repository. Retrieval and optional remote
+synchronization are secondary operations that cannot invalidate that commit.
 
 ## Source of truth and cache
 
 ```text
-Git commit + Markdown  = permanent truth
+Local Git + Markdown   = permanent truth
 Vexor chunk collection = rebuildable retrieval cache
-Git remote             = optional backup
+Git remote             = optional portable copy
 ```
 
 Perenna never repairs permanent memory from Vexor data.
@@ -49,25 +49,26 @@ One changed create, patch, replace, or delete runs under the exclusive lock:
 7. atomically replace or remove the target file;
 8. stage only that path and create one hook-isolated Git commit;
 9. verify the commit contains only that path;
-10. rebuild the Vexor chunk collection from the new committed snapshot while
-    the lock remains held.
+10. rebuild the Vexor chunk collection from the new committed snapshot;
+11. when a remote is configured, push the local commit and report its
+    synchronization state while the lock remains held.
 
 Exact patch edits are all located against the base body before any edit is
 applied. Missing, repeated, or overlapping anchors reject the complete patch.
 
 If Git staging or commit creation fails before `HEAD` changes, Perenna restores
 the target file and Git index. A committed mutation is never rolled back because
-embedding failed.
+embedding or remote synchronization failed.
 
 An identical create, patch, or replace is a no-op: it returns the current commit
 and revision without creating another commit.
 
 ## Cross-process locks
 
-Perenna stores two lock files in the index directory:
-
-- the repository lock supports concurrent readers and one exclusive mutator;
-- the push lock serializes optional remote backup separately.
+Perenna stores a repository lock in the index directory. It supports concurrent
+readers and one exclusive mutator. The exclusive mutation covers the optional
+push so two processes sharing one home cannot reorder local commits and remote
+updates.
 
 Current-index searches and committed list/get reads use the shared repository
 lock. Mutations and full index rebuilds use the exclusive lock. A stale search
@@ -101,13 +102,37 @@ Manual edits do not block reads. Reads continue to use the last commit, but
 mutations stop until the user commits, stashes, moves, or restores local
 changes. Perenna never stages an unrelated edit.
 
-## Best-effort remote backup
+## Optional Git synchronization
 
-After the local commit and index attempt, Perenna may push under the separate
-push lock. A missing remote, timeout, credential error, or non-fast-forward
-rejection does not change the mutation result.
+Without `PERENNA_GIT_REMOTE`, Perenna never accesses a remote. Local reads and
+writes retain the same behavior without network access.
 
-Perenna does not fetch, pull, force-push, or merge remote history.
+`perenna sync setup` safely establishes the portable remote state:
+
+- an empty local repository imports an existing remote branch;
+- an empty remote receives existing local history;
+- a clean local branch that is strictly behind fast-forwards;
+- a local branch that is strictly ahead pushes;
+- diverged histories stop without merge, rebase, or force-push.
+
+When Perenna starts with an already configured remote, it makes one best-effort
+fetch and fast-forwards a clean local branch when possible. Network failure does
+not prevent local startup, and reads do not fetch again while that process is
+running.
+
+After a changed mutation, Perenna attempts one push and returns `sync_status`:
+
+| Status | Meaning |
+| --- | --- |
+| `local` | No remote is configured |
+| `synchronized` | The remote contains the changed local commit |
+| `pending` | The local commit succeeded, but the remote could not be updated or checked |
+| `conflict` | Local and remote histories diverged |
+| `unchanged` | No commit was created and no push was attempted |
+
+A conflict leaves the local commit intact and records a write barrier. Later
+mutations stop until the user reconciles the branches and completes sync setup.
+Perenna never resolves a diverged history automatically.
 
 ## Failure outcomes
 
@@ -118,8 +143,9 @@ Perenna does not fetch, pull, force-push, or merge remote history.
 | Dirty repository or unfinished Git operation | Mutation failure; reads continue | User changes remain untouched |
 | Atomic replacement or deletion failure | Mutation failure | Original file remains |
 | Git stage or commit failure | Mutation failure | File and Git index are restored when safe |
-| Vexor rebuild failure after commit | Mutation succeeds with `index_status: pending` | Git commit remains; marker does not advance |
-| Git push failure | Mutation succeeds | Local commit remains authoritative |
+| Vexor rebuild failure after commit | Mutation succeeds with `index_status: pending` | Local Git commit remains; marker does not advance |
+| Remote unavailable or push rejected without divergence | Mutation succeeds with `sync_status: pending` | Local commit remains |
+| Remote history diverged | Mutation succeeds with `sync_status: conflict`; later writes stop | Local and remote commits remain unchanged |
 
 Recovery procedures are in
 [Maintenance and recovery](../guides/maintenance.md).

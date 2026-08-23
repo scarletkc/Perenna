@@ -22,11 +22,21 @@ does not otherwise depend on Auth0.
 
 ## Build the image
 
-From a Perenna source checkout:
+Choose the intended published release tag from
+[GitHub Releases](https://github.com/scarletkc/Perenna/releases), then clone that
+tag instead of the moving default branch:
 
 ```bash
+PERENNA_VERSION=vX.Y.Z
+git clone --branch "$PERENNA_VERSION" --depth 1 \
+  https://github.com/scarletkc/Perenna.git Perenna
+cd Perenna
+test "$(git describe --tags --exact-match)" = "$PERENNA_VERSION"
 docker build -t perenna:local .
 ```
+
+Replace `vX.Y.Z` with the release tag to deploy. The exact-match check must
+succeed before building the image.
 
 The image runs `perenna serve` as an unprivileged user, listens on port `8000`,
 and stores the Perenna home under `/data`.
@@ -70,7 +80,7 @@ sudoedit /etc/perenna/perenna.env
 ```
 
 The template includes the Docker runtime defaults and optional Vexor and Git
-backup settings. The
+synchronization settings. The
 [configuration reference](../reference/configuration.md#remote-mcp-and-oauth)
 owns the complete field contract.
 
@@ -93,7 +103,7 @@ The image uses UID `10001`. When replacing the named volume with a host bind
 mount, make that directory writable by UID `10001` before starting the
 container.
 
-## Configure Git backup
+## Configure Git synchronization
 
 The container cannot use a Git login, credential manager, or SSH agent from the
 host unless it is mounted explicitly. For a single private GitHub repository,
@@ -101,27 +111,27 @@ generate a repository-specific deploy key inside the persistent Perenna volume:
 
 ```bash
 docker exec perenna \
-  perenna backup setup git@github.com:OWNER/REPOSITORY.git --deploy-key
+  perenna sync setup git@github.com:OWNER/REPOSITORY.git --deploy-key
 ```
 
 The command prints a GitHub repository settings URL, a title, and one public
 key. Open that URL, add the public key under **Deploy keys**, select **Allow
 write access**, and then run the same command again. The second run verifies
-access and pushes existing memory history when a commit is available.
+access and imports, publishes, or fast-forwards compatible memory history.
 
 Check the effective state from the running container:
 
 ```bash
-docker exec perenna perenna backup status
+docker exec perenna perenna sync status
 ```
 
 The private key remains under `/data/credentials/git`; it is not part of the
 memory Git repository and is not printed by Perenna. The `perenna-data` volume
 must remain mounted for both memories and the deploy key to survive container
 replacement. Revoke the deploy key in the repository settings before deleting,
-copying, or exposing that volume. The complete backup and credential contract
-is in the
-[configuration reference](../reference/configuration.md#git-remote-backup).
+copying, or exposing that volume. The complete synchronization and credential
+contract is in the
+[configuration reference](../reference/configuration.md#git-remote-synchronization).
 
 ## Update Perenna without losing memories
 
@@ -131,7 +141,7 @@ The container is replaceable. Permanent state remains in the named
 ```text
 /data/memory   Git-backed permanent memories
 /data/index    Rebuildable Vexor index
-/data/credentials   Optional repository-specific backup credentials
+/data/credentials   Optional repository-specific Git credentials
 ```
 
 Before an update, confirm that the running container still mounts that volume
@@ -147,19 +157,21 @@ The inspect output should include `perenna-data /data`. An empty Git status is
 expected. Resolve an unexpected dirty repository before replacing the
 container.
 
-Update the source checkout and build the replacement image before stopping the
-working container:
+Fetch the intended published release tag, check it out, and build the
+replacement image before stopping the working container:
 
 ```bash
 cd Perenna
-git pull --ff-only
+git fetch --tags
+PERENNA_VERSION=vX.Y.Z
+git checkout --detach "$PERENNA_VERSION"
+test "$(git describe --tags --exact-match)" = "$PERENNA_VERSION"
 docker image tag perenna:local perenna:previous
 docker build -t perenna:local .
 ```
 
-If the deployment follows release tags, fetch and check out the intended tag
-instead of pulling the current branch. Review `.env.example` for newly required
-configuration before restarting.
+Replace `vX.Y.Z` with the release tag to deploy. Review `.env.example` for newly
+required configuration before restarting.
 
 Replace only the container, then repeat the command under
 [Run the container](#run-the-container). The volume name and environment-file

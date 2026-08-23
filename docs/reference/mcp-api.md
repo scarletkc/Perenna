@@ -181,9 +181,9 @@ normalized expected title, and revision must all match. It cannot delete by
 query, project, or batch.
 
 Deletion removes the memory from the current Git tree and retrieval index but
-does not erase Git history or remote backups. The result marks it as
+does not erase local or synchronized remote Git history. The result marks it as
 `recoverable_via_git`. Sensitive-data purging remains a separate manual Git and
-backup operation.
+remote operation.
 
 ## Revisions and mutation results
 
@@ -198,10 +198,20 @@ also contains:
 
 - `changed`, which is false for an idempotent no-op;
 - the local Git `commit` representing the current result;
-- `index_status`, either `current` or `pending`.
+- `index_status`, either `current` or `pending`;
+- `sync_status`, one of `local`, `synchronized`, `pending`, `conflict`, or
+  `unchanged`.
 
 `pending` means the Git mutation succeeded but the rebuildable Vexor index did
 not synchronize. A later search retries recovery.
+
+For `sync_status`, `local` means no remote is configured, `synchronized` means
+the remote contains the changed commit, and `unchanged` means no commit or push
+was needed. `pending` and `conflict` still mean the local commit succeeded; do
+not repeat the mutation. A conflict blocks later writes until the Git histories
+are reconciled. The
+[consistency model](../concepts/consistency.md#optional-git-synchronization)
+owns the complete synchronization contract.
 
 ## Expected errors
 

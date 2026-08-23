@@ -94,19 +94,22 @@ Perenna initializes the resolved home automatically:
 The `memory/` directory starts on a `main` branch and uses a repository-local
 Perenna commit identity. Perenna does not change your global Git identity.
 
-## Optional: set up a backup remote
+## Optional: set up Git synchronization
 
-You can attach an empty private Git repository for best-effort backup before or
-after the first connection:
+You can attach a private Git repository before or after the first connection:
 
 ```text
-perenna backup setup <repository-url>
+perenna sync setup <repository-url>
 ```
 
 For an unattended container, add `--deploy-key` to generate a persistent,
 repository-specific SSH key and receive the exact registration instructions.
-Follow [Set up a backup remote](reference/configuration.md#set-up-a-backup-remote)
-for credential requirements, replacement safeguards, and status checks.
+Setup imports an existing remote into an empty local repository, publishes an
+existing local repository to an empty remote, and fast-forwards compatible
+history. It stops on diverged history rather than merging automatically. Follow
+[Git remote synchronization](reference/configuration.md#git-remote-synchronization)
+for the complete behavior, credential requirements, replacement safeguards,
+and status checks.
 
 ## Verify the first session
 

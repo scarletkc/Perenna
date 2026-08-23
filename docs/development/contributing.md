@@ -34,13 +34,13 @@ src/perenna/
 ├── mcp_server.py   # shared MCP tools and stdio adapter
 ├── http_server.py  # authenticated Streamable HTTP adapter
 ├── oauth.py        # single-owner JWT verification
-├── core.py         # read, mutation, lock, and backup orchestration
+├── core.py         # read, mutation, lock, and Git synchronization orchestration
 ├── config.py       # local and remote startup configuration
 ├── models.py       # memory types and normalization
 ├── markdown.py     # strict Markdown serialization and parsing
 ├── store.py        # revision-guarded mutation transactions
-├── git.py          # isolated Git operations and optional push
-├── locking.py      # cross-process reader/writer and push locks
+├── git.py          # isolated local and remote Git operations
+├── locking.py      # cross-process reader/writer lock
 ├── index.py        # Vexor collection and commit marker
 ├── filesystem.py   # atomic replacement
 └── errors.py       # expected domain failures
@@ -64,7 +64,8 @@ Changes must preserve these rules:
    and index operations do not become agent-facing tools.
 6. A successful changed mutation always means that one target memory path is
    committed to local Git.
-7. An index or backup failure never rolls back an existing memory commit.
+7. An index or remote synchronization failure never rolls back an existing
+   local memory commit.
 
 Read [Architecture](../concepts/architecture.md) and
 [Consistency model](../concepts/consistency.md) before changing storage,
@@ -95,9 +96,12 @@ Runtime Git calls must:
 - isolate hooks during the Perenna commit;
 - stage and commit only the intended memory path;
 - preserve safe rollback when commit creation fails;
-- keep push best effort and separate from the repository mutation lock.
+- report remote push state without weakening local commit durability;
+- keep the optional push inside the exclusive mutation lock.
 
-Do not introduce automatic fetch, pull, force-push, or conflict resolution.
+Remote setup and startup refresh may fetch and fast-forward a clean branch.
+Never merge, rebase, or force-push automatically. A divergence must remain
+visible and block later mutations until the user reconciles it.
 
 ## MCP and user-visible output
 

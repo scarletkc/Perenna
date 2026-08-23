@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="https://raw.githubusercontent.com/scarletkc/Perenna/main/assets/logo.svg" alt="Perenna logo" width="160" />
+
 # Perenna
 
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/downloads/)

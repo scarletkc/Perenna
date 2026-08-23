@@ -77,13 +77,24 @@ Perenna requires Python 3.12+, Git, and
 uv tool install perenna
 ```
 
-Perenna needs a working Vexor embedding provider. It automatically reuses
-`~/.vexor/config.json`. When using process-level configuration, make sure the
-MCP server receives `VEXOR_CONFIG_JSON` plus `VEXOR_API_KEY` or the selected
-provider's key from its host environment. Remote providers receive memory text
-and search queries.
+Perenna needs a working Vexor embedding provider. For interactive provider
+selection and configuration, run:
 
-For local embeddings, install `perenna[local]` and select a local model. The
+```bash
+uvx vexor init
+```
+
+Perenna automatically reuses `~/.vexor/config.json`. When using process-level
+configuration, make sure the MCP server receives `VEXOR_CONFIG_JSON` plus
+`VEXOR_API_KEY` or the selected provider's key from its host environment.
+Remote providers receive memory text and search queries.
+
+If you choose local embeddings, also install Perenna's local extra:
+
+```bash
+uv tool install "perenna[local]"
+```
+
 [Vexor provider configuration](https://github.com/scarletkc/Perenna/blob/main/docs/reference/configuration.md#vexor-provider-configuration)
 covers remote and local setup. From the environment that starts the MCP client,
 verify the selected provider with:

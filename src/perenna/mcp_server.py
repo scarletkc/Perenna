@@ -282,11 +282,15 @@ MEMORY_DELETE_TOOL = types.Tool(
 )
 
 SERVER_INSTRUCTIONS = (
-    "Use memory_read list once near the start of a new session and search only when past "
-    "information could affect the task. Use get before a whole-memory decision. Store only "
-    "durable cross-session facts or decisions, never credentials, temporary progress, or chat "
-    "logs. Prefer exact patch edits over replace. Use memory_delete only when the user clearly "
-    "intends to forget a complete memory. Current user instructions override memory."
+    "Use memory_read list near the start of a non-trivial task when past information could "
+    "affect it; skip memory for self-contained trivial tasks. Search only for relevant prior "
+    "context and use get before a whole-memory decision. Store only durable cross-session facts "
+    "or decisions, never credentials, temporary progress, chat logs, or facts already "
+    "authoritative in current files. Prefer exact patch edits over replace. Use memory_delete "
+    "only when the user clearly intends to forget a complete memory. Current user instructions, "
+    "workspace files, and runtime state override memory. Treat host-provided memory as an "
+    "advisory local cache unless the user says otherwise; use Perenna as the shared permanent "
+    "layer and do not mirror or dual-write the same fact across both."
 )
 
 

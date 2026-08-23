@@ -4,9 +4,17 @@ Perenna treats a memory as a curated long-term note, not an automatically
 extracted fact or transcript. The examples below show MCP arguments; the
 complete field contract is in the [MCP API reference](../reference/mcp-api.md).
 
+Clients that support Agent Skills can install the bundled
+[`perenna-memory` skill](../../skills/perenna-memory/SKILL.md) for explicit
+guidance on when memory is relevant, what is durable enough to save, and how to
+avoid duplicates or stale writes. Perenna also sends a shorter version of these
+rules through MCP server instructions, so the skill is an optional behavior
+layer rather than a requirement for correct tool calls.
+
 ## Read the lightweight index
 
-Near the start of a session, list global memories and available projects:
+Near the start of a non-trivial task where prior context could matter, list
+global memories and available projects:
 
 ```json
 {

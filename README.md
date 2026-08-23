@@ -44,6 +44,11 @@ Use these as the source of truth:
    command and stop there.
 3. Install Perenna with `uv tool install perenna`. If Perenna is already
    installed, upgrade it with `uv tool upgrade perenna`.
+   If this client supports Agent Skills, also install the bundled
+   `perenna-memory` skill from
+   `https://github.com/scarletkc/Perenna/tree/main/skills/perenna-memory`
+   through the client's normal skill installation mechanism. Do not replace or
+   remove unrelated installed skills.
 4. Check the effective Vexor embedding provider configuration. Reuse a working
    `~/.vexor/config.json` or inherited environment configuration. If none is
    available, ask me to choose between a remote provider and local embeddings.
@@ -142,6 +147,7 @@ then follow the path for your task:
 - [Client setup](https://github.com/scarletkc/Perenna/blob/main/docs/guides/client-setup.md)
 - [Self-hosting for ChatGPT](https://github.com/scarletkc/Perenna/blob/main/docs/guides/self-hosting.md)
 - [Using permanent memory](https://github.com/scarletkc/Perenna/blob/main/docs/guides/using-memory.md)
+- [`perenna-memory` Agent Skill](https://github.com/scarletkc/Perenna/blob/main/skills/perenna-memory/SKILL.md)
 - [Configuration reference](https://github.com/scarletkc/Perenna/blob/main/docs/reference/configuration.md)
 - [Architecture](https://github.com/scarletkc/Perenna/blob/main/docs/concepts/architecture.md)
 - [Development guide](https://github.com/scarletkc/Perenna/blob/main/docs/development/contributing.md)

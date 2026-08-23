@@ -18,6 +18,7 @@ from perenna.mcp_server import (
     MEMORY_READ_SCHEMA,
     MEMORY_WRITE_OUTPUT_SCHEMA,
     MEMORY_WRITE_SCHEMA,
+    SERVER_INSTRUCTIONS,
     MemoryDeleteArguments,
     MemoryReadArguments,
     MemoryWriteArguments,
@@ -342,6 +343,8 @@ async def test_real_stdio_process_lists_three_tools_and_returns_structured_conte
     ):
         tools = await session.list_tools()
         assert initialized.server_info.name == "Perenna"
+        assert initialized.instructions == SERVER_INSTRUCTIONS
+        assert "do not mirror or dual-write" in initialized.instructions
         assert [tool.name for tool in tools.tools] == [
             "memory_read",
             "memory_write",

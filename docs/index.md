@@ -17,6 +17,7 @@ more exact layers only when you need them.
 | [Client setup](guides/client-setup.md) | Connect Claude Code, Codex, ChatGPT Desktop, or Cursor |
 | [Self-hosting](guides/self-hosting.md) | Run one OAuth-protected Perenna instance for ChatGPT web |
 | [Using permanent memory](guides/using-memory.md) | List, search, get, create, patch, replace, and delete memories |
+| [`perenna-memory` Agent Skill](../skills/perenna-memory/SKILL.md) | Teach a compatible AI client when and how to curate permanent memory |
 | [Maintenance and recovery](guides/maintenance.md) | Inspect Git history, handle local edits, and rebuild the index |
 
 ## Understand the design

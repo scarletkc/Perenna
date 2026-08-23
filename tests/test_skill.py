@@ -6,6 +6,7 @@ import yaml
 
 SKILL_PATH = Path(__file__).parents[1] / "skills" / "perenna-memory" / "SKILL.md"
 CURATION_PATH = SKILL_PATH.parent / "references" / "curation.md"
+IMPORTING_PATH = SKILL_PATH.parent / "references" / "importing.md"
 UNAVAILABLE_PATH = SKILL_PATH.parent / "references" / "unavailable.md"
 
 
@@ -20,17 +21,32 @@ def test_perenna_memory_skill_is_discoverable_and_covers_the_tool_surface() -> N
     assert frontmatter["description"].strip()
     assert frontmatter["metadata"]["github-repo"] == "https://github.com/scarletkc/Perenna"
     assert "references/curation.md" in body
+    assert "references/importing.md" in body
     assert "references/unavailable.md" in body
     assert "Do not mirror, dual-write" in body
     assert "host-local advisory cache" in body
     assert "Git auditability" in body
     assert CURATION_PATH.is_file()
+    assert IMPORTING_PATH.is_file()
     assert UNAVAILABLE_PATH.is_file()
+
+    curation = CURATION_PATH.read_text(encoding="utf-8")
+    flattened_curation = " ".join(curation.split())
+    assert "Treat feedback as source material" in flattened_curation
+    assert "do not preserve feedback as an event or category" in flattened_curation
+
+    importing = IMPORTING_PATH.read_text(encoding="utf-8")
+    flattened_importing = " ".join(importing.split())
+    assert "Installing or connecting Perenna does not authorize an import" in flattened_importing
+    assert "one-time migration, not permission to mirror" in flattened_importing
+    assert "Include the destination project" in flattened_importing
+    assert "Do not bypass the MCP tools" in flattened_importing
 
     combined = "\n".join(
         (
             body,
             CURATION_PATH.read_text(encoding="utf-8"),
+            IMPORTING_PATH.read_text(encoding="utf-8"),
             UNAVAILABLE_PATH.read_text(encoding="utf-8"),
         )
     )

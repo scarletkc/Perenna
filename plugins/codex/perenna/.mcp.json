@@ -8,6 +8,7 @@
         "codex"
       ],
       "env_vars": [
+        "PERENNA_GIT_REMOTE",
         "VEXOR_API_KEY",
         "VEXOR_REMOTE_RERANK_API_KEY",
         "VEXOR_CONFIG_JSON"

@@ -12,6 +12,10 @@ session:
 - verified recovery procedures and recurring workflows;
 - concise lessons whose cause and remedy are not obvious from current files.
 
+Treat feedback as source material: store it only after converting a durable,
+reusable correction into the preference, constraint, workflow, or lesson it
+changes; do not preserve feedback as an event or category.
+
 Do not turn ordinary task completion into a routine write. Do not store:
 
 - passwords, API keys, tokens, private keys, or other credentials;

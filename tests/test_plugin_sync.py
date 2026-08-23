@@ -35,9 +35,11 @@ def test_repository_plugin_artifacts_are_synchronized() -> None:
     assert claude_mcp["mcpServers"]["perenna"]["args"][-1] == "claude-code"
     server = json.loads((REPO_ROOT / "server.json").read_text(encoding="utf-8"))
     environment_variables = server["packages"][0]["environmentVariables"]
+    environment_variable_names = [variable["name"] for variable in environment_variables]
     assert codex_mcp["mcpServers"]["perenna"]["env_vars"] == [
         variable["name"] for variable in environment_variables
     ]
+    assert "PERENNA_GIT_REMOTE" in environment_variable_names
     assert "env_vars" not in claude_mcp["mcpServers"]["perenna"]
     assert (
         REPO_ROOT / "plugins/codex/perenna/skills/perenna-memory/SKILL.md"

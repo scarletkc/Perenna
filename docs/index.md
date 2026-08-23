@@ -9,6 +9,7 @@ more exact layers only when you need them.
 | --- | --- |
 | [Product overview](overview.md) | Understand what Perenna does and where it fits |
 | [Getting started](getting-started.md) | Install Perenna and verify the first local connection |
+| [AI-agent installation](guides/agent-installation.md) | Give an AI agent the complete autonomous installation workflow |
 
 ## Use Perenna
 
@@ -54,6 +55,7 @@ docs/
 ├── overview.md
 ├── getting-started.md
 ├── guides/
+│   ├── agent-installation.md
 │   ├── client-setup.md
 │   ├── plugin-setup.md
 │   ├── self-hosting.md

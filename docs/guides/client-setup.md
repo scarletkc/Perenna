@@ -122,13 +122,20 @@ Clients share memories only when they resolve the same home. The exact
 precedence rules are in the
 [configuration reference](../reference/configuration.md#perenna-home).
 
-## Pass provider configuration
+## Pass runtime configuration
 
 Embedding provider settings belong in Vexor configuration or environment
 variables inherited by the Perenna process. Do not place API keys in a tracked
 client configuration file. See
 [Vexor provider configuration](../reference/configuration.md#vexor-provider-configuration)
 for the supported sources and privacy boundary.
+
+When optional Git synchronization is enabled, the client process must also
+inherit the same `PERENNA_GIT_REMOTE` used by `perenna sync setup` and
+`perenna sync status`. Configuring the repository remote without forwarding
+that runtime value leaves Perenna in local-only mode. See
+[Git remote synchronization](../reference/configuration.md#git-remote-synchronization)
+for the complete contract.
 
 ## Upstream client documentation
 

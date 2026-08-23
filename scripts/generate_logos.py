@@ -587,45 +587,7 @@ LOGO_BANNER_TRANSPARENT = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 
 </svg>"""
 
 # -------------------------------------------------------------
-# 5. Compact Favicon (64x64 / 32x32 optimized)
-# -------------------------------------------------------------
-FAVICON = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="100%" height="100%">
-  <defs>
-    <radialGradient id="favBg" cx="50%" cy="30%" r="70%">
-      <stop offset="0%" stop-color="#1e1b4b"/>
-      <stop offset="100%" stop-color="#090d16"/>
-    </radialGradient>
-    <linearGradient id="favLoop" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#06b6d4"/>
-      <stop offset="50%" stop-color="#6366f1"/>
-      <stop offset="100%" stop-color="#f43f5e"/>
-    </linearGradient>
-  </defs>
-
-  <rect width="64" height="64" rx="14" fill="url(#favBg)"/>
-  <rect width="62" height="62" x="1" y="1" rx="13" fill="none" stroke="#ffffff" stroke-opacity="0.1" stroke-width="1"/>
-
-  <!-- P-Loop -->
-  <path d="M 23 15
-           C 36 15, 48 20, 48 30
-           C 48 40, 36 45, 23 45
-           L 23 37
-           C 32 37, 40 34, 40 30
-           C 40 26, 32 23, 23 23
-           Z"
-        fill="url(#favLoop)"/>
-
-  <!-- P-Stem -->
-  <rect x="18" y="15" width="7" height="35" rx="3.5" fill="#4f46e5"/>
-
-  <!-- Core Nodes -->
-  <circle cx="21.5" cy="44" r="3" fill="#22d3ee"/>
-  <circle cx="21.5" cy="29" r="3.5" fill="#38bdf8"/>
-  <circle cx="45" cy="30" r="3.5" fill="#f43f5e"/>
-</svg>"""
-
-# -------------------------------------------------------------
-# 6. Interactive HTML Preview Showcase
+# 5. Interactive HTML Preview Showcase
 # -------------------------------------------------------------
 HTML_PREVIEW = """<!DOCTYPE html>
 <html lang="en">
@@ -949,7 +911,7 @@ HTML_PREVIEW = """<!DOCTYPE html>
         <div class="card-footer">
           <div class="card-info">
             <h3>Favicon & Small Sizes (favicon.svg)</h3>
-            <p>64 px source previewed at 16, 32, 48, and 64 px</p>
+            <p>The primary mark previewed at 16, 32, 48, and 64 px</p>
           </div>
           <a href="favicon.svg" download class="btn">Download SVG</a>
         </div>
@@ -1013,7 +975,7 @@ def main() -> int:
         "logo-transparent.svg": LOGO_TRANSPARENT,
         "logo-banner.svg": LOGO_BANNER,
         "logo-banner-transparent.svg": LOGO_BANNER_TRANSPARENT,
-        "favicon.svg": FAVICON,
+        "favicon.svg": LOGO_DARK_SQUARE,
         "preview.html": HTML_PREVIEW,
     }
 

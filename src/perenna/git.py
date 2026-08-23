@@ -453,6 +453,24 @@ class GitRepository:
         check: bool = True,
         timeout: int | None = None,
     ) -> subprocess.CompletedProcess[str]:
+        return self._execute(args, check=check, timeout=timeout, text=True)
+
+    def _run_bytes(
+        self,
+        args: list[str],
+        *,
+        check: bool = True,
+    ) -> subprocess.CompletedProcess[bytes]:
+        return self._execute(args, check=check, timeout=None, text=False)
+
+    def _execute(
+        self,
+        args: list[str],
+        *,
+        check: bool,
+        timeout: int | None,
+        text: bool,
+    ) -> subprocess.CompletedProcess[str] | subprocess.CompletedProcess[bytes]:
         try:
             result = subprocess.run(
                 ["git", *args],
@@ -460,9 +478,9 @@ class GitRepository:
                 check=False,
                 capture_output=True,
                 stdin=subprocess.DEVNULL,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
+                text=text,
+                encoding="utf-8" if text else None,
+                errors="replace" if text else None,
                 env=_git_environment(),
                 timeout=timeout,
             )
@@ -475,33 +493,6 @@ class GitRepository:
             raise RepositoryError(
                 f"Git operation {args[0]!r} failed in {self.path}. Inspect the repository and "
                 "Git configuration, then retry."
-            )
-        return result
-
-    def _run_bytes(
-        self,
-        args: list[str],
-        *,
-        check: bool = True,
-    ) -> subprocess.CompletedProcess[bytes]:
-        try:
-            result = subprocess.run(
-                ["git", *args],
-                cwd=self.path,
-                check=False,
-                capture_output=True,
-                stdin=subprocess.DEVNULL,
-                env=_git_environment(),
-            )
-        except FileNotFoundError as exc:
-            raise RepositoryError(
-                "Git is not installed or is not available on PATH. Install Git, then restart "
-                "Perenna."
-            ) from exc
-        if check and result.returncode != 0:
-            raise RepositoryError(
-                f"Git operation {args[0]!r} failed in {self.path}. Inspect the repository and "
-                "retry."
             )
         return result
 

@@ -30,20 +30,25 @@ Use pytest temporary directories or an explicit disposable home.
 
 ```text
 src/perenna/
-├── cli.py          # command parsing and stderr logging setup
-├── mcp_server.py   # shared MCP tools and stdio adapter
-├── http_server.py  # authenticated Streamable HTTP adapter
-├── oauth.py        # single-owner JWT verification
-├── core.py         # read, mutation, lock, and Git synchronization orchestration
-├── config.py       # local and remote startup configuration
-├── models.py       # memory types and normalization
-├── markdown.py     # strict Markdown serialization and parsing
-├── store.py        # revision-guarded mutation transactions
-├── git.py          # isolated local and remote Git operations
-├── locking.py      # cross-process reader/writer lock
-├── index.py        # Vexor collection and commit marker
-├── filesystem.py   # atomic replacement
-└── errors.py       # expected domain failures
+├── cli.py           # command parsing, dispatch, and stderr logging setup
+├── cli_output.py    # human-readable sync and skill report rendering
+├── mcp_server.py    # shared MCP tool dispatch and stdio adapter
+├── mcp_schemas.py   # exact MCP tool metadata, input/output schemas, and scopes
+├── http_server.py   # authenticated Streamable HTTP adapter
+├── oauth.py         # single-owner JWT verification
+├── core.py          # read, mutation, lock, and Git synchronization orchestration
+├── config.py        # local and remote startup configuration
+├── models.py        # memory types and normalization
+├── markdown.py      # strict Markdown serialization and parsing
+├── store.py         # revision-guarded mutation transactions
+├── git.py           # isolated local and remote Git operations
+├── sync.py          # remote Git synchronization setup and inspection
+├── deploy_keys.py   # repository-specific SSH deploy-key management
+├── locking.py       # cross-process reader/writer lock
+├── index.py         # Vexor collection and commit marker
+├── filesystem.py    # atomic replacement
+├── skill_installer.py  # bundled Agent Skill installation
+└── errors.py        # expected domain failures
 ```
 
 Tests mirror those responsibilities under `tests/`.

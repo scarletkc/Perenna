@@ -69,6 +69,15 @@ The initial dependency and model downloads may still require network access.
 Provider configuration and privacy boundaries are documented in the
 [configuration reference](reference/configuration.md#vexor-provider-configuration).
 
+## Update
+
+Upgrade a published installation and confirm the installed version:
+
+```bash
+uv tool upgrade perenna
+perenna --version
+```
+
 ## Connect a client
 
 Choose the setup for your MCP client:

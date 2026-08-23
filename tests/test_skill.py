@@ -34,6 +34,16 @@ def test_perenna_memory_skill_is_discoverable_and_covers_the_tool_surface() -> N
             UNAVAILABLE_PATH.read_text(encoding="utf-8"),
         )
     )
+    flattened = " ".join(combined.split())
     assert {"memory_read", "memory_write", "memory_delete"} <= set(combined.split("`"))
     assert "https://github.com/scarletkc/Perenna/blob/main/docs/getting-started.md" in combined
     assert "https://github.com/scarletkc/Perenna/blob/main/docs/guides/client-setup.md" in combined
+    assert "https://github.com/scarletkc/Perenna/blob/main/docs/guides/self-hosting.md" in combined
+    assert "perenna mcp --source <stable-client-name>" in combined
+    assert "perenna serve" in combined
+    assert "ask the user to configure a persistent Docker deployment" in flattened
+    assert "Do not run remote deployment commands" in flattened
+    assert "local persistence succeeded while the remote backup remains unsynchronized" in flattened
+    assert "repeating the same `memory_write`" in flattened
+    assert "perenna backup status" in combined
+    assert "docs/guides/maintenance.md#recover-from-a-backup-push-failure" in combined

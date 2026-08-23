@@ -48,9 +48,13 @@ class MemoryStore:
         self.repository = repository
         self._clock = clock
         self._id_factory = id_factory
+        self._cached_snapshot: MemorySnapshot | None = None
 
     def snapshot(self) -> MemorySnapshot:
         commit = self.repository.head()
+        cached_snapshot = self._cached_snapshot
+        if cached_snapshot is not None and cached_snapshot.commit == commit:
+            return cached_snapshot
         if commit is None:
             memories: tuple[Memory, ...] = ()
         else:
@@ -59,7 +63,9 @@ class MemoryStore:
                 for path in self.repository.memory_paths_at_commit(commit)
             )
         self._validate_integrity(memories)
-        return MemorySnapshot(commit=commit, memories=memories)
+        snapshot = MemorySnapshot(commit=commit, memories=memories)
+        self._cached_snapshot = snapshot
+        return snapshot
 
     def create(
         self,

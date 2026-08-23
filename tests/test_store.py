@@ -114,6 +114,69 @@ def test_same_title_in_different_scopes_creates_distinct_memories(
     }
 
 
+def test_snapshot_reuses_validated_snapshot_while_head_is_unchanged(
+    repository: GitRepository,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _store(repository)
+    store.create(
+        title="Fact",
+        summary="A cached fact.",
+        body="cached body",
+        source="codex",
+        project=None,
+    )
+    cached_store = MemoryStore(repository)
+    original_paths = repository.memory_paths_at_commit
+    original_read = repository.read_at_commit
+    paths_calls = 0
+    read_calls = 0
+
+    def counted_paths(commit: str) -> list[str]:
+        nonlocal paths_calls
+        paths_calls += 1
+        return original_paths(commit)
+
+    def counted_read(commit: str, relative_path: str) -> str:
+        nonlocal read_calls
+        read_calls += 1
+        return original_read(commit, relative_path)
+
+    monkeypatch.setattr(repository, "memory_paths_at_commit", counted_paths)
+    monkeypatch.setattr(repository, "read_at_commit", counted_read)
+
+    first = cached_store.snapshot()
+    second = cached_store.snapshot()
+
+    assert second is first
+    assert paths_calls == 1
+    assert read_calls == 1
+
+
+def test_snapshot_reloads_after_external_commit(repository: GitRepository) -> None:
+    store = _store(repository)
+    created = store.create(
+        title="Fact",
+        summary="A cached fact.",
+        body="first body",
+        source="codex",
+        project=None,
+    )
+    first = store.snapshot()
+    externally_updated = replace(
+        created.memory,
+        body="externally updated body",
+        updated_at="2026-08-22T03:04:05Z",
+    )
+
+    _commit_document(repository, externally_updated)
+    second = store.snapshot()
+
+    assert second is not first
+    assert second.commit != first.commit
+    assert second.memories == (externally_updated,)
+
+
 def test_snapshot_rejects_duplicate_ids(repository: GitRepository) -> None:
     store = _store(repository)
     created = store.create(

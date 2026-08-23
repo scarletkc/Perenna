@@ -7,7 +7,14 @@ import sys
 from collections.abc import Sequence
 
 from perenna import DESCRIPTION, __version__
-from perenna.config import resolve_remote_settings, resolve_settings
+from perenna.backup import BackupReport, inspect_backup, setup_backup
+from perenna.config import (
+    RuntimePaths,
+    resolve_git_remote,
+    resolve_home,
+    resolve_remote_settings,
+    resolve_settings,
+)
 from perenna.core import PerennaCore
 from perenna.errors import PerennaError
 from perenna.http_server import run_http
@@ -40,6 +47,39 @@ def build_parser() -> argparse.ArgumentParser:
         type=_port,
         help="HTTP listen port. Default: 8000.",
     )
+
+    backup = subparsers.add_parser(
+        "backup",
+        help="Configure or inspect automatic Git backup.",
+    )
+    backup_commands = backup.add_subparsers(dest="backup_command", required=True)
+    setup = backup_commands.add_parser(
+        "setup",
+        help="Configure a repository and verify non-interactive push access.",
+    )
+    setup.add_argument("repository_url", help="Git HTTPS or SSH repository address.")
+    setup.add_argument(
+        "--home",
+        help="Perenna data directory. Overrides PERENNA_HOME; default: ~/.perenna.",
+    )
+    setup.add_argument(
+        "--replace",
+        action="store_true",
+        help="Replace an existing remote that points to a different address.",
+    )
+    setup.add_argument(
+        "--deploy-key",
+        action="store_true",
+        help="Generate and use a repository-specific SSH deploy key.",
+    )
+    status = backup_commands.add_parser(
+        "status",
+        help="Check the effective remote, access, and backup state.",
+    )
+    status.add_argument(
+        "--home",
+        help="Perenna data directory. Overrides PERENNA_HOME; default: ~/.perenna.",
+    )
     return parser
 
 
@@ -67,6 +107,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     _configure_logging()
 
     try:
+        if args.command == "backup":
+            _run_backup(args)
+            return 0
         settings = resolve_settings(cli_home=args.home, cli_source=args.source)
         remote_settings = resolve_remote_settings() if args.command == "serve" else None
         core = PerennaCore(settings)
@@ -88,6 +131,64 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 1
     return 0
+
+
+def _run_backup(args: argparse.Namespace) -> None:
+    paths = RuntimePaths(resolve_home(args.home))
+    remote_name = resolve_git_remote()
+    if args.backup_command == "setup":
+        report = setup_backup(
+            paths.memory,
+            args.repository_url,
+            remote_name=remote_name,
+            replace=args.replace,
+            deploy_key=args.deploy_key,
+        )
+        _print_backup_report(report)
+        return
+
+    report = inspect_backup(paths.memory, remote_name=remote_name)
+    if report is None:
+        print(f"Memory repository: {paths.memory}")
+        print("Automatic backup: disabled (PERENNA_GIT_REMOTE is empty)")
+        return
+    _print_backup_report(report)
+
+
+def _print_backup_report(report: BackupReport) -> None:
+    print(f"Memory repository: {report.repository}")
+    print(f"Backup remote: {report.remote_name} -> {report.remote_url}")
+    print(f"Branch: {report.branch}")
+    if report.authentication == "deploy-key":
+        print(f"Authentication: deploy key {report.deploy_key_fingerprint}")
+    if report.repository_access == "ok":
+        print("Repository access: ok")
+    else:
+        print("Repository access: pending (not confirmed with the configured deploy key)")
+    if report.write_access == "ok":
+        print("Write access: ok")
+    else:
+        print("Write access: pending (no local commit is available to test)")
+    if report.state == "waiting-deploy-key":
+        print("Backup state: waiting for deploy key authorization")
+    elif report.state == "synchronized":
+        print("Backup state: synchronized")
+    elif report.state == "pending-push":
+        print("Backup state: pending push")
+    else:
+        print("Backup state: pending first memory commit")
+    if report.state == "waiting-deploy-key":
+        print(f"Automatic backup: configured (remote: {report.remote_name})")
+        print()
+        print("Add this public key to the repository as a deploy key with write access:")
+        if report.deploy_key_settings_url is not None:
+            print(f"Open: {report.deploy_key_settings_url}")
+        print(f"Title: Perenna backup ({report.deploy_key_fingerprint})")
+        print(f"Public key: {report.deploy_key_public_key}")
+        print("Enable: Allow write access")
+        print("Then run the same backup setup command again.")
+    else:
+        print(f"Automatic backup: enabled (remote: {report.remote_name})")
 
 
 def _configure_logging() -> None:

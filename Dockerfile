@@ -4,7 +4,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PERENNA_HOME=/data \
     PERENNA_SOURCE=chatgpt-web \
-    PERENNA_GIT_REMOTE=
+    PERENNA_GIT_REMOTE=origin
 
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends ca-certificates git openssh-client \

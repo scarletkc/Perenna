@@ -75,11 +75,17 @@ Perenna commit identity. Perenna does not change your global Git identity.
 
 ## Optional: set up a backup remote
 
-After the first connection creates the memory repository, you can attach an
-empty private Git repository for best-effort backup. Follow
-[Set up a backup remote](reference/configuration.md#set-up-a-backup-remote) for
-the `git remote add` command, non-interactive credential requirements, and
-connection checks.
+You can attach an empty private Git repository for best-effort backup before or
+after the first connection:
+
+```text
+perenna backup setup <repository-url>
+```
+
+For an unattended container, add `--deploy-key` to generate a persistent,
+repository-specific SSH key and receive the exact registration instructions.
+Follow [Set up a backup remote](reference/configuration.md#set-up-a-backup-remote)
+for credential requirements, replacement safeguards, and status checks.
 
 ## Verify the first session
 

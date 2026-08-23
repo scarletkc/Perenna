@@ -10,7 +10,7 @@ import pytest
 from perenna.config import RuntimePaths, RuntimeSettings
 from perenna.core import PerennaCore
 from perenna.errors import RepositoryError
-from perenna.git import GIT_IDENTITY_EMAIL, GIT_IDENTITY_NAME, GitRepository
+from perenna.git import GIT_IDENTITY_EMAIL, GIT_IDENTITY_NAME, GitRepository, _git_environment
 from perenna.markdown import memory_revision
 from perenna.store import MemoryStore
 
@@ -203,3 +203,17 @@ def test_push_command_failure_does_not_raise(repository: GitRepository, tmp_path
     outcome = repository.push("origin")
 
     assert (outcome.attempted, outcome.succeeded, outcome.reason) == (True, False, "failed")
+
+
+def test_git_environment_does_not_override_repository_deploy_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GIT_SSH", "untrusted-ssh")
+    monkeypatch.setenv("GIT_SSH_COMMAND", "untrusted ssh command")
+    monkeypatch.setenv("GIT_SSH_VARIANT", "plink")
+
+    environment = _git_environment()
+
+    assert "GIT_SSH" not in environment
+    assert "GIT_SSH_COMMAND" not in environment
+    assert "GIT_SSH_VARIANT" not in environment

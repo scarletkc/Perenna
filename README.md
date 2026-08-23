@@ -54,17 +54,23 @@ Use these as the source of truth:
    local model according to the Perenna configuration reference. Verify the
    selected provider with `uvx vexor doctor` using the same environment that
    the Perenna process will inherit.
-5. Register `perenna mcp --source <stable-client-name>` using the client-specific
+5. Ask whether I want to back up Perenna to an empty private Git repository. If
+   I do, ask me to provide or approve its URL, run
+   `perenna backup setup <repository-url>`, and verify it with
+   `perenna backup status`. Treat repository creation, remote replacement, and
+   any existing non-empty remote as separate choices that require my explicit
+   approval.
+6. Register `perenna mcp --source <stable-client-name>` using the client-specific
    method in the setup guide. Preserve unrelated MCP servers and settings. Use
    a stable source such as `claude-code`, `codex`, or `cursor` for this client.
    For another client, use its official instructions for adding a local stdio
    MCP server. Make sure the Perenna process inherits `VEXOR_CONFIG_JSON`,
    `VEXOR_API_KEY`, or any provider-specific key used in step 4. Report only
    whether a secret is present.
-6. Verify `perenna --help` and the saved MCP configuration. Reload MCP servers
+7. Verify `perenna --help` and the saved MCP configuration. Reload MCP servers
    and call `memory_read` with `action: "list"` when the client supports it. If
    a restart is required, tell me the single restart step.
-7. Report the commands run, files changed, and verification results. Keep API
+8. Report the commands run, files changed, and verification results. Keep API
    keys out of tracked configuration files.
 ```
 
@@ -111,6 +117,12 @@ perenna mcp --source <client-name>
 
 Perenna creates its local data under `~/.perenna/` unless another home is
 configured.
+
+For best-effort backup, attach an empty private Git repository:
+
+```bash
+perenna backup setup <repository-url>
+```
 
 ### Install from source for development
 

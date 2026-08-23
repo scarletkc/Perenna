@@ -93,6 +93,36 @@ The image uses UID `10001`. When replacing the named volume with a host bind
 mount, make that directory writable by UID `10001` before starting the
 container.
 
+## Configure Git backup
+
+The container cannot use a Git login, credential manager, or SSH agent from the
+host unless it is mounted explicitly. For a single private GitHub repository,
+generate a repository-specific deploy key inside the persistent Perenna volume:
+
+```bash
+docker exec perenna \
+  perenna backup setup git@github.com:OWNER/REPOSITORY.git --deploy-key
+```
+
+The command prints a GitHub repository settings URL, a title, and one public
+key. Open that URL, add the public key under **Deploy keys**, select **Allow
+write access**, and then run the same command again. The second run verifies
+access and pushes existing memory history when a commit is available.
+
+Check the effective state from the running container:
+
+```bash
+docker exec perenna perenna backup status
+```
+
+The private key remains under `/data/credentials/git`; it is not part of the
+memory Git repository and is not printed by Perenna. The `perenna-data` volume
+must remain mounted for both memories and the deploy key to survive container
+replacement. Revoke the deploy key in the repository settings before deleting,
+copying, or exposing that volume. The complete backup and credential contract
+is in the
+[configuration reference](../reference/configuration.md#git-remote-backup).
+
 ## Update Perenna without losing memories
 
 The container is replaceable. Permanent state remains in the named
@@ -101,6 +131,7 @@ The container is replaceable. Permanent state remains in the named
 ```text
 /data/memory   Git-backed permanent memories
 /data/index    Rebuildable Vexor index
+/data/credentials   Optional repository-specific backup credentials
 ```
 
 Before an update, confirm that the running container still mounts that volume

@@ -8,6 +8,8 @@ paths, remote OAuth, optional Git backup, and Vexor provider settings.
 ```text
 perenna mcp [--source SOURCE] [--home PATH]
 perenna serve [--source SOURCE] [--home PATH] [--host HOST] [--port PORT]
+perenna backup setup REPOSITORY_URL [--home PATH] [--replace] [--deploy-key]
+perenna backup status [--home PATH]
 ```
 
 `mcp` serves local clients over stdio. `serve` exposes an OAuth-protected
@@ -30,13 +32,14 @@ The resolved home contains:
 
 ```text
 <home>/
-├── memory/   # independent Git repository; permanent source of truth
-└── index/    # Vexor cache, indexed_commit, repository.lock, and push.lock
+├── credentials/ # optional repository-specific deploy keys
+├── memory/      # independent Git repository; permanent source of truth
+└── index/       # Vexor cache, indexed_commit, repository.lock, and push.lock
 ```
 
-`index/` can be rebuilt from `memory/`. The two directories must not be
-reversed or merged, and the runtime memory repository must remain separate
-from the Perenna source-code repository.
+`index/` can be rebuilt from `memory/`. The memory and index directories must
+not be reversed or merged, and the runtime memory repository must remain
+separate from the Perenna source-code repository.
 
 ## Source identity
 
@@ -124,36 +127,65 @@ merge, or force-push.
 
 ### Set up a backup remote
 
-Connect Perenna once so that `<home>/memory` exists, then choose an empty
-private Git repository or a remote with compatible history. Perenna will not
-integrate an unrelated initial commit created by the remote host.
+Choose an empty private Git repository or a remote whose current branch has
+compatible history, then run:
 
-Enter the memory repository and inspect existing remotes before adding one:
-
-```bash
-cd <memory-repository>
-git remote -v
+```text
+perenna backup setup <repository-url>
 ```
 
-Add the default `origin` remote:
+The command initializes `<home>/memory` when necessary and uses the effective
+`PERENNA_GIT_REMOTE`, which is `origin` by default. It checks repository access,
+rejects parallel or non-fast-forward history, and verifies push access with the
+same non-interactive Git environment used during memory writes. When local
+commits exist, setup performs the initial push and verifies that the remote
+branch matches the local commit. Without a local commit, it configures the
+remote and reports that write access remains pending until the first commit.
 
-```bash
-git remote add origin <remote-url>
+Setup is idempotent when the effective remote already has the requested URL. If
+it points somewhere else, Perenna leaves it unchanged unless replacement is
+explicit:
+
+```text
+perenna backup setup <repository-url> --replace
 ```
 
-If `origin` already exists and should point somewhere else, update it
-explicitly:
+To use a different remote name, set `PERENNA_GIT_REMOTE` to that name in both the
+Perenna host and the environment running setup, then run the same command:
 
-```bash
-git remote set-url origin <remote-url>
+```text
+perenna backup setup <repository-url>
 ```
 
-For another remote name, add that name and set `PERENNA_GIT_REMOTE` to the same
-value in the MCP host configuration:
+An explicitly empty `PERENNA_GIT_REMOTE` disables automatic backup, so setup
+refuses to configure a remote while that override is effective.
 
-```bash
-git remote add backup <remote-url>
+#### Repository-specific deploy key
+
+For an unattended container, use an SSH repository address and let Perenna
+create a repository-specific Ed25519 deploy key:
+
+```text
+perenna backup setup git@github.com:OWNER/REPOSITORY.git --deploy-key
 ```
+
+The first run stores the private key under `<home>/credentials/git`, configures
+that key only for the memory repository, and prints the public key. It never
+prints the private key. For GitHub, open the displayed repository settings URL,
+add the public key as a deploy key, and select **Allow write access**. Run the
+same setup command again to verify repository access and perform the initial
+push. The key directory and memory repository must use the same persistent
+Perenna home across restarts.
+
+Deploy-key SSH host keys use a dedicated `known_hosts` file. The first
+connection accepts and records a previously unseen host key; later changes are
+rejected by OpenSSH. Review the recorded host key out of band when the remote
+host requires stronger first-connection verification.
+
+The deploy key is scoped by the Git host to one repository. Revoke it in the
+repository settings before discarding or exposing the Perenna home volume.
+Changing to a different repository produces a different key instead of reusing
+one deploy key across repositories.
 
 #### Prepare non-interactive credentials
 
@@ -163,43 +195,39 @@ Perenna never opens a Git credential prompt. Its Git subprocesses set
 Authentication must therefore succeed non-interactively in the environment
 inherited from the MCP client.
 
+Git commit authorship and remote authentication are separate. Perenna keeps the
+repository-local author `Perenna <perenna@localhost>` and does not change the
+user's global Git identity. HTTPS pushes use credentials available through Git
+Credential Manager; SSH pushes use a key available through the inherited SSH
+agent. The authenticated account, not the commit author name, determines remote
+repository access.
+
 Use one of these credential paths:
 
 - **SSH:** use an SSH remote and make the key available without a new prompt,
-  typically by loading it into an SSH agent that the MCP client can access.
+  typically by loading it into an SSH agent that the MCP client can access, or
+  use `--deploy-key` for an unattended single-repository installation.
 - **HTTPS:** save a token or credential in the operating system's Git
   credential manager before Perenna starts.
-- **Token in URL:** Git can use one, but it leaves the secret in the memory
-  repository's `.git/config`; prefer a credential manager instead.
+- **Token in URL:** `perenna backup setup` rejects embedded HTTPS credentials so
+  they cannot be left in the memory repository's `.git/config`.
 
 A credential that works only after an interactive shell prompt is not ready
 for Perenna. Desktop clients may also inherit a different SSH-agent or
 credential environment from your terminal.
 
-#### Verify the connection
+#### Check backup status
 
-Run the checks as the same operating-system user that runs the MCP client:
+Run the status check in the same environment that starts Perenna:
 
-```bash
-git ls-remote origin
+```text
+perenna backup status
 ```
 
-After at least one memory commit exists, verify write authentication without
-changing the remote:
-
-```bash
-git push --dry-run origin main
-```
-
-You can perform the first backup manually and establish the upstream:
-
-```bash
-git push --set-upstream origin main
-```
-
-Otherwise, a later successful Perenna push establishes the upstream
-automatically. Replace `origin` and `main` when you configured another remote
-or use an existing repository on another branch.
+Status reports the resolved memory path, effective remote name and complete URL,
+current branch, repository access, write-access check, and whether the local
+commit is synchronized or still pending push. It does not display credentials
+or claim write access when no local commit is available for a dry-run push.
 
 ## Vexor collection contract
 

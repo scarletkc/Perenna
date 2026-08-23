@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -79,6 +80,89 @@ def test_main_runs_authenticated_http_server(tmp_path: Path, monkeypatch) -> Non
         == 0
     )
     assert observed == [(core, remote, "0.0.0.0", 8788)]
+
+
+def test_backup_setup_and_status_do_not_require_source_or_vexor(
+    tmp_path: Path,
+    capsys,
+    monkeypatch,
+) -> None:
+    home = tmp_path / "home"
+    remote = tmp_path / "backup.git"
+    subprocess.run(
+        ["git", "init", "--bare", str(remote)],
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("PERENNA_GIT_REMOTE", raising=False)
+    monkeypatch.delenv("PERENNA_SOURCE", raising=False)
+    monkeypatch.delenv("VEXOR_CONFIG_JSON", raising=False)
+
+    assert cli.main(["backup", "setup", str(remote), "--home", str(home)]) == 0
+    setup_output = capsys.readouterr()
+    assert setup_output.err == ""
+    assert f"Backup remote: origin -> {remote}" in setup_output.out
+    assert "Write access: pending" in setup_output.out
+    assert "Backup state: pending first memory commit" in setup_output.out
+
+    assert cli.main(["backup", "status", "--home", str(home)]) == 0
+    status_output = capsys.readouterr()
+    assert status_output.err == ""
+    assert f"Memory repository: {home.resolve() / 'memory'}" in status_output.out
+    assert "Automatic backup: enabled (remote: origin)" in status_output.out
+
+
+def test_backup_status_reports_an_explicit_disable(tmp_path: Path, capsys, monkeypatch) -> None:
+    home = tmp_path / "home"
+    (home / "memory").mkdir(parents=True)
+    subprocess.run(
+        ["git", "init", "--initial-branch=main"],
+        cwd=home / "memory",
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("PERENNA_GIT_REMOTE", "")
+
+    assert cli.main(["backup", "status", "--home", str(home)]) == 0
+
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    assert "Automatic backup: disabled (PERENNA_GIT_REMOTE is empty)" in captured.out
+
+
+def test_backup_setup_prints_guided_deploy_key_action(
+    tmp_path: Path,
+    capsys,
+    monkeypatch,
+) -> None:
+    monkeypatch.delenv("PERENNA_GIT_REMOTE", raising=False)
+
+    assert (
+        cli.main(
+            [
+                "backup",
+                "setup",
+                "git@github.com:owner/memory.git",
+                "--home",
+                str(tmp_path / "home"),
+                "--deploy-key",
+            ]
+        )
+        == 0
+    )
+
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    assert "Authentication: deploy key SHA256:" in captured.out
+    assert "Repository access: pending" in captured.out
+    assert "https://github.com/owner/memory/settings/keys" in captured.out
+    assert "Public key: ssh-ed25519 " in captured.out
+    assert "Enable: Allow write access" in captured.out
+    assert "PRIVATE KEY" not in captured.out
 
 
 @pytest.mark.parametrize("port", ["0", "65536"])

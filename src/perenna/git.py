@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -37,8 +38,28 @@ class GitRepository:
 
         if not any(resolved.iterdir()):
             repo._run(["init", "--initial-branch=main"])
-        result = repo._run(["rev-parse", "--show-toplevel"], check=False)
-        common = repo._run(["rev-parse", "--git-common-dir"], check=False)
+        repo._validate_independent()
+        repo._run(["config", "--local", "user.name", GIT_IDENTITY_NAME])
+        repo._run(["config", "--local", "user.email", GIT_IDENTITY_EMAIL])
+        repo._run(["config", "--local", "commit.gpgSign", "false"])
+        return repo
+
+    @classmethod
+    def open(cls, path: Path) -> GitRepository:
+        resolved = path.resolve(strict=False)
+        if not resolved.is_dir():
+            raise RepositoryError(
+                f"Memory repository {resolved} does not exist. Start Perenna or run "
+                "'perenna backup setup REPOSITORY_URL' first."
+            )
+        repo = cls(resolved)
+        repo._validate_independent()
+        return repo
+
+    def _validate_independent(self) -> None:
+        resolved = self.path
+        result = self._run(["rev-parse", "--show-toplevel"], check=False)
+        common = self._run(["rev-parse", "--git-common-dir"], check=False)
         git_directory = resolved / ".git"
         common_path = Path(common.stdout.strip())
         if not common_path.is_absolute():
@@ -57,11 +78,6 @@ class GitRepository:
                 "Perenna left its contents unchanged. Move them elsewhere or choose a "
                 "different --home, then restart Perenna."
             )
-
-        repo._run(["config", "--local", "user.name", GIT_IDENTITY_NAME])
-        repo._run(["config", "--local", "user.email", GIT_IDENTITY_EMAIL])
-        repo._run(["config", "--local", "commit.gpgSign", "false"])
-        return repo
 
     def head(self) -> str | None:
         result = self._run(["rev-parse", "--verify", "HEAD"], check=False)
@@ -231,6 +247,118 @@ class GitRepository:
         result = self._run(["remote"])
         return {line.strip() for line in result.stdout.splitlines() if line.strip()}
 
+    def remote_url(self, remote: str) -> str | None:
+        if remote not in self.remote_names():
+            return None
+        result = self._run(["remote", "get-url", "--all", remote])
+        urls = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+        push_result = self._run(["remote", "get-url", "--push", "--all", remote])
+        push_urls = [line.strip() for line in push_result.stdout.splitlines() if line.strip()]
+        if len(urls) != 1 or len(push_urls) != 1 or urls != push_urls:
+            raise RepositoryError(
+                f"Git remote {remote!r} has multiple or separate fetch and push URLs. "
+                "Perenna left it unchanged; simplify that remote manually, then retry."
+            )
+        return urls[0]
+
+    def set_remote_url(self, remote: str, url: str) -> None:
+        if remote in self.remote_names():
+            self._run(["remote", "set-url", remote, url])
+        else:
+            self._run(["remote", "add", remote, url])
+
+    def remove_remote(self, remote: str) -> None:
+        if remote in self.remote_names():
+            self._run(["remote", "remove", remote])
+
+    def configure_deploy_key(self, private_key: Path, known_hosts: Path) -> None:
+        command = " ".join(
+            shlex.quote(value)
+            for value in (
+                "ssh",
+                "-i",
+                os.fspath(private_key),
+                "-o",
+                "IdentitiesOnly=yes",
+                "-o",
+                f"UserKnownHostsFile={known_hosts}",
+                "-o",
+                "StrictHostKeyChecking=accept-new",
+            )
+        )
+        self._run(["config", "--local", "core.sshCommand", command])
+        self._run(["config", "--local", "perenna.backupAuth", "deploy-key"])
+        self._run(
+            ["config", "--local", "perenna.deployKeyPath", os.fspath(private_key)]
+        )
+
+    def deploy_key_path(self) -> Path | None:
+        auth = self._run(
+            ["config", "--local", "--get", "perenna.backupAuth"],
+            check=False,
+        )
+        if auth.returncode != 0 or auth.stdout.strip() != "deploy-key":
+            return None
+        result = self._run(
+            ["config", "--local", "--get", "perenna.deployKeyPath"],
+            check=False,
+        )
+        if result.returncode != 0 or not result.stdout.strip():
+            raise RepositoryError(
+                "The memory repository declares deploy-key authentication without a key path. "
+                "Run 'perenna backup setup REPOSITORY_URL --deploy-key' to repair it."
+            )
+        return Path(result.stdout.strip()).resolve(strict=False)
+
+    def remote_heads(self, url: str, timeout: int = PUSH_TIMEOUT_SECONDS) -> dict[str, str]:
+        try:
+            result = self._run(["ls-remote", "--heads", url], check=False, timeout=timeout)
+        except subprocess.TimeoutExpired as exc:
+            raise RepositoryError(
+                "Git timed out while checking the backup repository. Check the network and "
+                "remote address, then retry."
+            ) from exc
+        if result.returncode != 0:
+            raise RepositoryError(
+                "Git could not read the backup repository non-interactively. Confirm the "
+                "repository address and prepare HTTPS credentials in Git Credential Manager "
+                "or load the SSH key into an agent, then retry."
+            )
+        heads: dict[str, str] = {}
+        prefix = "refs/heads/"
+        for line in result.stdout.splitlines():
+            fields = line.split("\t", 1)
+            if len(fields) == 2 and fields[1].startswith(prefix):
+                heads[fields[1][len(prefix) :]] = fields[0]
+        return heads
+
+    def verify_push(self, url: str, branch: str, timeout: int = PUSH_TIMEOUT_SECONDS) -> None:
+        try:
+            result = self._run(
+                ["push", "--dry-run", url, f"{branch}:refs/heads/{branch}"],
+                check=False,
+                timeout=timeout,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise RepositoryError(
+                "Git timed out while checking write access to the backup repository. Check the "
+                "network and credentials, then retry."
+            ) from exc
+        if result.returncode == 0:
+            return
+        output = f"{result.stdout}\n{result.stderr}".casefold()
+        if "non-fast-forward" in output or "fetch first" in output:
+            raise RepositoryError(
+                f"The backup repository has history incompatible with local branch {branch!r}. "
+                "Perenna did not fetch, merge, or force-push it. Use an empty repository or "
+                "integrate the histories manually, then retry."
+            )
+        raise RepositoryError(
+            f"Git could not verify write access for local branch {branch!r}. Confirm that the "
+            "authenticated account can push to the repository and that branch rules allow the "
+            "push, then retry."
+        )
+
     def push(self, remote: str | None, timeout: int = PUSH_TIMEOUT_SECONDS) -> PushOutcome:
         if remote is None:
             return PushOutcome(False, False, "disabled")
@@ -354,6 +482,9 @@ def _git_environment() -> dict[str, str]:
         "GIT_QUARANTINE_PATH",
         "GIT_REPLACE_REF_BASE",
         "GIT_SHALLOW_FILE",
+        "GIT_SSH",
+        "GIT_SSH_COMMAND",
+        "GIT_SSH_VARIANT",
         "GIT_TEMPLATE_DIR",
         "GIT_WORK_TREE",
         "SSH_ASKPASS",

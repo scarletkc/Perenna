@@ -9,6 +9,7 @@ from perenna import DESCRIPTION, __version__, cli
 from perenna.config import RemoteSettings, RuntimePaths, RuntimeSettings
 from perenna.errors import ConfigurationError, SkillInstallError
 from perenna.skill_installer import SkillInstallReport
+from perenna.sync import SyncReport
 
 
 def test_parser_uses_package_description() -> None:
@@ -170,6 +171,40 @@ def test_sync_setup_prints_guided_deploy_key_action(
     assert "Public key: ssh-ed25519 " in captured.out
     assert "Enable: Allow write access" in captured.out
     assert "PRIVATE KEY" not in captured.out
+
+
+@pytest.mark.parametrize(
+    ("state", "expected"),
+    [
+        ("synchronized", "Synchronization state: synchronized"),
+        ("local-behind", "Synchronization state: local branch is behind the remote"),
+        ("local-ahead", "Synchronization state: local branch has unconfirmed commits"),
+        ("diverged", "Synchronization state: local and remote branches have diverged"),
+    ],
+)
+def test_sync_status_prints_each_reconciled_state(
+    state: str,
+    expected: str,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    report = SyncReport(
+        repository=tmp_path / "memory",
+        remote_name="origin",
+        remote_url="git@github.com:owner/memory.git",
+        branch="main",
+        repository_access="ok",
+        write_access="ok",
+        state=state,
+    )
+
+    cli._print_sync_report(report)
+
+    output = capsys.readouterr().out
+    assert "Repository access: ok" in output
+    assert "Write access: ok" in output
+    assert expected in output
+    assert "Git synchronization: enabled (remote: origin)" in output
 
 
 def test_skill_install_requires_an_agent() -> None:

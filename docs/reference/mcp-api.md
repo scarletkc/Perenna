@@ -56,8 +56,8 @@ generated preview.
 ```
 
 `query` must be non-empty. `limit` defaults to `3`, accepts `1` through `5`,
-and counts distinct memories after chunk results are deduplicated. It does not
-control the number of Vexor candidates.
+and counts distinct memories after chunk results are aggregated by memory using
+the highest-scoring chunk. It does not control the number of Vexor candidates.
 
 Search returns ranked candidates, not a relevance guarantee. The first version
 has no minimum similarity threshold, so an unrelated query may still return

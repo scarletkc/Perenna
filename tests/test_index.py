@@ -10,6 +10,7 @@ import pytest
 from perenna.errors import IndexUnavailableError
 from perenna.index import (
     COLLECTION_NAME,
+    MAX_CHUNKS_PER_MEMORY,
     MAX_SEARCH_CANDIDATES,
     VexorIndex,
 )
@@ -184,6 +185,53 @@ def test_search_deduplicates_memories_and_honors_public_limit(tmp_path: Path) ->
     assert [match.memory.id for match in results.matches] == [first.id, second.id]
     assert [match.rank for match in results.matches] == [1, 2]
     assert results.truncated
+
+
+def test_search_aggregates_enough_chunks_to_rank_five_distinct_memories(
+    tmp_path: Path,
+) -> None:
+    collection = FakeCollection({})
+    index = VexorIndex(tmp_path, client_factory=FakeClientFactory(collection))
+    long_memory = replace(
+        _memory("01K00000000000000000000001", "global", "global/a.md"),
+        body="a" * 20_000,
+    )
+    other_memories = tuple(
+        _memory(
+            f"01K0000000000000000000000{number}",
+            "global",
+            f"global/{number}.md",
+        )
+        for number in range(2, 6)
+    )
+    snapshot = MemorySnapshot("c" * 40, (long_memory, *other_memories))
+    index.rebuild(snapshot)
+    long_chunk_ids = [
+        record_id for record_id in collection.records if record_id.startswith(long_memory.id)
+    ]
+    assert len(long_chunk_ids) == MAX_CHUNKS_PER_MEMORY
+    collection.scores.update(
+        {
+            record_id: 1.0 - (chunk_index * 0.01)
+            for chunk_index, record_id in enumerate(long_chunk_ids)
+        }
+    )
+    collection.scores.update(
+        {
+            f"{memory.id}:0": 0.7 - (index * 0.01)
+            for index, memory in enumerate(other_memories)
+        }
+    )
+
+    results = index.search(snapshot, "topic", None, limit=5)
+
+    assert [match.memory.id for match in results.matches] == [
+        long_memory.id,
+        *(memory.id for memory in other_memories),
+    ]
+    assert collection.searches[-1]["top_k"] == MAX_SEARCH_CANDIDATES
+    assert MAX_SEARCH_CANDIDATES == MAX_CHUNKS_PER_MEMORY * 5
+    assert not results.truncated
 
 
 def test_search_has_no_relevance_threshold_and_enforces_character_budget(

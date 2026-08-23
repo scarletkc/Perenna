@@ -95,6 +95,33 @@ PERENNA_RUN_LIVE_PROVIDER=1 \
 Run this test only with an intentional provider configuration and disposable
 temporary data.
 
+## Live retrieval evaluation
+
+The retrieval evaluation is also excluded from default pytest runs. It indexes
+a fixed set of synthetic memories, compares `off` and `hybrid` ranking, and
+prints recall, reciprocal rank, top-one misses, and score distributions for
+unrelated queries as one JSON record.
+
+PowerShell:
+
+```powershell
+$env:PERENNA_RUN_LIVE_PROVIDER = "1"
+uv run pytest -o addopts="" -m live_provider tests/test_retrieval_eval.py -s -q
+Remove-Item Env:PERENNA_RUN_LIVE_PROVIDER
+```
+
+POSIX shell:
+
+```bash
+PERENNA_RUN_LIVE_PROVIDER=1 \
+  uv run pytest -o addopts="" -m live_provider tests/test_retrieval_eval.py -s -q
+```
+
+Scores are observations within each retrieval mode. They are not a calibrated
+relevance threshold, and values from different modes should not be compared as
+though they shared one scale. The evaluation uses a pytest temporary directory
+and drops its temporary collection when it finishes.
+
 ## Concurrency tests
 
 Concurrency behavior is part of the product contract:

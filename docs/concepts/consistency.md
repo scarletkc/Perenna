@@ -91,9 +91,9 @@ and exact body range. Search cross-checks all of them against the captured Git
 snapshot before returning text.
 
 Project filtering is applied before Vexor scores candidates. Results are
-deduplicated by memory ID, bounded by the requested distinct-memory limit and
-server-owned character budgets, and labeled as ranked candidates rather than
-guaranteed matches.
+aggregated by memory ID using each memory's highest-scoring chunk, bounded by
+the requested distinct-memory limit and server-owned character budgets, and
+labeled as ranked candidates rather than guaranteed matches.
 
 ## Dirty working trees
 

@@ -13,6 +13,7 @@ from perenna.errors import IndexUnavailableError
 from perenna.filesystem import atomic_replace
 from perenna.markdown import memory_revision
 from perenna.models import (
+    MAX_BODY_LENGTH,
     Memory,
     MemorySnapshot,
     MutationReceipt,
@@ -26,7 +27,12 @@ CHUNK_CHARS = 1_200
 CHUNK_OVERLAP_CHARS = 200
 MAX_SEARCH_MATCHES = 5
 DEFAULT_SEARCH_LIMIT = 3
-MAX_SEARCH_CANDIDATES = 20
+_CHUNK_STEP_CHARS = CHUNK_CHARS - CHUNK_OVERLAP_CHARS
+MAX_CHUNKS_PER_MEMORY = 1 + max(
+    0,
+    (MAX_BODY_LENGTH - CHUNK_CHARS + _CHUNK_STEP_CHARS - 1) // _CHUNK_STEP_CHARS,
+)
+MAX_SEARCH_CANDIDATES = MAX_SEARCH_MATCHES * MAX_CHUNKS_PER_MEMORY
 MAX_SEARCH_PASSAGE_CHARS_TOTAL = 4_800
 
 
@@ -39,6 +45,13 @@ class _Chunk:
     text: str
     start_char: int
     end_char: int
+
+
+@dataclass(frozen=True, slots=True)
+class _ScoredChunk:
+    chunk: _Chunk
+    score: float
+    candidate_rank: int
 
 
 class VexorIndex:
@@ -124,11 +137,17 @@ class VexorIndex:
         chunks_by_id = {
             chunk.id: chunk for memory in snapshot.memories for chunk in _chunks(memory)
         }
-        matches: list[SearchMatch] = []
-        seen_memories: set[str] = set()
-        passage_chars = 0
-        truncated = len(results) >= MAX_SEARCH_CANDIDATES
-        for result in results[:MAX_SEARCH_CANDIDATES]:
+        best_chunks: dict[str, _ScoredChunk] = {}
+        eligible_chunk_count = sum(
+            1
+            for chunk in chunks_by_id.values()
+            if project is None or chunk.memory.scope in {"global", f"project:{project}"}
+        )
+        truncated = (
+            len(results) >= MAX_SEARCH_CANDIDATES
+            and eligible_chunk_count > MAX_SEARCH_CANDIDATES
+        )
+        for candidate_rank, result in enumerate(results[:MAX_SEARCH_CANDIDATES]):
             chunk = chunks_by_id.get(str(result.id))
             metadata = result.metadata
             try:
@@ -150,15 +169,24 @@ class VexorIndex:
                     "Memory search index contains stale record metadata. Perenna will rebuild it "
                     "on the next search."
                 )
-            if chunk.memory.id in seen_memories:
-                continue
+            current = best_chunks.get(chunk.memory.id)
+            if current is None or score > current.score:
+                best_chunks[chunk.memory.id] = _ScoredChunk(chunk, score, candidate_rank)
+
+        ranked_chunks = sorted(
+            best_chunks.values(),
+            key=lambda candidate: (-candidate.score, candidate.candidate_rank),
+        )
+        matches: list[SearchMatch] = []
+        passage_chars = 0
+        for candidate in ranked_chunks:
+            chunk = candidate.chunk
             if len(matches) >= limit:
                 truncated = True
                 continue
             if passage_chars + len(chunk.text) > MAX_SEARCH_PASSAGE_CHARS_TOTAL:
                 truncated = True
                 break
-            seen_memories.add(chunk.memory.id)
             passage_chars += len(chunk.text)
             matches.append(
                 SearchMatch(

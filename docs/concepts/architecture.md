@@ -67,9 +67,10 @@ repository.
 ### Vexor collection
 
 Vexor embeds each memory title, authoritative summary, and bounded body chunks.
-It applies scope filters before scoring and returns ranked chunk candidates.
-Perenna validates chunk identity, revision, range, and path against the trusted
-committed Markdown snapshot before returning a passage.
+It applies scope filters before scoring. Perenna validates chunk identity,
+revision, range, and path against the trusted committed Markdown snapshot, then
+ranks distinct memories by their highest-scoring chunk before returning a
+passage.
 
 ## Trust boundaries
 

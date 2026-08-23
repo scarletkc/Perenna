@@ -14,11 +14,15 @@ from perenna.models import (
     Memory,
     memory_path,
     new_ulid,
+    next_update_time,
     normalize_body,
     normalize_project,
+    normalize_source,
     normalize_summary,
     normalize_title,
+    parse_timestamp,
     title_key,
+    validate_revision,
     validate_ulid,
 )
 
@@ -51,6 +55,21 @@ def test_title_rejects_empty_and_overlong_values(title: str) -> None:
         normalize_title(title)
 
 
+@pytest.mark.parametrize(
+    ("normalizer", "message"),
+    [
+        (normalize_title, "title must be a string"),
+        (normalize_summary, "summary must be a string"),
+        (normalize_body, "body must be a string"),
+        (normalize_project, "project must be a string"),
+        (normalize_source, "source must be a string"),
+    ],
+)
+def test_normalizers_reject_non_string_values(normalizer, message: str) -> None:  # type: ignore[no-untyped-def]
+    with pytest.raises(ValueError, match=message):
+        normalizer(None)
+
+
 def test_body_normalizes_line_endings_and_enforces_limits() -> None:
     assert normalize_body("\r\nfirst\rsecond\r\n") == "first\nsecond"
     with pytest.raises(ValueError, match="empty"):
@@ -65,6 +84,8 @@ def test_summary_is_required_single_line_plain_text() -> None:
         normalize_summary(" \n ")
     with pytest.raises(ValueError, match="too long"):
         normalize_summary("x" * (MAX_SUMMARY_LENGTH + 1))
+    with pytest.raises(ValueError, match="control character"):
+        normalize_summary("summary\x00")
 
 
 @pytest.mark.parametrize(
@@ -89,6 +110,34 @@ def test_ulid_generation_validation_and_memory_paths() -> None:
     assert memory_path(generated, "My_Project") == f"projects/my_project/{generated}.md"
     with pytest.raises(ValueError, match="valid ULID"):
         validate_ulid("01ARZ3NDEKTSV4RRFFQ69G5FAI")
+
+
+@pytest.mark.parametrize("revision", [None, "g" * 64])
+def test_revision_requires_a_lowercase_sha256_digest(revision: object) -> None:
+    with pytest.raises(ValueError, match="lowercase SHA-256"):
+        validate_revision(revision)  # type: ignore[arg-type]
+
+
+def test_ulid_rejects_a_timestamp_before_its_epoch() -> None:
+    with pytest.raises(ValueError, match="cannot be encoded"):
+        new_ulid(datetime(1969, 12, 31, 23, 59, 59, tzinfo=UTC))
+
+
+def test_timestamp_helpers_reject_wrong_types_and_keep_updates_monotonic() -> None:
+    with pytest.raises(ValueError, match="timestamp must be a string"):
+        parse_timestamp(None)  # type: ignore[arg-type]
+
+    previous = "2026-08-22T01:02:03.000000Z"
+    assert next_update_time(datetime(2026, 8, 22, 1, 2, 3, tzinfo=UTC), previous) == datetime(
+        2026,
+        8,
+        22,
+        1,
+        2,
+        3,
+        1,
+        tzinfo=UTC,
+    )
 
 
 def test_serialized_frontmatter_has_only_the_canonical_fields_in_order() -> None:
@@ -130,6 +179,73 @@ def test_revision_covers_authoritative_summary() -> None:
     assert memory_revision(replace(original, summary="Different coverage.")) != memory_revision(
         original
     )
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (lambda text: text.removeprefix("---\n"), "start on the first line"),
+        (lambda text: text.replace("\n---\n\n", "\n\n", 1), "closing delimiter is missing"),
+        (
+            lambda text: text.replace("\n---\n\n", "\n---\n", 1),
+            "followed by one blank line",
+        ),
+        (lambda _text: "---\n[]\n---\n\nBody\n", "frontmatter must be a mapping"),
+    ],
+)
+def test_parser_rejects_invalid_document_structure(
+    mutate,
+    message: str,
+) -> None:  # type: ignore[no-untyped-def]
+    with pytest.raises(MemoryValidationError, match=message):
+        parse_memory(mutate(serialize_memory(_memory())), f"global/{MEMORY_ID}.md")
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "message"),
+    [
+        (
+            f'created_at: "{CREATED_AT}"',
+            "created_at: 123",
+            "timestamps must be quoted strings",
+        ),
+        ('title: "Release notes"', 'title: " Release notes "', "title is not normalized"),
+        (
+            'summary: "What the release notes cover."',
+            'summary: " What the release notes cover. "',
+            "summary is not normalized",
+        ),
+        ('source: "codex"', 'source: " codex "', "source is not normalized"),
+        (
+            f'updated_at: "{CREATED_AT}"',
+            'updated_at: "2026-08-22T01:02:02.000000Z"',
+            "updated_at is earlier than created_at",
+        ),
+    ],
+)
+def test_parser_rejects_noncanonical_frontmatter_values(
+    old: str,
+    new: str,
+    message: str,
+) -> None:
+    text = serialize_memory(_memory()).replace(old, new, 1)
+
+    with pytest.raises(MemoryValidationError, match=message):
+        parse_memory(text, f"global/{MEMORY_ID}.md")
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "message"),
+    [
+        (f"projects/con/{MEMORY_ID}.md", "project directory is invalid"),
+        (f"projects/Perenna/{MEMORY_ID}.md", "project directory is not normalized"),
+        (f"archive/{MEMORY_ID}.md", "path must be global"),
+        ("global/not-a-ulid.md", "filename is not a ULID"),
+    ],
+)
+def test_parser_rejects_noncanonical_memory_paths(relative_path: str, message: str) -> None:
+    with pytest.raises(MemoryValidationError, match=message):
+        parse_memory(serialize_memory(_memory()), relative_path)
 
 
 @pytest.mark.parametrize(

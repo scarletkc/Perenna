@@ -66,6 +66,9 @@ history. Diverged histories require explicit user reconciliation; the remote is
 not a multi-writer coordination service. The runtime repository is separate
 from the Perenna source-code repository.
 
+The rationale for this boundary is recorded in
+[ADR 0001](../decisions/0001-cross-device-access-and-git-sync.md).
+
 ### Vexor collection
 
 Vexor embeds each memory title, authoritative summary, and bounded body chunks.

@@ -28,6 +28,7 @@ more exact layers only when you need them.
 | [Architecture](concepts/architecture.md) | Understand component boundaries and the local-first design |
 | [Memory model](concepts/memory-model.md) | Understand identity, summaries, scopes, reads, and mutations |
 | [Consistency model](concepts/consistency.md) | Understand commits, locks, snapshots, indexing, and failures |
+| [ADR 0001: Cross-device access and Git sync](decisions/0001-cross-device-access-and-git-sync.md) | Understand why active cross-device access uses one HTTP service instead of Git multi-writer coordination |
 
 ## Look up an exact contract
 
@@ -62,6 +63,8 @@ docs/
 │   ├── architecture.md
 │   ├── memory-model.md
 │   └── consistency.md
+├── decisions/
+│   └── 0001-cross-device-access-and-git-sync.md
 ├── reference/
 │   ├── configuration.md
 │   ├── mcp-api.md

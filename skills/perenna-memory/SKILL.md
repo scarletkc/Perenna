@@ -83,5 +83,8 @@ write eligibility, scope, content, revisions, deletion, and result reporting.
 
 - Read [Curating memories](references/curation.md) only when a memory may be
   created, changed, or deleted.
+- Read [Importing memories](references/importing.md) only when the user
+  explicitly asks to migrate memory content from a host, export, or another
+  memory system into Perenna.
 - Read [Perenna unavailable](references/unavailable.md) only when the tools are
   missing, a call fails, or the user asks to install or reconnect Perenna.

@@ -42,6 +42,11 @@
       ],
       "environmentVariables": [
         {
+          "name": "PERENNA_GIT_REMOTE",
+          "description": "Git remote name used for optional synchronization (for example, origin); leave unset for local-only operation",
+          "isRequired": false
+        },
+        {
           "name": "VEXOR_API_KEY",
           "description": "Embedding provider API key (optional; overrides a stored key; providers can also be configured via `vexor init`)",
           "isRequired": false,

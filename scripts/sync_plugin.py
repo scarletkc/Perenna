@@ -277,7 +277,8 @@ def _claude_marketplace(metadata: dict[str, Any]) -> dict[str, Any]:
 
 
 def _json_bytes(payload: dict[str, Any]) -> bytes:
-    return (json.dumps(payload, indent=2, ensure_ascii=False) + "\n").encode()
+    text = json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
+    return text.replace("\n", "\r\n").encode()
 
 
 def _regular_files(root: Path) -> list[Path]:

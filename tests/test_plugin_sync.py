@@ -44,6 +44,13 @@ def test_repository_plugin_artifacts_are_synchronized() -> None:
     assert all(package["version"] == __version__ for package in server["packages"])
 
 
+def test_generated_json_uses_the_repository_crlf_contract() -> None:
+    generated = sync_plugin._json_bytes({"name": "perenna"})
+
+    assert generated.endswith(b"\r\n")
+    assert b"\n" not in generated.replace(b"\r\n", b"")
+
+
 def test_sync_detects_and_repairs_changed_and_extra_generated_files(tmp_path: Path) -> None:
     _write_minimal_sources(tmp_path)
 

@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from perenna import DESCRIPTION, __version__, cli
+from perenna.cli_output import print_sync_report
 from perenna.config import RemoteSettings, RuntimePaths, RuntimeSettings
 from perenna.errors import ConfigurationError, SkillInstallError
 from perenna.skill_installer import SkillInstallReport
@@ -198,7 +199,7 @@ def test_sync_status_prints_each_reconciled_state(
         state=state,
     )
 
-    cli._print_sync_report(report)
+    print_sync_report(report)
 
     output = capsys.readouterr().out
     assert "Repository access: ok" in output

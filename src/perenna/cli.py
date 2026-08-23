@@ -7,6 +7,7 @@ import sys
 from collections.abc import Sequence
 
 from perenna import DESCRIPTION, __version__
+from perenna.cli_output import print_skill_report, print_sync_report
 from perenna.config import (
     RuntimePaths,
     resolve_git_remote,
@@ -18,13 +19,8 @@ from perenna.core import PerennaCore
 from perenna.errors import PerennaError
 from perenna.http_server import run_http
 from perenna.mcp_server import run_stdio
-from perenna.skill_installer import (
-    SKILL_NAME,
-    SUPPORTED_AGENTS,
-    SkillInstallReport,
-    install_bundled_skill,
-)
-from perenna.sync import SyncReport, inspect_sync, setup_sync
+from perenna.skill_installer import SUPPORTED_AGENTS, install_bundled_skill
+from perenna.sync import inspect_sync, setup_sync
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -182,7 +178,7 @@ def _run_sync(args: argparse.Namespace) -> None:
             replace=args.replace,
             deploy_key=args.deploy_key,
         )
-        _print_sync_report(report)
+        print_sync_report(report)
         if remote_name is None:
             print(
                 f"Runtime mode: local until PERENNA_GIT_REMOTE={setup_remote} is set for "
@@ -195,47 +191,7 @@ def _run_sync(args: argparse.Namespace) -> None:
         print(f"Memory repository: {paths.memory}")
         print("Git synchronization: disabled (PERENNA_GIT_REMOTE is unset or empty)")
         return
-    _print_sync_report(report)
-
-
-def _print_sync_report(report: SyncReport) -> None:
-    print(f"Memory repository: {report.repository}")
-    print(f"Git remote: {report.remote_name} -> {report.remote_url}")
-    print(f"Branch: {report.branch}")
-    if report.authentication == "deploy-key":
-        print(f"Authentication: deploy key {report.deploy_key_fingerprint}")
-    if report.repository_access == "ok":
-        print("Repository access: ok")
-    else:
-        print("Repository access: pending (not confirmed with the configured deploy key)")
-    if report.write_access == "ok":
-        print("Write access: ok")
-    else:
-        print("Write access: pending (no local commit is available to test)")
-    if report.state == "waiting-deploy-key":
-        print("Synchronization state: waiting for deploy key authorization")
-    elif report.state == "synchronized":
-        print("Synchronization state: synchronized")
-    elif report.state == "local-behind":
-        print("Synchronization state: local branch is behind the remote")
-    elif report.state == "local-ahead":
-        print("Synchronization state: local branch has unconfirmed commits")
-    elif report.state == "diverged":
-        print("Synchronization state: local and remote branches have diverged")
-    else:
-        print("Synchronization state: waiting for the first memory commit")
-    if report.state == "waiting-deploy-key":
-        print(f"Git synchronization: authorization pending (remote: {report.remote_name})")
-        print()
-        print("Add this public key to the repository as a deploy key with write access:")
-        if report.deploy_key_settings_url is not None:
-            print(f"Open: {report.deploy_key_settings_url}")
-        print(f"Title: Perenna sync ({report.deploy_key_fingerprint})")
-        print(f"Public key: {report.deploy_key_public_key}")
-        print("Enable: Allow write access")
-        print("Then run the same sync setup command again.")
-    else:
-        print(f"Git synchronization: enabled (remote: {report.remote_name})")
+    print_sync_report(report)
 
 
 def _run_skill(args: argparse.Namespace) -> None:
@@ -247,24 +203,9 @@ def _run_skill(args: argparse.Namespace) -> None:
     for index, report in enumerate(reports):
         if index:
             print()
-        _print_skill_report(report)
+        print_skill_report(report)
     print()
     print("Restart the client if the skill does not appear.")
-
-
-def _print_skill_report(report: SkillInstallReport) -> None:
-    states = {
-        "installed": "installed",
-        "already-installed": "already installed",
-        "replaced": "replaced",
-    }
-    print(f"Skill: {SKILL_NAME}")
-    print(f"Agent: {report.agent}")
-    print(f"Scope: {report.scope}")
-    print(f"Status: {states[report.state]}")
-    print(f"Path: {report.destination}")
-    if report.backup is not None:
-        print(f"Backup: {report.backup}")
 
 
 def _configure_logging() -> None:

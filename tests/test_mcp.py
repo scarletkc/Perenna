@@ -11,7 +11,7 @@ import pytest
 from pydantic import ValidationError
 
 from perenna.errors import MemoryValidationError
-from perenna.mcp_server import (
+from perenna.mcp_schemas import (
     MEMORY_DELETE_OUTPUT_SCHEMA,
     MEMORY_DELETE_SCHEMA,
     MEMORY_READ_OUTPUT_SCHEMA,
@@ -19,6 +19,8 @@ from perenna.mcp_server import (
     MEMORY_WRITE_OUTPUT_SCHEMA,
     MEMORY_WRITE_SCHEMA,
     SERVER_INSTRUCTIONS,
+)
+from perenna.mcp_server import (
     MemoryDeleteArguments,
     MemoryReadArguments,
     MemoryWriteArguments,

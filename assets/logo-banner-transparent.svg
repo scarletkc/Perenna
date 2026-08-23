@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 200" width="100%" height="100%">
+  <defs>
+    <linearGradient id="btStemGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="45%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+
+    <linearGradient id="btLoopGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06b6d4"/>
+      <stop offset="28%" stop-color="#3b82f6"/>
+      <stop offset="68%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#f43f5e"/>
+    </linearGradient>
+
+    <linearGradient id="btGitTrace" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="35%" stop-color="#22d3ee"/>
+      <stop offset="75%" stop-color="#ec4899"/>
+      <stop offset="100%" stop-color="#fb7185"/>
+    </linearGradient>
+
+    <linearGradient id="btTextGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="60%" stop-color="#e2e8f0"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+
+    <radialGradient id="btCyanGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="35%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0284c7" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="btPinkGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="35%" stop-color="#fb7185"/>
+      <stop offset="100%" stop-color="#e11d48" stop-opacity="0"/>
+    </radialGradient>
+
+    <filter id="btGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Logo Mark -->
+  <g transform="translate(10, 10) scale(0.36)">
+    <path d="M 172 124
+             C 274 124, 368 160, 368 238
+             C 368 316, 274 352, 172 352
+             L 172 294
+             C 238 294, 308 270, 308 238
+             C 308 206, 238 182, 172 182
+             Z"
+          fill="url(#btLoopGrad)"/>
+
+    <rect x="136" y="124" width="50" height="268" rx="25" fill="url(#btStemGrad)"/>
+
+    <path d="M 161 340
+             L 161 240
+             C 161 176, 232 152, 285 174
+             C 338 196, 338 274, 285 298
+             C 238 318, 188 288, 161 254"
+          fill="none"
+          stroke="url(#btGitTrace)"
+          stroke-width="8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          filter="url(#btGlow)"/>
+
+    <circle cx="161" cy="340" r="18" fill="url(#btCyanGlow)" opacity="0.7"/>
+    <circle cx="161" cy="340" r="13" fill="#0f172a" stroke="#4f46e5" stroke-width="4"/>
+    <circle cx="161" cy="340" r="5" fill="#ffffff"/>
+
+    <circle cx="161" cy="228" r="22" fill="url(#btCyanGlow)" opacity="0.85"/>
+    <circle cx="161" cy="228" r="15" fill="#0f172a" stroke="#06b6d4" stroke-width="4"/>
+    <circle cx="161" cy="228" r="6" fill="#ffffff"/>
+
+    <circle cx="278" cy="160" r="13" fill="#0f172a" stroke="#a855f7" stroke-width="3.5"/>
+    <circle cx="278" cy="160" r="5" fill="#ffffff"/>
+
+    <circle cx="342" cy="238" r="24" fill="url(#btPinkGlow)" opacity="0.9"/>
+    <circle cx="342" cy="238" r="16" fill="#0f172a" stroke="#f43f5e" stroke-width="4.5"/>
+    <circle cx="342" cy="238" r="6.5" fill="#ffffff"/>
+
+    <g transform="translate(244, 238)">
+      <polygon points="0,-12 3.5,-3.5 12,0 3.5,3.5 0,12 -3.5,3.5 -12,0 -3.5,-3.5" fill="#ffffff" opacity="0.65"/>
+      <circle cx="0" cy="0" r="2.5" fill="#22d3ee" opacity="0.75"/>
+    </g>
+  </g>
+
+  <!-- Typography -->
+  <g transform="translate(195, 0)">
+    <text x="0" y="105" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif" font-size="70" font-weight="800" fill="url(#btTextGrad)" letter-spacing="2">
+      Perenna
+    </text>
+    <text x="2" y="148" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif" font-size="19" font-weight="400" fill="#94a3b8" letter-spacing="0.4">
+      Git-backed permanent memory for AI agents
+    </text>
+  </g>
+</svg>

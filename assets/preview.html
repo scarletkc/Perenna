@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Perenna Logo & Brand Assets Showcase</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --card-dark: #111726;
+      --border-dark: rgba(255, 255, 255, 0.08);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-cyan: #06b6d4;
+      --accent-indigo: #6366f1;
+      --accent-pink: #f43f5e;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif;
+      line-height: 1.6;
+      padding: 40px 24px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    h1 {
+      font-size: 2.75rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #fff 0%, #38bdf8 50%, #c084fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 12px;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      max-width: 680px;
+      margin: 0 auto 20px;
+    }
+
+    .theme-toggle {
+      display: inline-flex;
+      background: #1e293b;
+      border-radius: 30px;
+      padding: 4px;
+      border: 1px solid var(--border-dark);
+      margin-top: 10px;
+    }
+
+    .theme-toggle button {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 8px 18px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+    }
+
+    .theme-toggle button.active {
+      background: #3b82f6;
+      color: #ffffff;
+      box-shadow: 0 2px 10px rgba(59, 130, 246, 0.4);
+    }
+
+    /* Grid & Cards */
+    .section-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin: 40px 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--border-dark);
+      padding-bottom: 10px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 24px;
+    }
+
+    .card {
+      background: var(--card-dark);
+      border: 1px solid var(--border-dark);
+      border-radius: 20px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 16px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .banner-card {
+      grid-column: 1 / -1;
+      padding: 32px;
+    }
+
+    .preview-box {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 30px;
+      border-radius: 14px;
+      background: rgba(0, 0, 0, 0.25);
+      margin-bottom: 20px;
+      min-height: 240px;
+    }
+
+    .preview-box.light-mode {
+      background: #f1f5f9;
+    }
+
+    .preview-box img, .preview-box svg {
+      max-width: 100%;
+      height: auto;
+    }
+
+    .icon-preview {
+      width: 200px;
+      height: 200px;
+    }
+
+    .banner-preview {
+      width: 100%;
+      max-width: 1000px;
+    }
+
+    .size-strip {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      margin-top: 10px;
+    }
+
+    .card-footer {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: auto;
+      padding-top: 16px;
+      border-top: 1px solid var(--border-dark);
+    }
+
+    .card-info h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .card-info p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .btn {
+      background: #1e293b;
+      color: #38bdf8;
+      border: 1px solid #334155;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn:hover {
+      background: #38bdf8;
+      color: #090d16;
+    }
+
+    /* Design Concept / Story Section */
+    .story-card {
+      background: linear-gradient(135deg, rgba(30, 27, 75, 0.5) 0%, rgba(15, 23, 42, 0.7) 100%);
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      border-radius: 20px;
+      padding: 32px;
+      margin-top: 40px;
+    }
+
+    .story-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      margin-top: 20px;
+    }
+
+    .story-item {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 20px;
+      border-radius: 12px;
+      border-left: 4px solid var(--accent-cyan);
+    }
+
+    .story-item:nth-child(2) { border-left-color: var(--accent-indigo); }
+    .story-item:nth-child(3) { border-left-color: var(--accent-pink); }
+
+    .story-item h4 {
+      font-size: 1.05rem;
+      margin-bottom: 8px;
+      color: #f1f5f9;
+    }
+
+    .story-item p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Perenna Logo & Visual Identity</h1>
+      <p class="subtitle">Reusable SVG assets for Perenna's Git-backed memory service.</p>
+      <div class="theme-toggle">
+        <button id="btnDark" class="active" onclick="setTheme('dark')">🌙 Dark Mode</button>
+        <button id="btnLight" onclick="setTheme('light')">☀️ Light Mode</button>
+      </div>
+    </header>
+
+    <!-- SECTION 1: Header Banner -->
+    <div class="section-title">✨ Header Banner</div>
+    <div class="card banner-card">
+      <div class="preview-box" id="bannerBox">
+        <img src="logo-banner.svg" alt="Perenna Banner" class="banner-preview" />
+      </div>
+      <div class="card-footer">
+        <div class="card-info">
+          <h3>Full Brand Banner (logo-banner.svg)</h3>
+          <p>1200 × 360 px · Dark-background project banner</p>
+        </div>
+        <a href="logo-banner.svg" download class="btn">Download SVG</a>
+      </div>
+    </div>
+
+    <div class="card banner-card">
+      <div class="preview-box">
+        <img src="logo-banner-transparent.svg" alt="Perenna transparent brand lockup" class="banner-preview" />
+      </div>
+      <div class="card-footer">
+        <div class="card-info">
+          <h3>Transparent Brand Lockup (logo-banner-transparent.svg)</h3>
+          <p>900 × 200 px · Transparent horizontal lockup for dark backgrounds</p>
+        </div>
+        <a href="logo-banner-transparent.svg" download class="btn">Download SVG</a>
+      </div>
+    </div>
+
+    <!-- SECTION 2: Icons & Badges -->
+    <div class="section-title">💎 Icons & Monograms</div>
+    <div class="grid">
+
+      <!-- Card 1: App Icon -->
+      <div class="card">
+        <div class="preview-box" id="box1">
+          <img src="logo.svg" alt="Perenna primary icon" class="icon-preview" />
+        </div>
+        <div class="card-footer">
+          <div class="card-info">
+            <h3>Primary Icon (logo.svg)</h3>
+            <p>512 × 512 px · Dark container with ambient glow</p>
+          </div>
+          <a href="logo.svg" download class="btn">Download SVG</a>
+        </div>
+      </div>
+
+      <!-- Card 2: Transparent Icon -->
+      <div class="card">
+        <div class="preview-box" id="box2">
+          <img src="logo-transparent.svg" alt="Perenna Transparent Icon" class="icon-preview" />
+        </div>
+        <div class="card-footer">
+          <div class="card-info">
+            <h3>Transparent Icon (logo-transparent.svg)</h3>
+            <p>512 × 512 px · Transparent vector mark for flexible placement</p>
+          </div>
+          <a href="logo-transparent.svg" download class="btn">Download SVG</a>
+        </div>
+      </div>
+
+      <!-- Card 3: Favicon & Multi-size -->
+      <div class="card">
+        <div class="preview-box" id="box3">
+          <div class="size-strip">
+            <img src="favicon.svg" width="64" height="64" alt="64px" title="64px" />
+            <img src="favicon.svg" width="48" height="48" alt="48px" title="48px" />
+            <img src="favicon.svg" width="32" height="32" alt="32px" title="32px" />
+            <img src="favicon.svg" width="16" height="16" alt="16px" title="16px" />
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="card-info">
+            <h3>Favicon & Small Sizes (favicon.svg)</h3>
+            <p>64 px source previewed at 16, 32, 48, and 64 px</p>
+          </div>
+          <a href="favicon.svg" download class="btn">Download SVG</a>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- SECTION 3: Visual Elements -->
+    <div class="story-card">
+      <h2>🎨 Visual Elements</h2>
+      <p style="color: #94a3b8; margin-top: 6px;">Stable visual cues used across the asset set:</p>
+
+      <div class="story-grid">
+        <div class="story-item">
+          <h4>1. P Mark</h4>
+          <p>The curved mark forms the letter <strong>P</strong> and suggests memory that persists across agent sessions.</p>
+        </div>
+
+        <div class="story-item">
+          <h4>2. Git History</h4>
+          <p>The vertical spine and branching paths reference Perenna's Git-backed Markdown history.</p>
+        </div>
+
+        <div class="story-item">
+          <h4>3. Shared MCP Access</h4>
+          <p>The connected nodes represent MCP clients accessing shared memory, with the central glow referencing semantic retrieval.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function setTheme(mode) {
+      const boxes = ['bannerBox', 'box1', 'box2', 'box3'];
+      const btnDark = document.getElementById('btnDark');
+      const btnLight = document.getElementById('btnLight');
+
+      if (mode === 'light') {
+        btnDark.classList.remove('active');
+        btnLight.classList.add('active');
+        boxes.forEach(id => document.getElementById(id).classList.add('light-mode'));
+      } else {
+        btnLight.classList.remove('active');
+        btnDark.classList.add('active');
+        boxes.forEach(id => document.getElementById(id).classList.remove('light-mode'));
+      }
+    }
+  </script>
+</body>
+</html>

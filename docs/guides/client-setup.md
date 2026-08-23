@@ -12,6 +12,12 @@ schema.
 
 ## Claude Code
 
+Install Perenna's optional memory behavior skill for Claude Code:
+
+```bash
+perenna skill install --agent claude-code
+```
+
 Add Perenna as a user-scoped stdio server:
 
 ```bash
@@ -31,6 +37,12 @@ Claude Code requires its own options before the server name. The `--`
 separator marks the start of the Perenna command and arguments.
 
 ## Codex CLI and IDE extension
+
+Install Perenna's optional memory behavior skill for Codex:
+
+```bash
+perenna skill install --agent codex
+```
 
 Add Perenna with the Codex CLI:
 

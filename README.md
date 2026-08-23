@@ -23,6 +23,26 @@ sharing a vendor account or conversation history.
 - Local Vexor retrieval index that can always be rebuilt from Git
 - Cross-process locking for multiple local agent processes
 
+## Why Perenna?
+
+Your memory should follow **you**, not the agent you happen to be using.
+
+Claude Code, Codex, Cursor, and ChatGPT keep memory in separate silos. Switch
+agents and your memory disappears. Switch machines and local memory stays
+behind.
+
+Perenna gives them one **shared, Git-backed memory**. Local agents and ChatGPT
+can connect to the same self-hosted Perenna service, while every durable memory
+stays ordinary Markdown you can inspect, edit, version, and back up yourself.
+
+[Mem0's self-hosted stack](https://docs.mem0.ai/open-source/setup) is much
+heavier, while its hosted [Free Plan](https://mem0.ai/terms) currently allows
+customer content to be used for model training and product improvement.
+
+Perenna is different by design: **no account, no proprietary memory cloud, no
+lock-in.** Just your memories, in your Git repository, on infrastructure you
+control.
+
 ## Quickstart
 
 ### Install with your AI agent
@@ -44,11 +64,9 @@ Use these as the source of truth:
    command and stop there.
 3. Install Perenna with `uv tool install perenna`. If Perenna is already
    installed, upgrade it with `uv tool upgrade perenna`.
-   If this client supports Agent Skills, also install the bundled
-   `perenna-memory` skill from
-   `https://github.com/scarletkc/Perenna/tree/main/skills/perenna-memory`
-   through the client's normal skill installation mechanism. Do not replace or
-   remove unrelated installed skills.
+   For Codex, also run `perenna skill install --agent codex`. For Claude Code,
+   run `perenna skill install --agent claude-code`. Do not replace an existing
+   modified copy or remove unrelated installed skills.
 4. Check the effective Vexor embedding provider configuration. Reuse a working
    `~/.vexor/config.json` or inherited environment configuration. If none is
    available, ask me to choose between a remote provider and local embeddings.
@@ -87,6 +105,18 @@ Perenna requires Python 3.12+, Git, and
 ```bash
 uv tool install perenna
 ```
+
+Install the optional memory behavior skill for the local client:
+
+```bash
+perenna skill install --agent codex
+# or
+perenna skill install --agent claude-code
+```
+
+Repeat `--agent` in one command when both clients should receive the skill.
+The [configuration reference](https://github.com/scarletkc/Perenna/blob/main/docs/reference/configuration.md#bundled-agent-skill)
+documents user and project scope, destinations, and replacement safeguards.
 
 Perenna needs a working Vexor embedding provider. For interactive provider
 selection and configuration, run:
@@ -147,7 +177,7 @@ then follow the path for your task:
 - [Client setup](https://github.com/scarletkc/Perenna/blob/main/docs/guides/client-setup.md)
 - [Self-hosting for ChatGPT](https://github.com/scarletkc/Perenna/blob/main/docs/guides/self-hosting.md)
 - [Using permanent memory](https://github.com/scarletkc/Perenna/blob/main/docs/guides/using-memory.md)
-- [`perenna-memory` Agent Skill](https://github.com/scarletkc/Perenna/blob/main/skills/perenna-memory/SKILL.md)
+- [`perenna-memory` Agent Skill](https://github.com/scarletkc/Perenna/blob/main/skills/perenna-memory)
 - [Configuration reference](https://github.com/scarletkc/Perenna/blob/main/docs/reference/configuration.md)
 - [Architecture](https://github.com/scarletkc/Perenna/blob/main/docs/concepts/architecture.md)
 - [Development guide](https://github.com/scarletkc/Perenna/blob/main/docs/development/contributing.md)

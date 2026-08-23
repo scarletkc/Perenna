@@ -32,6 +32,22 @@ Verify that the installed command is available:
 perenna --help
 ```
 
+### Install the memory behavior skill
+
+Install the bundled skill for the client that will use Perenna:
+
+```bash
+perenna skill install --agent codex
+# or
+perenna skill install --agent claude-code
+```
+
+If both clients are installed, repeat `--agent` in one command. The default is
+user scope so the skill is available across projects. Use `--scope project`
+inside a Git working tree when the skill should apply only to that repository.
+See [Bundled Agent Skill](reference/configuration.md#bundled-agent-skill) for
+the destination paths and replacement safeguards.
+
 ### Install local embedding support
 
 The base installation follows your existing Vexor provider configuration. To

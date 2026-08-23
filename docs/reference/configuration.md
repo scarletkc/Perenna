@@ -10,12 +10,46 @@ perenna mcp [--source SOURCE] [--home PATH]
 perenna serve [--source SOURCE] [--home PATH] [--host HOST] [--port PORT]
 perenna backup setup REPOSITORY_URL [--home PATH] [--replace] [--deploy-key]
 perenna backup status [--home PATH]
+perenna skill install --agent AGENT [--agent AGENT] [--scope SCOPE] [--replace]
 ```
 
 `mcp` serves local clients over stdio. `serve` exposes an OAuth-protected
 Streamable HTTP endpoint at `/mcp`. The default HTTP listen address is
 `127.0.0.1` and the default port is `8000`; a container normally overrides the
 address to `0.0.0.0` while publishing the port only to a trusted reverse proxy.
+
+## Bundled Agent Skill
+
+`perenna skill install` copies the bundled `perenna-memory` skill without
+downloading or running another installer. `--agent` is required, may be
+repeated, and accepts `codex` or `claude-code`.
+
+```text
+perenna skill install --agent codex
+perenna skill install --agent claude-code
+perenna skill install --agent codex --agent claude-code
+```
+
+User scope is the default. Project scope resolves the current Git working-tree
+root:
+
+| Agent | User scope | Project scope |
+| --- | --- | --- |
+| `codex` | `~/.agents/skills/perenna-memory` | `<repo>/.agents/skills/perenna-memory` |
+| `claude-code` | `~/.claude/skills/perenna-memory` | `<repo>/.claude/skills/perenna-memory` |
+
+The command leaves every other installed skill unchanged. Repeating it against
+an identical copy reports `already installed`. If the destination differs,
+Perenna refuses to overwrite it. To replace that copy explicitly, run:
+
+```text
+perenna skill install --agent AGENT --replace
+```
+
+Replacement first moves the previous copy to the agent configuration
+directory's `skill-backups` folder and prints the complete backup path. Skill
+installation does not configure or start the MCP server; follow the
+[client setup guide](../guides/client-setup.md) for that separate step.
 
 ## Perenna home
 

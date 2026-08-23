@@ -68,6 +68,7 @@ path = "src/perenna/__init__.py"
 [tool.hatch.build.targets.sdist]
 include = [
   "src/perenna",
+  "skills/perenna-memory",
   "LICENSE",
   "README.md",
   "pyproject.toml",
@@ -75,6 +76,9 @@ include = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/perenna"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"skills/perenna-memory" = "perenna/_bundled/skills/perenna-memory"
 
 [tool.pytest.ini_options]
 addopts = "--strict-config --strict-markers -m 'not live_provider'"

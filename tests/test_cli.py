@@ -7,7 +7,8 @@ import pytest
 
 from perenna import DESCRIPTION, __version__, cli
 from perenna.config import RemoteSettings, RuntimePaths, RuntimeSettings
-from perenna.errors import ConfigurationError
+from perenna.errors import ConfigurationError, SkillInstallError
+from perenna.skill_installer import SkillInstallReport
 
 
 def test_parser_uses_package_description() -> None:
@@ -163,6 +164,82 @@ def test_backup_setup_prints_guided_deploy_key_action(
     assert "Public key: ssh-ed25519 " in captured.out
     assert "Enable: Allow write access" in captured.out
     assert "PRIVATE KEY" not in captured.out
+
+
+def test_skill_install_requires_an_agent() -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        cli.build_parser().parse_args(["skill", "install"])
+
+    assert exc_info.value.code == 2
+
+
+def test_skill_install_supports_multiple_agents_without_runtime_configuration(
+    tmp_path: Path,
+    capsys,
+    monkeypatch,
+) -> None:
+    reports = (
+        SkillInstallReport(
+            agent="codex",
+            scope="user",
+            destination=tmp_path / ".agents" / "skills" / "perenna-memory",
+            state="installed",
+        ),
+        SkillInstallReport(
+            agent="claude-code",
+            scope="user",
+            destination=tmp_path / ".claude" / "skills" / "perenna-memory",
+            state="already-installed",
+        ),
+    )
+    observed: list[tuple[object, str, bool]] = []
+
+    def fake_install(agents, *, scope, replace):
+        observed.append((agents, scope, replace))
+        return reports
+
+    monkeypatch.setattr(cli, "install_bundled_skill", fake_install)
+    monkeypatch.setattr(
+        cli,
+        "resolve_settings",
+        lambda **_kwargs: pytest.fail("skill install must not resolve runtime settings"),
+    )
+
+    assert (
+        cli.main(
+            [
+                "skill",
+                "install",
+                "--agent",
+                "codex",
+                "--agent",
+                "claude-code",
+            ]
+        )
+        == 0
+    )
+
+    assert observed == [(["codex", "claude-code"], "user", False)]
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    assert "Agent: codex" in captured.out
+    assert "Status: installed" in captured.out
+    assert "Agent: claude-code" in captured.out
+    assert "Status: already installed" in captured.out
+    assert str(reports[0].destination) in captured.out
+    assert "Restart the client if the skill does not appear." in captured.out
+
+
+def test_skill_install_reports_a_safe_conflict(capsys, monkeypatch) -> None:
+    def fail(*_args, **_kwargs):
+        raise SkillInstallError("existing skill differs; re-run with --replace")
+
+    monkeypatch.setattr(cli, "install_bundled_skill", fail)
+
+    assert cli.main(["skill", "install", "--agent", "codex"]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "existing skill differs" in captured.err
 
 
 @pytest.mark.parametrize("port", ["0", "65536"])

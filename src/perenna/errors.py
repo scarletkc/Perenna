@@ -32,3 +32,7 @@ class MemoryNotFoundError(PerennaError):
 
 class IndexUnavailableError(PerennaError):
     """The Vexor retrieval index is unavailable."""
+
+
+class SkillInstallError(PerennaError):
+    """A bundled Agent Skill could not be installed safely."""

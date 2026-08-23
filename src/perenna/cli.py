@@ -19,6 +19,12 @@ from perenna.core import PerennaCore
 from perenna.errors import PerennaError
 from perenna.http_server import run_http
 from perenna.mcp_server import run_stdio
+from perenna.skill_installer import (
+    SKILL_NAME,
+    SUPPORTED_AGENTS,
+    SkillInstallReport,
+    install_bundled_skill,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -80,6 +86,34 @@ def build_parser() -> argparse.ArgumentParser:
         "--home",
         help="Perenna data directory. Overrides PERENNA_HOME; default: ~/.perenna.",
     )
+
+    skill = subparsers.add_parser(
+        "skill",
+        help="Install Perenna's bundled Agent Skill.",
+    )
+    skill_commands = skill.add_subparsers(dest="skill_command", required=True)
+    install = skill_commands.add_parser(
+        "install",
+        help="Install the perenna-memory skill for a supported agent.",
+    )
+    install.add_argument(
+        "--agent",
+        action="append",
+        choices=SUPPORTED_AGENTS,
+        required=True,
+        help="Target agent. Repeat to install for both codex and claude-code.",
+    )
+    install.add_argument(
+        "--scope",
+        choices=("user", "project"),
+        default="user",
+        help="Install for the current user or Git project. Default: user.",
+    )
+    install.add_argument(
+        "--replace",
+        action="store_true",
+        help="Back up and replace an installed copy that differs from the bundled skill.",
+    )
     return parser
 
 
@@ -109,6 +143,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         if args.command == "backup":
             _run_backup(args)
+            return 0
+        if args.command == "skill":
+            _run_skill(args)
             return 0
         settings = resolve_settings(cli_home=args.home, cli_source=args.source)
         remote_settings = resolve_remote_settings() if args.command == "serve" else None
@@ -189,6 +226,35 @@ def _print_backup_report(report: BackupReport) -> None:
         print("Then run the same backup setup command again.")
     else:
         print(f"Automatic backup: enabled (remote: {report.remote_name})")
+
+
+def _run_skill(args: argparse.Namespace) -> None:
+    reports = install_bundled_skill(
+        args.agent,
+        scope=args.scope,
+        replace=args.replace,
+    )
+    for index, report in enumerate(reports):
+        if index:
+            print()
+        _print_skill_report(report)
+    print()
+    print("Restart the client if the skill does not appear.")
+
+
+def _print_skill_report(report: SkillInstallReport) -> None:
+    states = {
+        "installed": "installed",
+        "already-installed": "already installed",
+        "replaced": "replaced",
+    }
+    print(f"Skill: {SKILL_NAME}")
+    print(f"Agent: {report.agent}")
+    print(f"Scope: {report.scope}")
+    print(f"Status: {states[report.state]}")
+    print(f"Path: {report.destination}")
+    if report.backup is not None:
+        print(f"Backup: {report.backup}")
 
 
 def _configure_logging() -> None:

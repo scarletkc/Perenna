@@ -30,6 +30,11 @@ def test_perenna_memory_skill_is_discoverable_and_covers_the_tool_surface() -> N
     assert IMPORTING_PATH.is_file()
     assert UNAVAILABLE_PATH.is_file()
 
+    curation = CURATION_PATH.read_text(encoding="utf-8")
+    flattened_curation = " ".join(curation.split())
+    assert "Treat feedback as source material" in flattened_curation
+    assert "do not preserve feedback as an event or category" in flattened_curation
+
     importing = IMPORTING_PATH.read_text(encoding="utf-8")
     flattened_importing = " ".join(importing.split())
     assert "Installing or connecting Perenna does not authorize an import" in flattened_importing

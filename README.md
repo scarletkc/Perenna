@@ -41,21 +41,15 @@ Perenna gives them one **shared, Git-backed memory**. Local agents and ChatGPT
 can connect to the same self-hosted Perenna service, while every durable memory
 stays ordinary Markdown you can inspect, edit, version, and back up yourself.
 
-| Design point | Perenna | [AgentMemory](https://github.com/rohitg00/agentmemory) | [Mem0](https://github.com/mem0ai/mem0) |
+| | Perenna | [AgentMemory](https://github.com/rohitg00/agentmemory) | [Mem0](https://github.com/mem0ai/mem0) |
 | --- | --- | --- | --- |
-| Source of truth | **Ordinary Markdown in your Git repository** | iii-managed runtime state; Git is not the authoritative store | Service/database-backed memory; Git is not the authoritative store |
-| Human inspection | **Read, edit, diff, and recover with normal file and Git tools** | Durable state is runtime-managed, not ordinary Markdown | Durable state lives in storage backends, not ordinary Markdown |
-| Audit trail | **One Git commit per changed mutation; standard Git history** | Runtime-managed persistence; not Git-native | Backend-managed persistence; not Git-native |
-| Stale-write protection | **Revision-guarded exact patches reject stale updates** | Runtime/API-managed writes; no Git revision boundary | API/library-managed writes; no Git revision boundary |
-| Divergence behavior | **Diverged Git histories block later writes until you reconcile them** | No Git-history divergence model; runtime coordinates state | No Git-history divergence model; backend/service coordinates state |
-| Retrieval dependency | **Disposable Vexor index; rebuild it from committed Markdown** | Search state is managed by the runtime | Search/index state depends on configured backends |
-| Agent surface area | **3 focused MCP tools** | 54 MCP tools plus hooks and skills | SDK/API/CLI-oriented surface |
-| Runtime footprint | **stdio locally; one HTTP service only when remote access is needed** | Pinned iii engine plus multiple local services and four ports | Self-hosted server stack via Docker Compose or managed cloud |
+| Simplicity | **3 focused MCP tools** | 54 MCP tools plus hooks and skills | SDK/API/CLI plus server or cloud |
+| Local footprint | **stdio locally; no always-on service required** | iii engine plus multiple local services and four ports | Library, self-hosted server stack, or managed cloud |
+| Durable memory | **Plain Markdown in your Git repository** | Runtime-managed state | Service/database-backed state |
+| Ownership | **Edit, diff, version, and back up with normal Git tools** | Runtime-managed persistence | Backend/service-managed persistence |
 
-Perenna optimizes for ownership and recoverability over automation breadth:
-**your Git repository is the durable memory, every changed mutation is auditable,
-conflicts fail closed, and the retrieval index can always be thrown away and
-rebuilt.**
+Perenna stays small on purpose: **three tools, plain Markdown, Git-native history,
+and no local daemon unless you need remote access.**
 
 ## Quickstart
 

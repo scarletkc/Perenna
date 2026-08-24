@@ -41,15 +41,15 @@ Perenna gives them one **shared, Git-backed memory**. Local agents and ChatGPT
 can connect to the same self-hosted Perenna service, while every durable memory
 stays ordinary Markdown you can inspect, edit, version, and back up yourself.
 
-| | Perenna | [AgentMemory](https://github.com/rohitg00/agentmemory) | [Mem0](https://github.com/mem0ai/mem0) |
+| | **Perenna** | [AgentMemory](https://github.com/rohitg00/agentmemory) | [Mem0](https://github.com/mem0ai/mem0) |
 | --- | --- | --- | --- |
-| Simplicity | **3 focused MCP tools** | 54 MCP tools plus hooks and skills | SDK/API/CLI plus server or cloud |
-| Local footprint | **stdio locally; no always-on service required** | iii engine plus multiple local services and four ports | Library, self-hosted server stack, or managed cloud |
-| Durable memory | **Plain Markdown in your Git repository** | Runtime-managed state | Service/database-backed state |
-| Ownership | **Edit, diff, version, and back up with normal Git tools** | Runtime-managed persistence | Backend/service-managed persistence |
+| Simplicity | **3 MCP tools** | 54 tools + hooks | SDK/API/server stack |
+| Local use | **stdio, no daemon** | Multiple local services | Library or server |
+| Storage | **Plain Markdown + Git** | Runtime-managed | Database/service-managed |
+| Ownership | **Your files, your Git history** | Runtime-managed | Backend-managed |
 
-Perenna stays small on purpose: **three tools, plain Markdown, Git-native history,
-and no local daemon unless you need remote access.**
+Perenna is small by design: **no account, no proprietary memory cloud, no
+lock-in.** Just plain Markdown, Git history, and three focused tools.
 
 ## Quickstart
 

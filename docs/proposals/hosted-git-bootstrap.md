@@ -35,7 +35,7 @@ setup implementation before serving tools.
 | --- | --- |
 | `PERENNA_GIT_URL` | Repository address used to bootstrap or verify synchronization |
 | `--git-url URL` | CLI override for the same address |
-| `PERENNA_GIT_REMOTE` | Existing remote-name selector; defaults to `origin` during setup |
+| `PERENNA_GIT_REMOTE` | Existing remote-name selector; hosted precedence is defined below |
 | `PERENNA_GIT_DEPLOY_KEY` | Persistent opt-in to the existing repository-specific deploy-key flow |
 
 Hosted bootstrap would accept only credential-free HTTPS URLs with a non-empty
@@ -44,14 +44,19 @@ path, and SCP-style SSH addresses such as `git@example.com:owner/memory.git`.
 The host policy would remain provider-neutral so public, private, and
 self-hosted Git services can use the same interface.
 
+The URL would be deployment-operator configuration, never an MCP tool input.
+Perenna would not maintain a provider or domain allowlist; deployments that
+restrict destinations must enforce that network-egress policy at the hosting
+boundary.
+
 Local paths, `file://`, insecure `http://` and `git://` URLs, Git remote-helper
 forms such as `ext::`, missing-host or missing-path addresses, and every other
 transport would be rejected before repository initialization or remote and
 authentication configuration changes.
 
-An implementation should tighten the existing `_validated_repository_url()`
-validator and use it through `setup_sync()` for both manual setup and hosted
-startup.
+This narrower policy would apply at the hosted startup boundary before calling
+`setup_sync()`. The existing manual setup path would retain support for local
+bare repositories and its current repository-address behavior.
 
 If deploy-key bootstrap is enabled, the repository URL must use SSH. Perenna
 would reject an HTTPS URL during the same pre-mutation validation.
@@ -68,6 +73,17 @@ bootstrap URL is present. Its semantic states would be:
 | Present | `false` | Behave as unset and reject a persisted deploy-key mode before configuration changes |
 | Present | `true` | Require an SSH URL and bootstrap or verify repository-specific deploy-key authentication |
 
+Remote-name precedence would be evaluated before the deploy-key states above
+and preserve the distinction between unset and an explicit empty value:
+
+| `PERENNA_GIT_REMOTE` | Bootstrap URL | Candidate startup behavior |
+| --- | --- | --- |
+| Unset | Absent | Preserve the current local-only startup behavior |
+| Unset | Present | Use `origin` for bootstrap |
+| Empty | Absent | Preserve the explicit local-only opt-out |
+| Empty | Present | Reject the conflicting configuration before repository or remote changes |
+| Non-empty | Either | Use that exact remote name |
+
 This preserves existing homes configured by `perenna sync setup`: when no
 bootstrap URL is supplied, their persisted `core.sshCommand` continues to own
 authentication. A deployment that keeps supplying a bootstrap URL for a
@@ -83,8 +99,9 @@ Any approved implementation should run bootstrap under the existing exclusive
 Perenna-home lock and reuse `setup_sync()` rather than introduce a second Git
 initialization path.
 
-1. Resolve the home, source, remote name, optional repository URL, and
-   deploy-key mode.
+1. Resolve the home, source, remote-name state, optional repository URL, and
+   deploy-key mode without collapsing an unset remote name into an explicit
+   empty value.
 2. Validate the input combination and any configured URL before initializing or
    changing the repository.
 3. When no URL is configured, retain the current startup refresh behavior.
@@ -121,6 +138,13 @@ The existing security rules must remain:
   or the Git remote URL;
 - keep a repository-specific deploy key under the persistent Perenna home;
 - never register a deploy key with a Git provider automatically.
+
+Hosted bootstrap would retain the implemented
+[SSH host-key behavior](../reference/configuration.md#repository-specific-deploy-key):
+the dedicated `known_hosts` file records the first previously unseen host key,
+and OpenSSH rejects later changes. Requiring a new operator-supplied host key or
+fingerprint would be a separate security change, not part of this bootstrap
+interface.
 
 An opt-in deploy-key bootstrap could generate the existing persistent key on
 the first start, report the public key and repository settings URL, and finish
@@ -161,6 +185,9 @@ Coverage must include:
   missing-host, missing-path, and unsupported-scheme addresses;
 - every deploy-key state in the candidate table, both with and without a
   bootstrap URL;
+- unset, empty, and non-empty `PERENNA_GIT_REMOTE` values with and without a
+  bootstrap URL, including rejection of the empty-plus-URL conflict before
+  repository changes;
 - empty local and empty remote;
 - empty local importing existing compatible history;
 - existing local publishing to an empty remote;
@@ -172,6 +199,7 @@ Coverage must include:
 - an existing remote with a different address;
 - unavailable authentication and network;
 - deploy-key authorization pending across a persistent-home restart;
+- first-connection SSH host-key recording and rejection of a changed host key;
 - incompatible branches and diverged history;
 - simultaneous first starts using the same home;
 - rejected startup that leaves the existing remote URL, `core.sshCommand`,

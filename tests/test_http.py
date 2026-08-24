@@ -126,14 +126,25 @@ async def test_http_server_exposes_metadata_requires_oauth_and_enforces_tool_sco
     assert "memory:write" in result_text(rejected)
     assert rejected.meta is not None
     assert "mcp/www_authenticate" in rejected.meta
+    protocol_posts = [
+        request
+        for request in protocol_requests
+        if request.method == "POST" and request.url.path == "/mcp"
+    ]
+    assert protocol_posts
+    assert all(request.headers.get("mcp-method") for request in protocol_posts)
+    assert all(
+        request.headers.get("mcp-name")
+        for request in protocol_posts
+        if request.headers["mcp-method"] == "tools/call"
+    )
     routed_requests = [
         (
             request.headers.get("mcp-method"),
             request.headers.get("mcp-name"),
             request.headers.get("mcp-protocol-version"),
         )
-        for request in protocol_requests
-        if request.headers.get("mcp-method") is not None
+        for request in protocol_posts
     ]
     assert ("tools/list", None, "2026-07-28") in routed_requests
     assert ("tools/call", "memory_read", "2026-07-28") in routed_requests

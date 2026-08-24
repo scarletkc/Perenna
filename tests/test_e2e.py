@@ -13,7 +13,7 @@ from tests.helpers import EmbeddingServer, perenna_session
 async def test_cross_agent_create_search_get_patch_and_delete(tmp_path: Path) -> None:
     home = tmp_path / "home"
     with EmbeddingServer() as server:
-        async with perenna_session(home, "claude-code", embedding_server=server) as (
+        async with perenna_session(home, embedding_server=server) as (
             claude,
             _,
             _,
@@ -34,7 +34,7 @@ async def test_cross_agent_create_search_get_patch_and_delete(tmp_path: Path) ->
         repository = GitRepository.initialize(home / "memory")
         first = MemoryStore(repository).snapshot().memories[0]
 
-        async with perenna_session(home, "codex", embedding_server=server) as (codex, _, _):
+        async with perenna_session(home, embedding_server=server) as (codex, _, _):
             searched = await codex.call_tool(
                 "memory_read",
                 {"action": "search", "query": "proactively clear tasks", "limit": 1},
@@ -52,7 +52,7 @@ async def test_cross_agent_create_search_get_patch_and_delete(tmp_path: Path) ->
             assert fetched.structured_content["memory"]["body"] == first.body
             assert fetched.structured_content["memory"]["revision"] == first_revision
 
-        async with perenna_session(home, "cursor", embedding_server=server) as (cursor, _, _):
+        async with perenna_session(home, embedding_server=server) as (cursor, _, _):
             patched = await cursor.call_tool(
                 "memory_write",
                 {

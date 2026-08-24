@@ -84,18 +84,26 @@ class VexorIndex:
             with self._collection() as collection:
                 return collection.info() is not None and collection.count() == expected_records
         except Exception as exc:
-            raise _unavailable() from exc
+            raise _inspection_failed() from exc
 
     def rebuild(self, snapshot: MemorySnapshot) -> None:
         self.invalidate()
         records = [_record(chunk) for memory in snapshot.memories for chunk in _chunks(memory)]
         try:
             with self._collection() as collection:
-                collection.drop()
+                try:
+                    collection.drop()
+                except Exception as exc:
+                    raise _reset_failed() from exc
                 if records:
-                    collection.upsert_many(records)
+                    try:
+                        collection.upsert_many(records)
+                    except Exception as exc:
+                        raise _rebuild_failed() from exc
+        except IndexUnavailableError:
+            raise
         except Exception as exc:
-            raise _unavailable() from exc
+            raise _rebuild_failed() from exc
         if snapshot.commit is not None:
             self._write_marker(snapshot.commit)
 
@@ -132,7 +140,7 @@ class VexorIndex:
                     rerank="off",
                 )
         except Exception as exc:
-            raise _unavailable() from exc
+            raise _query_failed() from exc
 
         chunks_by_id = {
             chunk.id: chunk for memory in snapshot.memories for chunk in _chunks(memory)
@@ -208,13 +216,13 @@ class VexorIndex:
         try:
             self.marker_path.unlink(missing_ok=True)
         except OSError as exc:
-            raise _unavailable() from exc
+            raise _marker_failed("removed") from exc
 
     def _write_marker(self, commit: str) -> None:
         try:
             atomic_replace(self.marker_path, f"{commit}\n".encode())
         except OSError as exc:
-            raise _unavailable() from exc
+            raise _marker_failed("updated") from exc
 
     @contextmanager
     def _collection(self) -> Iterator[Any]:
@@ -281,9 +289,41 @@ def _metadata_matches(chunk: _Chunk, metadata: Mapping[str, object]) -> bool:
     }
 
 
-def _unavailable() -> IndexUnavailableError:
+def _inspection_failed() -> IndexUnavailableError:
     return IndexUnavailableError(
-        "Memory search index is unavailable. Perenna will retry recovery on the next search. "
-        "Check the Vexor provider configuration. To force a rebuild, stop every Perenna process "
-        "using this home before deleting the local index directory."
+        "Memory search index could not be inspected. Perenna will rebuild it before the next "
+        "non-empty search. Check access to the local index directory; if rebuilding then fails "
+        "while embedding memory, check the Vexor provider configuration."
+    )
+
+
+def _reset_failed() -> IndexUnavailableError:
+    return IndexUnavailableError(
+        "Memory search index could not reset its local collection. The committed Git memory is "
+        "safe. Stop every Perenna process using this home, then move or delete the local index "
+        "directory before searching again."
+    )
+
+
+def _rebuild_failed() -> IndexUnavailableError:
+    return IndexUnavailableError(
+        "Memory search index rebuild failed after the Git commit. The committed memory is safe, "
+        "and Perenna will retry before the next non-empty search. Check the Vexor provider "
+        "configuration and access to the local index directory."
+    )
+
+
+def _query_failed() -> IndexUnavailableError:
+    return IndexUnavailableError(
+        "Memory search query failed against the current index. Perenna invalidated the index and "
+        "will rebuild it before the next non-empty search. Check the Vexor provider configuration "
+        "and access to the local index directory."
+    )
+
+
+def _marker_failed(operation: str) -> IndexUnavailableError:
+    return IndexUnavailableError(
+        f"Memory search index state could not be {operation} in the local index directory. Check "
+        "directory permissions. Stop every Perenna process using this home before moving or "
+        "deleting that directory."
     )

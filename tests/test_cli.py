@@ -29,7 +29,7 @@ def test_main_reports_version(flag: str, capsys) -> None:
 
 
 def test_main_resolves_settings_builds_core_and_runs_stdio(tmp_path: Path, monkeypatch) -> None:
-    settings = RuntimeSettings(RuntimePaths(tmp_path / "home"), "codex", None)
+    settings = RuntimeSettings(RuntimePaths(tmp_path / "home"), None)
     core = object()
     observed: list[object] = []
 
@@ -40,12 +40,12 @@ def test_main_resolves_settings_builds_core_and_runs_stdio(tmp_path: Path, monke
     monkeypatch.setattr(cli, "PerennaCore", lambda value: core if value is settings else None)
     monkeypatch.setattr(cli, "run_stdio", fake_run_stdio)
 
-    assert cli.main(["mcp", "--source", "codex", "--home", str(tmp_path)]) == 0
+    assert cli.main(["mcp", "--home", str(tmp_path)]) == 0
     assert observed == [core]
 
 
 def test_main_runs_authenticated_http_server(tmp_path: Path, monkeypatch) -> None:
-    settings = RuntimeSettings(RuntimePaths(tmp_path / "home"), "chatgpt-web", None)
+    settings = RuntimeSettings(RuntimePaths(tmp_path / "home"), None)
     remote = RemoteSettings(
         public_url="https://memory.example.com/mcp",
         issuer="https://tenant.example.com/",
@@ -70,8 +70,6 @@ def test_main_runs_authenticated_http_server(tmp_path: Path, monkeypatch) -> Non
         cli.main(
             [
                 "serve",
-                "--source",
-                "chatgpt-web",
                 "--home",
                 str(tmp_path),
                 "--host",
@@ -85,7 +83,7 @@ def test_main_runs_authenticated_http_server(tmp_path: Path, monkeypatch) -> Non
     assert observed == [(core, remote, "0.0.0.0", 8788)]
 
 
-def test_sync_setup_and_status_do_not_require_source_or_vexor(
+def test_sync_setup_and_status_do_not_require_vexor(
     tmp_path: Path,
     capsys,
     monkeypatch,
@@ -100,7 +98,6 @@ def test_sync_setup_and_status_do_not_require_source_or_vexor(
         encoding="utf-8",
     )
     monkeypatch.delenv("PERENNA_GIT_REMOTE", raising=False)
-    monkeypatch.delenv("PERENNA_SOURCE", raising=False)
     monkeypatch.delenv("VEXOR_CONFIG_JSON", raising=False)
 
     assert cli.main(["sync", "setup", str(remote), "--home", str(home)]) == 0
@@ -298,7 +295,7 @@ def test_main_reports_expected_startup_error_on_stderr(capsys, monkeypatch) -> N
 
     monkeypatch.setattr(cli, "resolve_settings", fail)
 
-    assert cli.main(["mcp", "--source", "codex"]) == 2
+    assert cli.main(["mcp"]) == 2
     captured = capsys.readouterr()
     assert captured.out == ""
     assert "specific recovery guidance" in captured.err
@@ -311,7 +308,7 @@ def test_main_handles_keyboard_interrupt(monkeypatch) -> None:
         raise KeyboardInterrupt
 
     monkeypatch.setattr(cli, "PerennaCore", interrupt)
-    assert cli.main(["mcp", "--source", "codex"]) == 130
+    assert cli.main(["mcp"]) == 130
 
 
 def test_main_hides_unexpected_exception_details(capsys, caplog, monkeypatch) -> None:
@@ -322,7 +319,7 @@ def test_main_hides_unexpected_exception_details(capsys, caplog, monkeypatch) ->
 
     monkeypatch.setattr(cli, "resolve_settings", fail)
 
-    assert cli.main(["mcp", "--source", "codex"]) == 1
+    assert cli.main(["mcp"]) == 1
     captured = capsys.readouterr()
     assert captured.out == ""
     assert "startup failed" in captured.err

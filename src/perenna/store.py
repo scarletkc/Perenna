@@ -26,7 +26,6 @@ from perenna.models import (
     next_update_time,
     normalize_body,
     normalize_project,
-    normalize_source,
     normalize_summary,
     normalize_title,
     scope_for_project,
@@ -73,13 +72,11 @@ class MemoryStore:
         title: str,
         summary: str,
         body: str,
-        source: str,
         project: str | None,
     ) -> MutationReceipt:
         normalized_title = _validated("title", normalize_title, title)
         normalized_summary = _validated("summary", normalize_summary, summary)
         normalized_body = _validated("body", normalize_body, body)
-        normalized_source = _validated("source", normalize_source, source)
         normalized_project = (
             None if project is None else _validated("project", normalize_project, project)
         )
@@ -111,7 +108,6 @@ class MemoryStore:
             id=memory_id,
             title=normalized_title,
             summary=normalized_summary,
-            source=normalized_source,
             created_at=created_at,
             updated_at=created_at,
             body=normalized_body,
@@ -126,12 +122,10 @@ class MemoryStore:
         memory_id: str,
         base_revision: str,
         edits: Sequence[PatchEdit],
-        source: str,
         summary: str | None = None,
     ) -> MutationReceipt:
         normalized_id = _validated("id", validate_ulid, memory_id)
         normalized_revision = _validated("revision", validate_revision, base_revision)
-        normalized_source = _validated("source", normalize_source, source)
         normalized_summary = (
             None if summary is None else _validated("summary", normalize_summary, summary)
         )
@@ -148,7 +142,6 @@ class MemoryStore:
             previous,
             summary=next_summary,
             body=body,
-            source=normalized_source,
         )
         return self._commit_memory(memory, previous=previous, snapshot=snapshot, operation="patch")
 
@@ -159,13 +152,11 @@ class MemoryStore:
         base_revision: str,
         summary: str,
         body: str,
-        source: str,
     ) -> MutationReceipt:
         normalized_id = _validated("id", validate_ulid, memory_id)
         normalized_revision = _validated("revision", validate_revision, base_revision)
         normalized_summary = _validated("summary", normalize_summary, summary)
         normalized_body = _validated("body", normalize_body, body)
-        normalized_source = _validated("source", normalize_source, source)
 
         snapshot = self._writable_snapshot()
         previous = _memory_by_id(snapshot, normalized_id)
@@ -176,7 +167,6 @@ class MemoryStore:
             previous,
             summary=normalized_summary,
             body=normalized_body,
-            source=normalized_source,
         )
         return self._commit_memory(
             memory,
@@ -231,13 +221,11 @@ class MemoryStore:
         *,
         summary: str,
         body: str,
-        source: str,
     ) -> Memory:
         return Memory(
             id=previous.id,
             title=previous.title,
             summary=summary,
-            source=source,
             created_at=previous.created_at,
             updated_at=format_timestamp(next_update_time(self._clock(), previous.updated_at)),
             body=body,
@@ -462,8 +450,6 @@ def _validated(name: str, normalizer: Callable[[str], str], value: str) -> str:
                 "Use at most 64 lowercase letters, digits, dots, underscores, or hyphens; "
                 "path traversal is not allowed."
             )
-        elif name == "source":
-            guidance = "Configure a 1-64 character source in the host process."
         elif name == "revision":
             guidance = "Get the memory again and use its current revision."
         else:

@@ -63,7 +63,6 @@ def test_snapshot_pins_every_git_read_to_captured_commit(tmp_path: Path, monkeyp
         title="Pinned",
         summary="A pinned memory.",
         body="Original",
-        source="codex",
         project=None,
     )
     captured_head = repository.head()
@@ -99,7 +98,6 @@ def test_unfinished_git_operation_blocks_write(tmp_path: Path) -> None:
         title="Existing",
         summary="An existing memory.",
         body="Body",
-        source="codex",
         project=None,
     )
     repository._git_path("MERGE_HEAD").write_text(f"{repository.head()}\n", encoding="ascii")
@@ -109,7 +107,6 @@ def test_unfinished_git_operation_blocks_write(tmp_path: Path) -> None:
             title="Second",
             summary="A second memory.",
             body="Body",
-            source="codex",
             project=None,
         )
 
@@ -127,7 +124,6 @@ def test_perenna_commit_ignores_repository_hooks(tmp_path: Path) -> None:
         title="Hook-independent",
         summary="A hook-independent memory.",
         body="Body",
-        source="codex",
         project=None,
     )
 
@@ -210,7 +206,7 @@ def test_atomic_replace_preserves_existing_file_mode(tmp_path: Path) -> None:
     assert stat.S_IMODE(target.stat().st_mode) == 0o755
 
 
-def test_marker_filesystem_errors_are_reported_as_index_unavailable(
+def test_marker_filesystem_errors_have_local_storage_guidance(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
@@ -220,8 +216,11 @@ def test_marker_filesystem_errors_are_reported_as_index_unavailable(
         raise PermissionError("denied")
 
     monkeypatch.setattr(type(index.marker_path), "unlink", fail_unlink)
-    with pytest.raises(IndexUnavailableError, match="index is unavailable"):
+    with pytest.raises(IndexUnavailableError, match="could not be removed") as exc_info:
         index.invalidate()
+
+    assert "local index directory" in str(exc_info.value)
+    assert "Vexor provider configuration" not in str(exc_info.value)
 
 
 def test_git_repository_ignores_host_repository_and_identity_overrides(
@@ -246,7 +245,6 @@ def test_git_repository_ignores_host_repository_and_identity_overrides(
         title="Isolated",
         summary="An isolated memory.",
         body="Body",
-        source="codex",
         project=None,
     )
 
@@ -266,7 +264,6 @@ def test_detached_head_refuses_memory_write(tmp_path: Path) -> None:
         title="Attached",
         summary="An attached memory.",
         body="Body",
-        source="codex",
         project=None,
     )
     repository._run(["checkout", "--quiet", "--detach", "HEAD"])
@@ -277,7 +274,6 @@ def test_detached_head_refuses_memory_write(tmp_path: Path) -> None:
             title="Detached",
             summary="A detached memory.",
             body="Body",
-            source="codex",
             project=None,
         )
 
@@ -299,7 +295,6 @@ def test_frontmatter_non_string_keys_return_recoverable_validation_error(
         f'id: "{memory_id}"\n'
         'title: "Title"\n'
         'summary: "What this memory covers."\n'
-        'source: "codex"\n'
         'created_at: "2026-08-22T00:00:00.000000Z"\n'
         'updated_at: "2026-08-22T00:00:00.000000Z"\n'
         "---\n\nBody\n"

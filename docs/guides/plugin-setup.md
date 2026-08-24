@@ -36,7 +36,7 @@ codex plugin add perenna@perenna
 Start a new Codex session after installation. The plugin starts:
 
 ```text
-perenna mcp --source codex
+perenna mcp
 ```
 
 Inspect the installed plugin and its Marketplace with:
@@ -65,7 +65,7 @@ claude plugin install perenna@perenna
 Start a new Claude Code session after installation. The plugin starts:
 
 ```text
-perenna mcp --source claude-code
+perenna mcp
 ```
 
 Inspect or update the installed plugin with:

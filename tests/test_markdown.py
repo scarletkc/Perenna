@@ -17,7 +17,6 @@ from perenna.models import (
     next_update_time,
     normalize_body,
     normalize_project,
-    normalize_source,
     normalize_summary,
     normalize_title,
     parse_timestamp,
@@ -35,7 +34,6 @@ def _memory(*, relative_path: str | None = None, scope: str = "global") -> Memor
         id=MEMORY_ID,
         title="Release notes",
         summary="What the release notes cover.",
-        source="codex",
         created_at=CREATED_AT,
         updated_at=CREATED_AT,
         body="First line\nSecond line",
@@ -62,7 +60,6 @@ def test_title_rejects_empty_and_overlong_values(title: str) -> None:
         (normalize_summary, "summary must be a string"),
         (normalize_body, "body must be a string"),
         (normalize_project, "project must be a string"),
-        (normalize_source, "source must be a string"),
     ],
 )
 def test_normalizers_reject_non_string_values(normalizer, message: str) -> None:  # type: ignore[no-untyped-def]
@@ -150,7 +147,6 @@ def test_serialized_frontmatter_has_only_the_canonical_fields_in_order() -> None
         "id",
         "title",
         "summary",
-        "source",
         "created_at",
         "updated_at",
     }
@@ -215,7 +211,6 @@ def test_parser_rejects_invalid_document_structure(
             'summary: " What the release notes cover. "',
             "summary is not normalized",
         ),
-        ('source: "codex"', 'source: " codex "', "source is not normalized"),
         (
             f'updated_at: "{CREATED_AT}"',
             'updated_at: "2026-08-22T01:02:02.000000Z"',
@@ -252,10 +247,13 @@ def test_parser_rejects_noncanonical_memory_paths(relative_path: str, message: s
     "mutate",
     [
         lambda text: text.replace('summary: "What the release notes cover."\n', ""),
-        lambda text: text.replace('source: "codex"\n', ""),
         lambda text: text.replace(
-            'source: "codex"\n',
-            'source: "codex"\nproject: "perenna"\n',
+            'summary: "What the release notes cover."\n',
+            'summary: "What the release notes cover."\nsource: "codex"\n',
+        ),
+        lambda text: text.replace(
+            'summary: "What the release notes cover."\n',
+            'summary: "What the release notes cover."\nproject: "perenna"\n',
         ),
     ],
 )

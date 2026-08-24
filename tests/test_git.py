@@ -27,14 +27,13 @@ def _write_one(repository: GitRepository) -> str:
         title="Fact",
         summary="A fact.",
         body="body",
-        source="codex",
         project=None,
     ).commit
 
 
 def test_core_initializes_runtime_directories_and_memory_repository(tmp_path: Path) -> None:
     home = tmp_path / "nested" / "perenna"
-    settings = RuntimeSettings(RuntimePaths(home), source="codex", git_remote=None)
+    settings = RuntimeSettings(RuntimePaths(home), git_remote=None)
 
     core = PerennaCore(settings, index=object())  # type: ignore[arg-type]
 
@@ -104,7 +103,6 @@ def test_create_and_replace_create_two_commits(
         title="Fact",
         summary="A fact.",
         body="one",
-        source="claude-code",
         project=None,
     )
     second = store.replace(
@@ -112,7 +110,6 @@ def test_create_and_replace_create_two_commits(
         base_revision=memory_revision(first.memory),
         summary="An updated fact.",
         body="two",
-        source="cursor",
     )
 
     assert first.previous_commit is None

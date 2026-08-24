@@ -2,7 +2,7 @@
 
 This plugin bundles the `perenna-memory` Agent Skill with a local stdio MCP
 connection. The Codex and Claude packages start the same installed Perenna
-command with host-specific source identities.
+command.
 
 ## Before installing
 

@@ -36,7 +36,6 @@ body:
 id: "01K35Z9V6Y8X2W4T7R1Q5M3N0P"
 title: "AI collaboration preferences"
 summary: "Stable preferences for collaborating with AI agents."
-source: "claude-code"
 created_at: "2026-08-23T07:10:00.000000Z"
 updated_at: "2026-08-23T07:10:00.000000Z"
 ---
@@ -46,13 +45,12 @@ Complete clear tasks autonomously.
 Explain decisions that materially affect architecture or risk.
 ```
 
-Frontmatter permits exactly six fields, in this order:
+Frontmatter permits exactly five fields, in this order:
 
 ```text
 id
 title
 summary
-source
 created_at
 updated_at
 ```
@@ -67,12 +65,16 @@ string. Perenna serializes each value as a quoted YAML string.
 | `id` | Stable Perenna-generated ULID |
 | `title` | Normalized long-term topic, unique within one scope |
 | `summary` | Stable one-sentence description of what the memory covers |
-| `source` | Host that most recently changed the memory |
 | `created_at` | RFC 3339 creation timestamp; preserved on mutation |
 | `updated_at` | RFC 3339 timestamp of the latest mutation |
 
 Perenna writes UTC timestamps with a `Z` suffix. A manually written timestamp
 must include an RFC 3339 timezone. `updated_at` cannot precede `created_at`.
+
+The removed `source` field is not accepted. Before upgrading a repository from
+the earlier six-field format, remove `source` from every memory in the current
+tree and commit that exact conversion. The conversion changes every affected
+memory revision, so clients must read those memories again before mutating them.
 
 ## ULID rules
 
@@ -135,17 +137,6 @@ converts the project to lowercase. The result must:
 
 The slug is a path component and is not stored in frontmatter.
 
-## Source normalization
-
-Source is injected by the host. Perenna applies NFKC normalization, removes
-surrounding whitespace, and requires:
-
-- 1 to 64 characters;
-- an ASCII letter or digit first;
-- only ASCII letters, digits, `.`, `_`, and `-` afterward.
-
-Source case is preserved.
-
 ## Body normalization
 
 The body must:
@@ -169,7 +160,6 @@ complete body.
 | `title` | Store normalized input | Preserve | Preserve |
 | scope | Derive from project | Preserve | Preserve |
 | `summary` | Store complete input | Preserve or replace explicitly | Replace completely |
-| `source` | Current host | Current host | Current host |
 | `created_at` | Current time | Preserve | Preserve |
 | `updated_at` | Current time | Advance | Advance |
 | body | Store complete input | Apply exact edits | Replace completely |
@@ -190,7 +180,7 @@ Perenna rejects a committed snapshot instead of silently skipping data when:
 - an ID appears more than once;
 - one scope contains duplicate normalized titles;
 - a timestamp is invalid or ordered incorrectly;
-- a title, summary, body, source, or project violates this contract.
+- a title, summary, body, or project violates this contract.
 
 The error identifies the trusted relative path and asks the user to repair and
 commit the file. It does not log the summary or body.

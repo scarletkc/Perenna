@@ -22,6 +22,7 @@ from perenna.models import Memory, MemorySnapshot, MutationReceipt
 class FakeCollection:
     records: dict[str, dict[str, Any]]
     exists: bool = False
+    fail_drop: bool = False
     fail_upsert: bool = False
 
     def __post_init__(self) -> None:
@@ -37,6 +38,8 @@ class FakeCollection:
         return len(self.records)
 
     def drop(self) -> bool:
+        if self.fail_drop:
+            raise RuntimeError("local collection failed")
         existed = self.exists
         self.records.clear()
         self.exists = False
@@ -331,8 +334,10 @@ def test_provider_failure_does_not_advance_marker_and_can_retry(tmp_path: Path) 
         (_memory("01K00000000000000000000001", "global", "global/a.md"),),
     )
 
-    with pytest.raises(IndexUnavailableError, match="retry recovery"):
+    with pytest.raises(IndexUnavailableError, match="rebuild failed") as exc_info:
         index.rebuild(snapshot)
+    assert "committed memory is safe" in str(exc_info.value)
+    assert "Vexor provider configuration" in str(exc_info.value)
     assert index.indexed_commit() is None
 
     collection.fail_upsert = False
@@ -356,8 +361,9 @@ def test_sync_mismatch_and_search_provider_failure_are_wrapped(tmp_path: Path) -
         raise RuntimeError("provider unavailable")
 
     collection.search = fail_search  # type: ignore[method-assign]
-    with pytest.raises(IndexUnavailableError, match="index is unavailable"):
+    with pytest.raises(IndexUnavailableError, match="query failed") as exc_info:
         index.search(snapshot, "query", None)
+    assert "invalidated the index" in str(exc_info.value)
 
 
 def test_empty_snapshots_and_invalid_limits_have_clear_behavior(tmp_path: Path) -> None:
@@ -388,15 +394,29 @@ def test_collection_failures_and_marker_errors_are_wrapped(
         raise RuntimeError("broken database")
 
     collection.info = fail_info  # type: ignore[method-assign]
-    with pytest.raises(IndexUnavailableError, match="index is unavailable"):
+    with pytest.raises(IndexUnavailableError, match="could not be inspected"):
         index.is_current(snapshot)
 
     def fail_replace(_path: Path, _data: bytes) -> None:
         raise PermissionError("denied")
 
     monkeypatch.setattr("perenna.index.atomic_replace", fail_replace)
-    with pytest.raises(IndexUnavailableError, match="index is unavailable"):
+    with pytest.raises(IndexUnavailableError, match="could not be updated") as exc_info:
         index.rebuild(MemorySnapshot("5" * 40, ()))
+    assert "Vexor provider configuration" not in str(exc_info.value)
+
+
+def test_local_collection_reset_failure_has_storage_recovery_guidance(tmp_path: Path) -> None:
+    collection = FakeCollection({}, fail_drop=True)
+    index = VexorIndex(tmp_path, client_factory=FakeClientFactory(collection))
+
+    with pytest.raises(IndexUnavailableError, match="could not reset") as exc_info:
+        index.rebuild(MemorySnapshot("6" * 40, ()))
+
+    message = str(exc_info.value)
+    assert "committed Git memory is safe" in message
+    assert "local index directory" in message
+    assert "Vexor provider configuration" not in message
 
 
 def test_client_without_close_method_is_supported(tmp_path: Path) -> None:
@@ -420,7 +440,6 @@ def _memory(memory_id: str, scope: str, path: str) -> Memory:
         id=memory_id,
         title="Title",
         summary="What this memory covers.",
-        source="codex",
         created_at="2026-08-22T00:00:00.000000Z",
         updated_at="2026-08-22T00:00:00.000000Z",
         body="Body",

@@ -5,9 +5,6 @@ Streamable HTTP. All successful calls return structured content plus a short
 text summary. Unknown fields, explicit `null` values, and fields belonging to
 another action are rejected.
 
-`source` is never accepted from a tool call. The host supplies it through
-trusted startup configuration.
-
 Remote HTTP advertises OAuth in each tool's MCP metadata and enforces one
 scope per tool: `memory:read`, `memory:write`, or `memory:delete`. Missing,
 invalid, or insufficient credentials fail before the core operation. Local
@@ -88,7 +85,7 @@ Project filtering happens before scoring. With a project, only `global` and
 
 Get reads one complete memory directly from the committed Git snapshot. It does
 not call semantic search. The result contains identity, scope, authoritative
-summary, source and timestamps, complete body, and current revision.
+summary, timestamps, complete body, and current revision.
 
 ## `memory_write`
 
@@ -202,8 +199,9 @@ also contains:
 - `sync_status`, one of `local`, `synchronized`, `pending`, `conflict`, or
   `unchanged`.
 
-`pending` means the Git mutation succeeded but the rebuildable Vexor index did
-not synchronize. A later search retries recovery.
+`pending` means the Git mutation succeeded but that mutation's synchronous
+Vexor rebuild failed. It does not mean that a background indexing job is still
+running. The next non-empty search retries the rebuild before querying memory.
 
 For `sync_status`, `local` means no remote is configured, `synchronized` means
 the remote contains the changed commit, and `unchanged` means no commit or push
@@ -223,7 +221,8 @@ tool result with `isError: true` and actionable text. Common cases include:
 - stale revision, missing memory, or ambiguous patch anchor;
 - a dirty, detached, or unfinished memory repository;
 - damaged committed Markdown;
-- an unavailable embedding provider or index.
+- an embedding or query failure while rebuilding or searching;
+- an unavailable local index collection, directory, or commit marker.
 
 Unexpected failures return a generic error without exposing bodies, summaries,
 queries, provider responses, credentials, or complete request payloads.

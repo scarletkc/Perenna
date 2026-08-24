@@ -3,9 +3,7 @@
     "perenna": {
       "command": "perenna",
       "args": [
-        "mcp",
-        "--source",
-        "codex"
+        "mcp"
       ],
       "env_vars": [
         "PERENNA_GIT_REMOTE",

@@ -59,7 +59,6 @@ def test_create_then_replace_preserves_identity_and_creation_time(
         title="  Release   notes ",
         summary="Release note policy.",
         body="first\r\nbody",
-        source="claude-code",
         project="Perenna",
     )
     updated = store.replace(
@@ -67,7 +66,6 @@ def test_create_then_replace_preserves_identity_and_creation_time(
         base_revision=memory_revision(created.memory),
         summary="Updated release note policy.",
         body="updated body",
-        source="cursor",
     )
 
     assert created.operation == "create"
@@ -76,7 +74,6 @@ def test_create_then_replace_preserves_identity_and_creation_time(
     assert updated.memory.relative_path == created.memory.relative_path
     assert updated.memory.created_at == created.memory.created_at
     assert updated.memory.updated_at > created.memory.updated_at
-    assert updated.memory.source == "cursor"
     assert updated.memory.body == "updated body"
     assert updated.previous_commit == created.commit
     assert updated.commit != created.commit
@@ -96,14 +93,12 @@ def test_same_title_in_different_scopes_creates_distinct_memories(
         title="Fact",
         summary="A global fact.",
         body="global",
-        source="codex",
         project=None,
     )
     project_memory = store.create(
         title="fact",
         summary="A project fact.",
         body="project",
-        source="codex",
         project="perenna",
     )
 
@@ -123,7 +118,6 @@ def test_snapshot_reuses_validated_snapshot_while_head_is_unchanged(
         title="Fact",
         summary="A cached fact.",
         body="cached body",
-        source="codex",
         project=None,
     )
     cached_store = MemoryStore(repository)
@@ -159,7 +153,6 @@ def test_snapshot_reloads_after_external_commit(repository: GitRepository) -> No
         title="Fact",
         summary="A cached fact.",
         body="first body",
-        source="codex",
         project=None,
     )
     first = store.snapshot()
@@ -179,9 +172,7 @@ def test_snapshot_reloads_after_external_commit(repository: GitRepository) -> No
 
 def test_snapshot_rejects_duplicate_ids(repository: GitRepository) -> None:
     store = _store(repository)
-    created = store.create(
-        title="First", summary="The first fact.", body="one", source="codex", project=None
-    )
+    created = store.create(title="First", summary="The first fact.", body="one", project=None)
     duplicate = replace(
         created.memory,
         title="Second",
@@ -196,9 +187,7 @@ def test_snapshot_rejects_duplicate_ids(repository: GitRepository) -> None:
 
 def test_snapshot_rejects_duplicate_normalized_titles(repository: GitRepository) -> None:
     store = _store(repository)
-    created = store.create(
-        title="Straße", summary="A normalized fact.", body="one", source="codex", project=None
-    )
+    created = store.create(title="Straße", summary="A normalized fact.", body="one", project=None)
     duplicate = replace(
         created.memory,
         id=SECOND_ID,
@@ -239,7 +228,6 @@ def test_commit_failure_rolls_back_updated_file_and_git_index(
         title="Fact",
         summary="A committed fact.",
         body="committed body",
-        source="codex",
         project=None,
     )
     target = repository.worktree_path(created.memory.relative_path)
@@ -257,7 +245,6 @@ def test_commit_failure_rolls_back_updated_file_and_git_index(
             base_revision=memory_revision(created.memory),
             summary="A committed fact.",
             body="uncommitted body",
-            source="cursor",
         )
 
     assert target.read_bytes() == previous_bytes
@@ -283,7 +270,6 @@ def test_commit_failure_removes_a_new_memory_file(
             title="Fact",
             summary="A fact.",
             body="body",
-            source="codex",
             project=None,
         )
 
@@ -301,7 +287,6 @@ def test_dirty_repository_refuses_write_but_snapshot_reads_committed_head(
         title="Fact",
         summary="A committed fact.",
         body="committed body",
-        source="codex",
         project=None,
     )
     target = repository.worktree_path(created.memory.relative_path)
@@ -316,7 +301,6 @@ def test_dirty_repository_refuses_write_but_snapshot_reads_committed_head(
             base_revision=memory_revision(created.memory),
             summary="A committed fact.",
             body="replacement",
-            source="cursor",
         )
     assert target.read_text(encoding="utf-8") == "uncommitted edit"
 
@@ -332,7 +316,6 @@ def test_storage_does_not_log_memory_body(
         title="Fact",
         summary="A private fact.",
         body=secret_body,
-        source="codex",
         project=None,
     )
 
@@ -343,13 +326,9 @@ def test_create_is_idempotent_only_when_existing_body_matches(
     repository: GitRepository,
 ) -> None:
     store = _store(repository)
-    created = store.create(
-        title="Fact", summary="A fact.", body="body", source="codex", project=None
-    )
+    created = store.create(title="Fact", summary="A fact.", body="body", project=None)
 
-    repeated = store.create(
-        title="fact", summary="A fact.", body="body", source="cursor", project=None
-    )
+    repeated = store.create(title="fact", summary="A fact.", body="body", project=None)
 
     assert not repeated.changed
     assert repeated.memory == created.memory
@@ -359,7 +338,6 @@ def test_create_is_idempotent_only_when_existing_body_matches(
             title="FACT",
             summary="A fact.",
             body="different",
-            source="cursor",
             project=None,
         )
     assert repository._run(["rev-list", "--count", "HEAD"]).stdout.strip() == "1"
@@ -375,7 +353,6 @@ def test_create_rejects_a_generated_duplicate_id(repository: GitRepository) -> N
         title="First",
         summary="The first memory.",
         body="one",
-        source="codex",
         project=None,
     )
 
@@ -384,7 +361,6 @@ def test_create_rejects_a_generated_duplicate_id(repository: GitRepository) -> N
             title="Second",
             summary="The second memory.",
             body="two",
-            source="codex",
             project=None,
         )
 
@@ -397,7 +373,6 @@ def test_patch_applies_exact_non_overlapping_edits_and_rejects_stale_revision(
         title="Policy",
         summary="Rules governing the policy.",
         body="Alpha rule.\nBeta rule.",
-        source="codex",
         project=None,
     )
 
@@ -408,7 +383,6 @@ def test_patch_applies_exact_non_overlapping_edits_and_rejects_stale_revision(
             PatchEdit("Alpha", "Current alpha"),
             PatchEdit("Beta", "Current beta"),
         ),
-        source="cursor",
     )
 
     assert patched.memory.body == "Current alpha rule.\nCurrent beta rule."
@@ -418,7 +392,6 @@ def test_patch_applies_exact_non_overlapping_edits_and_rejects_stale_revision(
             memory_id=created.memory.id,
             base_revision=memory_revision(created.memory),
             edits=(PatchEdit("Current alpha", "Other"),),
-            source="cursor",
         )
 
 
@@ -430,7 +403,6 @@ def test_patch_rejects_missing_ambiguous_and_overlapping_anchors(
         title="Policy",
         summary="Rules governing the policy.",
         body="repeat repeat and tail",
-        source="codex",
         project=None,
     )
     revision = memory_revision(created.memory)
@@ -440,14 +412,12 @@ def test_patch_rejects_missing_ambiguous_and_overlapping_anchors(
             memory_id=created.memory.id,
             base_revision=revision,
             edits=(PatchEdit("missing", "new"),),
-            source="codex",
         )
     with pytest.raises(MemoryConflictError, match="more than once"):
         store.patch(
             memory_id=created.memory.id,
             base_revision=revision,
             edits=(PatchEdit("repeat", "new"),),
-            source="codex",
         )
     with pytest.raises(MemoryConflictError, match="overlap"):
         store.patch(
@@ -457,7 +427,6 @@ def test_patch_rejects_missing_ambiguous_and_overlapping_anchors(
                 PatchEdit("repeat repeat", "new"),
                 PatchEdit("repeat and", "other"),
             ),
-            source="codex",
         )
 
 
@@ -467,7 +436,6 @@ def test_patch_validation_and_noop_paths_are_explicit(repository: GitRepository)
         title="Policy",
         summary="Rules governing the policy.",
         body="Alpha rule.",
-        source="codex",
         project=None,
     )
     revision = memory_revision(created.memory)
@@ -476,7 +444,6 @@ def test_patch_validation_and_noop_paths_are_explicit(repository: GitRepository)
         memory_id=created.memory.id,
         base_revision=revision,
         edits=(PatchEdit("Alpha", "Alpha"),),
-        source="cursor",
     )
     assert not unchanged.changed
 
@@ -485,7 +452,6 @@ def test_patch_validation_and_noop_paths_are_explicit(repository: GitRepository)
         base_revision=revision,
         summary=created.memory.summary,
         body=created.memory.body,
-        source="cursor",
     )
     assert not unchanged_replace.changed
 
@@ -494,35 +460,30 @@ def test_patch_validation_and_noop_paths_are_explicit(repository: GitRepository)
             memory_id=SECOND_ID,
             base_revision=revision,
             edits=(PatchEdit("Alpha", "Beta"),),
-            source="cursor",
         )
     with pytest.raises(MemoryValidationError, match="at least one exact edit"):
         store.patch(
             memory_id=created.memory.id,
             base_revision=revision,
             edits=(),
-            source="cursor",
         )
     with pytest.raises(MemoryValidationError, match="old_text is empty"):
         store.patch(
             memory_id=created.memory.id,
             base_revision=revision,
             edits=(PatchEdit("", "Beta"),),
-            source="cursor",
         )
     with pytest.raises(MemoryValidationError, match="control character"):
         store.patch(
             memory_id=created.memory.id,
             base_revision=revision,
             edits=(PatchEdit("Alpha", "bad\x00text"),),
-            source="cursor",
         )
     with pytest.raises(MemoryValidationError, match="not canonical"):
         store.patch(
             memory_id=created.memory.id,
             base_revision=revision,
             edits=(PatchEdit("Alpha rule.", "\nBeta rule.\n"),),
-            source="cursor",
         )
 
 
@@ -534,7 +495,6 @@ def test_delete_requires_title_and_revision_and_commits_one_file(
         title="Fact",
         summary="A project fact.",
         body="body",
-        source="codex",
         project="perenna",
     )
     revision = memory_revision(created.memory)
@@ -567,7 +527,6 @@ def test_delete_commit_failure_restores_file_and_git_index(
         title="Fact",
         summary="A recoverable fact.",
         body="body",
-        source="codex",
         project=None,
     )
     target = repository.worktree_path(created.memory.relative_path)

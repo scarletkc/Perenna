@@ -86,6 +86,8 @@ collection.
   causes another full rebuild.
 - The marker advances only after successful indexing.
 - A failed search invalidates the marker so a later search retries recovery.
+- Rebuilds are synchronous. `index_status: pending` records a failed rebuild;
+  it does not describe a background job that is still running.
 
 Each chunk carries memory ID, scope, path, per-memory revision, chunk ordinal,
 and exact body range. Search cross-checks all of them against the captured Git
@@ -143,7 +145,7 @@ Perenna never resolves a diverged history automatically.
 | Dirty repository or unfinished Git operation | Mutation failure; reads continue | User changes remain untouched |
 | Atomic replacement or deletion failure | Mutation failure | Original file remains |
 | Git stage or commit failure | Mutation failure | File and Git index are restored when safe |
-| Vexor rebuild failure after commit | Mutation succeeds with `index_status: pending` | Local Git commit remains; marker does not advance |
+| Vexor rebuild failure after commit | Mutation succeeds with `index_status: pending`; next non-empty search retries | Local Git commit remains; marker does not advance |
 | Remote unavailable or push rejected without divergence | Mutation succeeds with `sync_status: pending` | Local commit remains |
 | Remote history diverged | Mutation succeeds with `sync_status: conflict`; later writes stop | Local and remote commits remain unchanged |
 

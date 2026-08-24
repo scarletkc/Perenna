@@ -41,17 +41,21 @@ Perenna gives them one **shared, Git-backed memory**. Local agents and ChatGPT
 can connect to the same self-hosted Perenna service, while every durable memory
 stays ordinary Markdown you can inspect, edit, version, and back up yourself.
 
-| | Perenna | [AgentMemory](https://github.com/rohitg00/agentmemory) | [Mem0](https://github.com/mem0ai/mem0) |
+| Design point | Perenna | [AgentMemory](https://github.com/rohitg00/agentmemory) | [Mem0](https://github.com/mem0ai/mem0) |
 | --- | --- | --- | --- |
-| Durable state | Markdown in your Git repository | Runtime-managed persistent state | Memory service with pluggable storage |
-| MCP surface | 3 memory tools | Broad MCP/API surface | SDK/API-first memory layer |
-| Writes | Explicit agent writes with revision guards | Hooks, skills, and automation | Automatic and explicit memory workflows |
-| Retrieval | Rebuildable Vexor index | BM25, vector, graph, and hybrid search | Semantic memory retrieval |
-| UI | None | Real-time viewer | Hosted dashboard available |
-| Best fit | Small, inspectable, Git-native shared memory | Feature-rich agent memory platform | Managed or embedded application memory |
+| Source of truth | **Ordinary Markdown in your Git repository** | iii-managed persistent runtime state | Memory service backed by configured storage |
+| Inspect and edit without the memory runtime | **Yes — use normal editors and Git tools** | Runtime/API-oriented state | Library/API/storage-oriented state |
+| Version history | **Native Git history; one commit per changed mutation** | Runtime-managed persistence | Backend-managed persistence |
+| Write safety | **Revision-guarded exact patches reject stale updates** | Runtime-managed writes | API/library-managed writes |
+| Sync conflicts | **Diverged Git history blocks writes until you reconcile it** | Runtime-managed coordination | Backend/service-managed coordination |
+| Retrieval state | **Disposable Vexor index; rebuild it from committed Markdown** | Search state managed by the runtime | Search/index state managed by configured backends |
+| Core agent surface | **3 focused MCP tools** | 54 MCP tools plus hooks and skills | SDK/API/CLI-oriented memory layer |
+| Runtime model | **stdio locally; one self-hosted service for remote clients** | iii engine plus memory server, streams, viewer, and worker processes | Self-hosted server stack or managed cloud |
 
-Perenna is deliberately narrow: **no account, no proprietary memory cloud, no
-lock-in.** The retrieval index is disposable. The Markdown is not.
+Perenna optimizes for ownership and recoverability over automation breadth:
+**your Git repository is the durable memory, every changed mutation is auditable,
+conflicts fail closed, and the retrieval index can always be thrown away and
+rebuilt.**
 
 ## Quickstart
 

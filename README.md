@@ -10,7 +10,7 @@
 [![Codecov](https://img.shields.io/codecov/c/github/scarletkc/Perenna/main)](https://codecov.io/github/scarletkc/Perenna)
 [![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/scarletkc/Perenna?utm_source=oss&utm_medium=github&utm_campaign=scarletkc%2FPerenna&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)](https://coderabbit.ai)
 [![License](https://img.shields.io/github/license/scarletkc/Perenna.svg)](https://github.com/scarletkc/Perenna/blob/main/LICENSE)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/badge.svg)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/scarletkc/Perenna)
 [![perenna MCP server](https://glama.ai/mcp/servers/scarletkc/perenna/badges/score.svg)](https://glama.ai/mcp/servers/scarletkc/perenna)
 
 </div>

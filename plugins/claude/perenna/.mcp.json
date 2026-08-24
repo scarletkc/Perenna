@@ -3,9 +3,7 @@
     "perenna": {
       "command": "perenna",
       "args": [
-        "mcp",
-        "--source",
-        "claude-code"
+        "mcp"
       ]
     }
   }

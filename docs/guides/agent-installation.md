@@ -43,15 +43,14 @@ Use these as the source of truth:
    process. Verify setup and status in that environment. Treat repository
    creation, remote replacement, and reconciling diverged history as separate
    choices that require my explicit approval.
-6. On the standalone path, register `perenna mcp --source <stable-client-name>`
-   using the client-specific method in the setup guide. Preserve unrelated MCP
-   servers and settings. Use a stable source such as `claude-code`, `codex`, or
-   `cursor` for this client. For another client, use its official instructions
-   for adding a local stdio MCP server. On the plugin path, retain the bundled
-   Perenna MCP connection and skip standalone registration. Make sure the
-   Perenna process inherits `PERENNA_GIT_REMOTE` when synchronization is
-   enabled, plus `VEXOR_CONFIG_JSON`, `VEXOR_API_KEY`, or any provider-specific
-   key used in step 4. Report only whether a secret is present.
+6. On the standalone path, register `perenna mcp` using the client-specific
+   method in the setup guide. Preserve unrelated MCP servers and settings. For
+   another client, use its official instructions for adding a local stdio MCP
+   server. On the plugin path, retain the bundled Perenna MCP connection and
+   skip standalone registration. Make sure the Perenna process inherits
+   `PERENNA_GIT_REMOTE` when synchronization is enabled, plus
+   `VEXOR_CONFIG_JSON`, `VEXOR_API_KEY`, or any provider-specific key used in
+   step 4. Report only whether a secret is present.
 7. Verify `perenna --help` and the saved MCP configuration. Reload MCP servers
    and call `memory_read` with `action: "list"` when the client supports it. If
    a restart is required, tell me the single restart step. For Codex or Claude

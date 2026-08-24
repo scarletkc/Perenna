@@ -271,7 +271,9 @@ def _summary(payload: dict[str, Any]) -> str:
     changed = "committed" if payload["changed"] else "already current"
     notices = []
     if payload["index_status"] == "pending":
-        notices.append("Retrieval indexing is pending.")
+        notices.append(
+            "Retrieval indexing failed after the Git commit; the next non-empty search will retry."
+        )
     if payload["sync_status"] == "pending":
         notices.append("Remote synchronization is pending; the local commit remains complete.")
     elif payload["sync_status"] == "conflict":

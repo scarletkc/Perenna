@@ -120,14 +120,12 @@ class CapturedStderr:
 @asynccontextmanager
 async def perenna_session(
     home: Path,
-    source: str,
     *,
     embedding_server: EmbeddingServer | None = None,
 ) -> AsyncIterator[tuple[ClientSession, Any, CapturedStderr]]:
     environment = os.environ.copy()
     environment["PERENNA_GIT_REMOTE"] = ""
     environment.pop("PERENNA_HOME", None)
-    environment.pop("PERENNA_SOURCE", None)
     if embedding_server is not None:
         environment.update(embedding_server.environment())
     stderr = CapturedStderr()
@@ -137,8 +135,6 @@ async def perenna_session(
             "-m",
             "perenna",
             "mcp",
-            "--source",
-            source,
             "--home",
             os.fspath(home),
         ],

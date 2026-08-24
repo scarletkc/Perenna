@@ -454,7 +454,6 @@ def test_timeout_confirmation_fast_forwards_a_remote_descendant(
             title="Later remote memory",
             summary="A later remote memory.",
             body="Later",
-            source="other",
             project=None,
         )
         assert observer.repository.push(
@@ -509,7 +508,6 @@ def test_restart_keeps_safe_local_ahead_history(tmp_path: Path) -> None:
         title="Local pending",
         summary="A local pending memory.",
         body="Pending",
-        source="codex",
         project=None,
     )
 
@@ -529,7 +527,6 @@ def test_restart_marks_diverged_history_and_blocks_writes(tmp_path: Path) -> Non
         title="Local branch",
         summary="A local branch memory.",
         body="Local",
-        source="codex",
         project=None,
     )
     other.create(title="Remote branch", summary="A remote branch memory.", body="Remote")
@@ -648,7 +645,7 @@ def test_remote_read_remains_local_when_the_network_is_unavailable(
 
 def test_core_accepts_injected_repository_and_rejects_file_home(tmp_path: Path) -> None:
     core = _core(tmp_path)
-    settings = RuntimeSettings(RuntimePaths(tmp_path / "home"), "cursor", None)
+    settings = RuntimeSettings(RuntimePaths(tmp_path / "home"), None)
     reused = PerennaCore(
         settings,
         repository=core.repository,
@@ -660,7 +657,7 @@ def test_core_accepts_injected_repository_and_rejects_file_home(tmp_path: Path) 
     bad_home = tmp_path / "not-a-directory"
     bad_home.write_text("occupied", encoding="utf-8")
     with pytest.raises(ConfigurationError, match="not a directory"):
-        PerennaCore(RuntimeSettings(RuntimePaths(bad_home), "codex", None))
+        PerennaCore(RuntimeSettings(RuntimePaths(bad_home), None))
 
 
 def _core(
@@ -671,7 +668,6 @@ def _core(
 ) -> PerennaCore:
     settings = RuntimeSettings(
         paths=RuntimePaths(tmp_path / "home"),
-        source="codex",
         git_remote=git_remote,
     )
     return PerennaCore(settings, index=index or MemoryBackedIndex())

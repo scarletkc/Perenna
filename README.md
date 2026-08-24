@@ -117,7 +117,7 @@ uvx vexor doctor
 Configure an MCP client to start:
 
 ```text
-perenna mcp --source <client-name>
+perenna mcp
 ```
 
 Perenna creates its local data under `~/.perenna/` unless another home is

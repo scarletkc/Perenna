@@ -71,12 +71,6 @@ path. Delete removes the memory from current reads and search but ordinary Git
 history retains its prior contents. It is recoverable deletion, not sensitive
 data purging.
 
-## Source attribution
-
-Every changed memory records the host that most recently changed it. The host
-injects `source` when Perenna starts, so a tool call cannot claim another
-source. Earlier sources remain visible in Git history.
-
 The exact API and file rules are in the
 [MCP API reference](../reference/mcp-api.md) and
 [memory file format](../reference/memory-format.md).

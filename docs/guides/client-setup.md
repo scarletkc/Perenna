@@ -12,10 +12,6 @@ Codex and Claude Code users can instead follow the combined
 connection together. The commands below are the standalone setup path; do not
 combine both paths for the same client.
 
-Each client must supply a trusted `source` when it starts Perenna. The source
-is stored with every changed mutation and is intentionally absent from MCP tool
-schema.
-
 ## Claude Code
 
 Install Perenna's optional memory behavior skill for Claude Code:
@@ -27,7 +23,7 @@ perenna skill install --agent claude-code
 Add Perenna as a user-scoped stdio server:
 
 ```bash
-claude mcp add --transport stdio --scope user perenna -- perenna mcp --source claude-code
+claude mcp add --transport stdio --scope user perenna -- perenna mcp
 ```
 
 Verify the saved configuration and connection:
@@ -53,7 +49,7 @@ perenna skill install --agent codex
 Add Perenna with the Codex CLI:
 
 ```bash
-codex mcp add perenna -- perenna mcp --source codex
+codex mcp add perenna -- perenna mcp
 codex mcp list
 ```
 
@@ -62,7 +58,7 @@ The equivalent `~/.codex/config.toml` entry is:
 ```toml
 [mcp_servers.perenna]
 command = "perenna"
-args = ["mcp", "--source", "codex"]
+args = ["mcp"]
 ```
 
 The Codex CLI and IDE extension share this configuration on the same Codex
@@ -78,7 +74,7 @@ use the Codex CLI command above, or configure the server from the desktop app:
 3. Add a server named `perenna`.
 4. Choose **STDIO**.
 5. Set the command to `perenna`.
-6. Set the arguments to `mcp --source codex`.
+6. Set the arguments to `mcp`.
 7. Save and restart the app.
 
 Use `/mcp` in the composer to inspect connected servers.
@@ -104,7 +100,7 @@ Add Perenna to the global `~/.cursor/mcp.json` file:
     "perenna": {
       "type": "stdio",
       "command": "perenna",
-      "args": ["mcp", "--source", "cursor"]
+      "args": ["mcp"]
     }
   }
 }
@@ -121,7 +117,7 @@ Add `--home` to the server arguments when a client should use another Perenna
 home:
 
 ```text
-perenna mcp --source codex --home /path/to/perenna-home
+perenna mcp --home /path/to/perenna-home
 ```
 
 Clients share memories only when they resolve the same home. The exact

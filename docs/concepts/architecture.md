@@ -42,7 +42,7 @@ Both adapters reuse the same server and tool handlers. They:
 The stdio adapter reserves stdout for protocol output. The HTTP adapter adds
 Streamable HTTP, protected-resource metadata, bearer-token verification,
 single-subject authorization, and per-tool scopes. Neither adapter owns
-storage, indexing, source resolution, or Git behavior.
+storage, indexing, or Git behavior.
 
 ### Core
 
@@ -80,7 +80,6 @@ passage.
 ## Trust boundaries
 
 - MCP arguments are untrusted and validated before they affect paths or data.
-- `source` comes from host startup configuration, not from tool arguments.
 - Memory paths are derived from validated scope and ULID values.
 - Committed Markdown is trusted only after strict schema and integrity checks.
 - Vexor metadata is treated as a cache hint and cross-checked against Git.

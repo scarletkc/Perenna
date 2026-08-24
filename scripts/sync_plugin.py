@@ -123,12 +123,12 @@ def build_expected_files(repo_root: Path, version: str) -> dict[Path, bytes]:
             _codex_manifest(metadata, version)
         ),
         CODEX_PLUGIN_ROOT / ".mcp.json": _json_bytes(
-            _mcp_manifest("codex", env_vars=environment_variables)
+            _mcp_manifest(env_vars=environment_variables)
         ),
         CLAUDE_PLUGIN_ROOT / ".claude-plugin/plugin.json": _json_bytes(
             _claude_manifest(metadata, version)
         ),
-        CLAUDE_PLUGIN_ROOT / ".mcp.json": _json_bytes(_mcp_manifest("claude-code")),
+        CLAUDE_PLUGIN_ROOT / ".mcp.json": _json_bytes(_mcp_manifest()),
         Path(".agents/plugins/marketplace.json"): _json_bytes(_codex_marketplace()),
         Path(".claude-plugin/marketplace.json"): _json_bytes(
             _claude_marketplace(metadata)
@@ -249,10 +249,10 @@ def _claude_manifest(metadata: dict[str, Any], version: str) -> dict[str, Any]:
     }
 
 
-def _mcp_manifest(source: str, *, env_vars: list[str] | None = None) -> dict[str, Any]:
+def _mcp_manifest(*, env_vars: list[str] | None = None) -> dict[str, Any]:
     server = {
         "command": "perenna",
-        "args": ["mcp", "--source", source],
+        "args": ["mcp"],
     }
     if env_vars:
         server["env_vars"] = env_vars

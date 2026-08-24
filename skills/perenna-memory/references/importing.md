@@ -36,7 +36,7 @@ memory dump verbatim:
 - keep project-specific knowledge in its project scope and do not duplicate
   the same fact in both global and project scopes;
 - do not fabricate original Perenna metadata. Perenna assigns IDs and
-  timestamps, and the connected host supplies `source`.
+  timestamps.
 
 Keep a bounded working inventory with each candidate's source identifier,
 proposed title, destination scope, and disposition: create, update, skip, or

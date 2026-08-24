@@ -73,8 +73,7 @@ cloud shell provides durable storage.
 Use the local path only when the current client host can install packages,
 retain Perenna's data directory, and start a long-lived stdio subprocess. In
 that environment, follow Getting Started, install Perenna on the same host, and
-register `perenna mcp --source <stable-client-name>` through the client setup
-guide.
+register `perenna mcp` through the client setup guide.
 
 For a web-based, HTTP-only, or ephemeral client, explain that local stdio setup
 does not apply and ask the user to configure a persistent Docker deployment.

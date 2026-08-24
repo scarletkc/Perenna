@@ -8,6 +8,7 @@ from typing import Any
 
 import mcp.types as types
 import pytest
+from jsonschema import Draft202012Validator
 from pydantic import ValidationError
 
 from perenna.errors import MemoryValidationError
@@ -34,28 +35,103 @@ MEMORY_ID = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
 REVISION = "a" * 64
 
 
-def test_tool_schemas_are_separate_exact_and_source_is_trusted() -> None:
-    assert MEMORY_READ_SCHEMA["properties"] == {
-        "action": {"type": "string", "enum": ["list", "search", "get"]},
-        "query": {"type": "string"},
-        "project": {"type": "string"},
-        "memory_id": {"type": "string"},
-        "limit": {"type": "integer", "minimum": 1, "maximum": 5},
-    }
-    assert MEMORY_WRITE_SCHEMA["properties"]["action"] == {
-        "type": "string",
-        "enum": ["create", "patch", "replace"],
-    }
+def _schema_action(branch: dict[str, Any]) -> str:
+    return branch["properties"]["action"]["const"]
+
+
+def test_tool_schemas_are_separate_exact_and_action_specific() -> None:
+    assert [_schema_action(branch) for branch in MEMORY_READ_SCHEMA["oneOf"]] == [
+        "list",
+        "search",
+        "get",
+    ]
+    assert [_schema_action(branch) for branch in MEMORY_WRITE_SCHEMA["oneOf"]] == [
+        "create",
+        "patch",
+        "replace",
+    ]
     assert MEMORY_DELETE_SCHEMA["required"] == [
         "memory_id",
         "expected_title",
         "base_revision",
     ]
-    assert "source" not in MEMORY_WRITE_SCHEMA["properties"]
-    assert all(
-        schema["additionalProperties"] is False
-        for schema in (MEMORY_READ_SCHEMA, MEMORY_WRITE_SCHEMA, MEMORY_DELETE_SCHEMA)
+    get_output = next(
+        branch
+        for branch in MEMORY_READ_OUTPUT_SCHEMA["oneOf"]
+        if _schema_action(branch) == "get"
     )
+    assert "source" not in get_output["properties"]["memory"]["properties"]
+    assert all(
+        branch["additionalProperties"] is False
+        for schema in (MEMORY_READ_SCHEMA, MEMORY_WRITE_SCHEMA)
+        for branch in schema["oneOf"]
+    )
+    assert MEMORY_DELETE_SCHEMA["additionalProperties"] is False
+
+
+@pytest.mark.parametrize(
+    ("schema", "arguments", "valid"),
+    [
+        (MEMORY_READ_SCHEMA, {"action": "list"}, True),
+        (MEMORY_READ_SCHEMA, {"action": "list", "project": "perenna"}, True),
+        (MEMORY_READ_SCHEMA, {"action": "search", "query": "topic", "limit": 2}, True),
+        (MEMORY_READ_SCHEMA, {"action": "get", "memory_id": MEMORY_ID}, True),
+        (
+            MEMORY_READ_SCHEMA,
+            {"action": "get", "memory_id": MEMORY_ID, "project": "perenna"},
+            False,
+        ),
+        (MEMORY_READ_SCHEMA, {"action": "search"}, False),
+        (
+            MEMORY_WRITE_SCHEMA,
+            {"action": "create", "title": "Title", "summary": "Summary.", "body": "Body"},
+            True,
+        ),
+        (
+            MEMORY_WRITE_SCHEMA,
+            {
+                "action": "patch",
+                "memory_id": MEMORY_ID,
+                "base_revision": REVISION,
+                "edits": [{"old_text": "Body", "new_text": "Updated"}],
+            },
+            True,
+        ),
+        (
+            MEMORY_WRITE_SCHEMA,
+            {
+                "action": "replace",
+                "memory_id": MEMORY_ID,
+                "base_revision": REVISION,
+                "summary": "Summary.",
+                "body": "Body",
+            },
+            True,
+        ),
+        (
+            MEMORY_WRITE_SCHEMA,
+            {
+                "action": "patch",
+                "memory_id": MEMORY_ID,
+                "base_revision": REVISION,
+                "edits": [{"old_text": "Body", "new_text": "Updated"}],
+                "project": "perenna",
+            },
+            False,
+        ),
+        (
+            MEMORY_WRITE_SCHEMA,
+            {"action": "create", "title": "Title", "summary": "Summary."},
+            False,
+        ),
+    ],
+)
+def test_action_specific_input_schemas_match_the_runtime_contract(
+    schema: dict[str, object],
+    arguments: dict[str, object],
+    valid: bool,
+) -> None:
+    assert Draft202012Validator(schema).is_valid(arguments) is valid
 
 
 @pytest.mark.parametrize(
@@ -339,7 +415,7 @@ async def test_run_stdio_wires_streams_to_server(monkeypatch) -> None:
 async def test_real_stdio_process_lists_three_tools_and_returns_structured_content(
     tmp_path: Path,
 ) -> None:
-    async with perenna_session(tmp_path / "home", "codex") as (
+    async with perenna_session(tmp_path / "home") as (
         session,
         initialized,
         stderr,
@@ -362,6 +438,13 @@ async def test_real_stdio_process_lists_three_tools_and_returns_structured_conte
         assert bad.is_error
         assert "Invalid memory_read arguments" in result_text(bad)
 
+        incompatible = await session.call_tool(
+            "memory_read",
+            {"action": "get", "memory_id": MEMORY_ID, "project": "perenna"},
+        )
+        assert incompatible.is_error
+        assert "get requires action and memory_id" in result_text(incompatible)
+
         index = await session.call_tool("memory_read", {"action": "list"})
         assert not index.is_error
         assert index.structured_content == {
@@ -374,13 +457,21 @@ async def test_real_stdio_process_lists_three_tools_and_returns_structured_conte
     assert "Traceback" not in stderr.getvalue()
 
 
-def test_missing_source_exits_on_stderr_without_protocol_output(tmp_path: Path) -> None:
+def test_removed_source_flag_exits_on_stderr_without_protocol_output(tmp_path: Path) -> None:
     environment = os.environ.copy()
-    environment.pop("PERENNA_SOURCE", None)
     environment["PERENNA_GIT_REMOTE"] = ""
 
     result = subprocess.run(
-        [sys.executable, "-m", "perenna", "mcp", "--home", os.fspath(tmp_path / "home")],
+        [
+            sys.executable,
+            "-m",
+            "perenna",
+            "mcp",
+            "--source",
+            "codex",
+            "--home",
+            os.fspath(tmp_path / "home"),
+        ],
         cwd=Path(__file__).parents[1],
         env=environment,
         check=False,
@@ -391,7 +482,7 @@ def test_missing_source_exits_on_stderr_without_protocol_output(tmp_path: Path) 
 
     assert result.returncode == 2
     assert result.stdout == ""
-    assert "Memory source is missing" in result.stderr
+    assert "unrecognized arguments: --source codex" in result.stderr
 
 
 def _memory_payload() -> dict[str, str]:
@@ -400,7 +491,6 @@ def _memory_payload() -> dict[str, str]:
         "title": "Title",
         "scope": "global",
         "summary": "What this memory covers.",
-        "source": "codex",
         "created_at": "2026-08-23T00:00:00.000000Z",
         "updated_at": "2026-08-23T00:00:00.000000Z",
         "revision": REVISION,
@@ -426,10 +516,14 @@ def _mutation(action: str) -> dict[str, Any]:
 
 
 def test_mutation_summary_surfaces_remote_pending_and_conflict_states() -> None:
+    index_pending = _mutation("create")
+    index_pending["index_status"] = "pending"
     pending = _mutation("create")
     pending["sync_status"] = "pending"
     conflict = _mutation("patch")
     conflict["sync_status"] = "conflict"
 
+    assert "indexing failed after the Git commit" in _summary(index_pending)
+    assert "next non-empty search will retry" in _summary(index_pending)
     assert "local commit remains complete" in _summary(pending)
     assert "later writes are blocked" in _summary(conflict)

@@ -14,7 +14,6 @@ def test_configured_vexor_provider_smoke(tmp_path: Path) -> None:
     core = PerennaCore(
         RuntimeSettings(
             paths=RuntimePaths(tmp_path / "home"),
-            source="provider-smoke",
             git_remote=None,
         )
     )

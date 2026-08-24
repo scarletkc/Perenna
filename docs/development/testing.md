@@ -51,7 +51,7 @@ coverage threshold are owned by `pyproject.toml`.
 
 | Layer | Primary coverage |
 | --- | --- |
-| Configuration | CLI and environment precedence, missing source, remote selection |
+| Configuration | CLI and environment precedence, home paths, remote selection |
 | Markdown and models | normalization, ULID, frontmatter, paths, duplicate integrity |
 | Store and Git | create, patch, replace, delete, revisions, one-file commits, rollback |
 | Index | chunk rebuild, scope filtering, limits, budgets, stale metadata, marker failures |
@@ -151,7 +151,7 @@ that:
 - extra arguments are rejected even though the SDK does not validate tool
   input automatically;
 - stdout contains no text outside the protocol;
-- different sources share one home;
+- separate clients share one home;
 - expected failures do not leak memory content.
 
 Keep at least one real subprocess path when changing CLI or MCP startup code.

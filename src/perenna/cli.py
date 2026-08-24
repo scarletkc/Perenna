@@ -115,10 +115,6 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _add_runtime_arguments(command: argparse.ArgumentParser) -> None:
     command.add_argument(
-        "--source",
-        help="Trusted Agent source. Overrides PERENNA_SOURCE and is required if it is unset.",
-    )
-    command.add_argument(
         "--home",
         help="Perenna data directory. Overrides PERENNA_HOME; default: ~/.perenna.",
     )
@@ -143,7 +139,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "skill":
             _run_skill(args)
             return 0
-        settings = resolve_settings(cli_home=args.home, cli_source=args.source)
+        settings = resolve_settings(cli_home=args.home)
         remote_settings = resolve_remote_settings() if args.command == "serve" else None
         core = PerennaCore(settings)
         if args.command == "mcp":

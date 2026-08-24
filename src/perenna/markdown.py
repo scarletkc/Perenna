@@ -12,14 +12,13 @@ from perenna.models import (
     Memory,
     normalize_body,
     normalize_project,
-    normalize_source,
     normalize_summary,
     normalize_title,
     parse_timestamp,
     validate_ulid,
 )
 
-FRONTMATTER_FIELDS = ("id", "title", "summary", "source", "created_at", "updated_at")
+FRONTMATTER_FIELDS = ("id", "title", "summary", "created_at", "updated_at")
 
 
 class _UniqueSafeLoader(yaml.SafeLoader):
@@ -107,7 +106,6 @@ def parse_memory(text: str, relative_path: str) -> Memory:
         memory_id = validate_ulid(raw["id"])
         title = normalize_title(raw["title"])
         summary = normalize_summary(raw["summary"])
-        source = normalize_source(raw["source"])
         created_at = _timestamp_string(raw["created_at"])
         updated_at = _timestamp_string(raw["updated_at"])
         normalized_body = normalize_body(body)
@@ -118,8 +116,6 @@ def parse_memory(text: str, relative_path: str) -> Memory:
         raise _invalid(relative_path, "title is not normalized")
     if summary != raw["summary"]:
         raise _invalid(relative_path, "summary is not normalized")
-    if source != raw["source"]:
-        raise _invalid(relative_path, "source is not normalized")
     if parse_timestamp(updated_at) < parse_timestamp(created_at):
         raise _invalid(relative_path, "updated_at is earlier than created_at")
 
@@ -130,7 +126,6 @@ def parse_memory(text: str, relative_path: str) -> Memory:
         id=memory_id,
         title=title,
         summary=summary,
-        source=source,
         created_at=created_at,
         updated_at=updated_at,
         body=normalized_body,

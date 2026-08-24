@@ -17,6 +17,7 @@ more exact layers only when you need them.
 | --- | --- |
 | [Client setup](guides/client-setup.md) | Connect Claude Code, Codex, ChatGPT Desktop, or Cursor |
 | [Plugin setup](guides/plugin-setup.md) | Install the combined Skill and MCP plugin for Codex or Claude Code |
+| [Secure MCP Tunnel](guides/secure-mcp-tunnel.md) | Connect ChatGPT to loopback Perenna without public ingress or OAuth |
 | [Self-hosting](guides/self-hosting.md) | Run one OAuth-protected Perenna instance for ChatGPT web |
 | [Glama MCP in ChatGPT web](guides/glama-chatgpt.md) | Connect a tokenized Glama Perenna endpoint to ChatGPT without OAuth |
 | [Using permanent memory](guides/using-memory.md) | List, search, get, create, patch, replace, and delete memories |
@@ -68,6 +69,7 @@ docs/
 │   ├── client-setup.md
 │   ├── glama-chatgpt.md
 │   ├── plugin-setup.md
+│   ├── secure-mcp-tunnel.md
 │   ├── self-hosting.md
 │   ├── using-memory.md
 │   └── maintenance.md

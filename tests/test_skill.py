@@ -61,10 +61,15 @@ def test_perenna_memory_skill_is_discoverable_and_covers_the_tool_surface() -> N
     assert {"memory_read", "memory_write", "memory_delete"} <= set(combined.split("`"))
     assert "https://github.com/scarletkc/Perenna/blob/main/docs/getting-started.md" in combined
     assert "https://github.com/scarletkc/Perenna/blob/main/docs/guides/client-setup.md" in combined
+    assert (
+        "https://github.com/scarletkc/Perenna/blob/main/docs/guides/secure-mcp-tunnel.md"
+        in combined
+    )
     assert "https://github.com/scarletkc/Perenna/blob/main/docs/guides/self-hosting.md" in combined
     assert "register `perenna mcp`" in combined
+    assert "perenna serve --local-only" in flattened
     assert "perenna serve" in combined
-    assert "ask the user to configure a persistent Docker deployment" in flattened
+    assert "Do not expose or forward that local port" in flattened
     assert "Do not run remote deployment commands" in flattened
     assert "both the local commit result and the synchronization state" in flattened
     assert "Do not repeat a successful local mutation" in flattened

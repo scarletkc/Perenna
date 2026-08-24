@@ -13,6 +13,7 @@ from perenna.config import (
     resolve_home,
     resolve_remote_settings,
     resolve_settings,
+    validate_loopback_host,
 )
 from perenna.errors import ConfigurationError
 
@@ -123,3 +124,14 @@ def test_remote_settings_reject_unsafe_or_empty_values(
 def test_remote_settings_report_the_missing_field() -> None:
     with pytest.raises(ConfigurationError, match="PERENNA_PUBLIC_URL is missing"):
         resolve_remote_settings({})
+
+
+@pytest.mark.parametrize("host", ["127.0.0.1", "127.0.0.42", "::1"])
+def test_local_http_accepts_only_loopback_ip_addresses(host: str) -> None:
+    validate_loopback_host(host)
+
+
+@pytest.mark.parametrize("host", ["0.0.0.0", "::", "192.168.1.10", "localhost"])
+def test_local_http_rejects_non_loopback_hosts(host: str) -> None:
+    with pytest.raises(ConfigurationError, match="--local-only requires --host"):
+        validate_loopback_host(host)

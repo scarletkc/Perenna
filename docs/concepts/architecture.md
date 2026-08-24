@@ -1,31 +1,36 @@
 # Architecture
 
 Perenna is an MCP server around a transport-independent core. Local clients use
-stdio; a self-hosted single-user instance can also use OAuth-protected
-Streamable HTTP. Permanent state is an independent Git repository of Markdown
-files, and semantic retrieval is derived through Vexor.
+stdio. A local relay can use loopback-only Streamable HTTP without OAuth, while
+a self-hosted network service uses OAuth-protected Streamable HTTP. Permanent
+state is an independent Git repository of Markdown files, and semantic
+retrieval is derived through Vexor.
 
 ## System view
 
 ```text
-Local MCP clients ── stdio ────────────┐
-                                       ▼
-ChatGPT ── HTTPS/OAuth ── proxy ── HTTP Perenna
-                                       │
-                              ┌────────┴────────┐
-                              │                 │
-                       Git + Markdown         Vexor
-                       permanent data         index
-                              │
-                              └── optional sync
-                                           │
-                                           ▼
-                                    private Git remote
+Local MCP clients ── stdio ───────────────────────────────┐
+ChatGPT ── Secure MCP Tunnel ── tunnel-client ── HTTP ────┤
+ChatGPT ── HTTPS/OAuth ── proxy ── HTTP ──────────────────┤
+                                                          ▼
+                                                       Perenna
+                                                          │
+                                                 ┌────────┴────────┐
+                                                 │                 │
+                                          Git + Markdown         Vexor
+                                          permanent data         index
+                                                 │
+                                                 └── optional sync
+                                                              │
+                                                              ▼
+                                                       private Git remote
 ```
 
-Each local client starts its own Perenna process. The processes coordinate
-through file locks in the shared Perenna home. A remote deployment runs one
-Perenna service for one configured OAuth subject and one Perenna home.
+Each stdio client starts its own Perenna process. The processes coordinate
+through file locks in the shared Perenna home. A local tunnel path runs one
+loopback-only HTTP process without application-level authentication. A remote
+deployment runs one Perenna service for one configured OAuth subject and one
+Perenna home.
 
 ## Component responsibilities
 
@@ -39,10 +44,11 @@ Both adapters reuse the same server and tool handlers. They:
 - convert expected domain failures into MCP error results;
 - keep transport concerns outside the core.
 
-The stdio adapter reserves stdout for protocol output. The HTTP adapter adds
-Streamable HTTP, protected-resource metadata, bearer-token verification,
-single-subject authorization, and per-tool scopes. Neither adapter owns
-storage, indexing, or Git behavior.
+The stdio adapter reserves stdout for protocol output. The HTTP adapter has two
+startup modes. Local-only mode keeps the endpoint on loopback and omits OAuth;
+remote mode adds protected-resource metadata, bearer-token verification,
+single-subject authorization, and per-tool scopes. Neither adapter owns storage,
+indexing, or Git behavior.
 
 ### Core
 
@@ -84,6 +90,8 @@ passage.
 - Committed Markdown is trusted only after strict schema and integrity checks.
 - Vexor metadata is treated as a cache hint and cross-checked against Git.
 - Remote embedding providers receive text only when the user configures one.
+- Local-only HTTP rejects non-loopback listeners and validates its exact local
+  `Host`; it relies on host trust and the external tunnel for remote access.
 - The remote adapter accepts only JWTs whose signature, issuer, audience,
   lifetime, subject, and tool scope validate against operator configuration.
 - The configured public URL, rather than forwarded headers, owns the OAuth
@@ -104,7 +112,8 @@ The implemented product deliberately excludes:
 - bundled TLS termination, DNS, or reverse-proxy management;
 - automatic memory extraction or context injection.
 
-The container packages Perenna only. The operator owns HTTPS, the reverse
-proxy, OAuth-provider configuration, persistent volumes, and Git credentials.
-Remote mode remains single-user and keeps the same Git, Markdown,
-locking, and retrieval contracts as stdio.
+The container packages Perenna only. For public remote mode, the operator owns
+HTTPS, the reverse proxy, OAuth-provider configuration, persistent volumes, and
+Git credentials. Local tunnel mode needs none of that public ingress
+infrastructure and must remain on loopback. Both HTTP modes keep the same Git,
+Markdown, locking, and retrieval contracts as stdio.

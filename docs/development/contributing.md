@@ -34,7 +34,7 @@ src/perenna/
 ├── cli_output.py    # human-readable sync and skill report rendering
 ├── mcp_server.py    # shared MCP tool dispatch and stdio adapter
 ├── mcp_schemas.py   # exact MCP tool metadata, input/output schemas, and scopes
-├── http_server.py   # authenticated Streamable HTTP adapter
+├── http_server.py   # local-only and authenticated Streamable HTTP adapter
 ├── oauth.py         # single-owner JWT verification
 ├── core.py          # read, mutation, lock, and Git synchronization orchestration
 ├── config.py        # local and remote startup configuration

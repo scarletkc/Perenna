@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from urllib.parse import urlsplit
 
 import uvicorn
+from mcp.server import Server
 from mcp.server.auth.middleware.auth_context import AuthContextMiddleware
 from mcp.server.auth.middleware.bearer_auth import BearerAuthBackend, RequireAuthMiddleware
 from mcp.server.auth.provider import TokenVerifier
@@ -22,7 +23,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-from perenna.config import REMOTE_SCOPES, RemoteSettings
+from perenna.config import REMOTE_SCOPES, RemoteSettings, validate_loopback_host
 from perenna.core import PerennaCore
 from perenna.mcp_server import create_server
 from perenna.oauth import JWTTokenVerifier
@@ -58,14 +59,7 @@ def create_http_app(
         allowed_hosts=[public.netloc],
         allowed_origins=[origin],
     )
-    session_manager = StreamableHTTPSessionManager(
-        app=server,
-        json_response=False,
-        stateless=False,
-        security_settings=transport_security,
-        session_idle_timeout=1800,
-    )
-    mcp_app = StreamableHTTPASGIApp(session_manager)
+    session_manager, mcp_app = _create_streamable_http(server, transport_security)
     protected_mcp = RequireAuthMiddleware(
         mcp_app,
         required_scopes=[],
@@ -87,12 +81,31 @@ def create_http_app(
         Middleware(AuthContextMiddleware),
     ]
 
-    @asynccontextmanager
-    async def lifespan(_: Starlette) -> AsyncIterator[None]:
-        async with session_manager.run():
-            yield
+    return _create_starlette_app(session_manager, routes=routes, middleware=middleware)
 
-    return Starlette(routes=routes, middleware=middleware, lifespan=lifespan)
+
+def create_local_http_app(
+    core: PerennaCore,
+    *,
+    host: str,
+    port: int,
+) -> Starlette:
+    validate_loopback_host(host)
+    authority = _http_authority(host, port)
+    transport_security = TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=[authority],
+        allowed_origins=[f"http://{authority}"],
+    )
+    session_manager, mcp_app = _create_streamable_http(
+        create_server(core),
+        transport_security,
+    )
+    routes = [
+        Route("/mcp", endpoint=mcp_app),
+        Route("/healthz", endpoint=_health, methods=["GET"]),
+    ]
+    return _create_starlette_app(session_manager, routes=routes, middleware=[])
 
 
 def run_http(
@@ -103,6 +116,20 @@ def run_http(
     port: int,
 ) -> None:
     app = create_http_app(core, settings)
+    _run_uvicorn(app, host=host, port=port)
+
+
+def run_local_http(
+    core: PerennaCore,
+    *,
+    host: str,
+    port: int,
+) -> None:
+    app = create_local_http_app(core, host=host, port=port)
+    _run_uvicorn(app, host=host, port=port)
+
+
+def _run_uvicorn(app: Starlette, *, host: str, port: int) -> None:
     uvicorn.run(
         app,
         host=host,
@@ -111,6 +138,39 @@ def run_http(
         proxy_headers=False,
         server_header=False,
     )
+
+
+def _create_streamable_http(
+    server: Server[object],
+    transport_security: TransportSecuritySettings,
+) -> tuple[StreamableHTTPSessionManager, StreamableHTTPASGIApp]:
+    session_manager = StreamableHTTPSessionManager(
+        app=server,
+        json_response=False,
+        stateless=False,
+        security_settings=transport_security,
+        session_idle_timeout=1800,
+    )
+    return session_manager, StreamableHTTPASGIApp(session_manager)
+
+
+def _create_starlette_app(
+    session_manager: StreamableHTTPSessionManager,
+    *,
+    routes: list[Route],
+    middleware: list[Middleware],
+) -> Starlette:
+    @asynccontextmanager
+    async def lifespan(_: Starlette) -> AsyncIterator[None]:
+        async with session_manager.run():
+            yield
+
+    return Starlette(routes=routes, middleware=middleware, lifespan=lifespan)
+
+
+def _http_authority(host: str, port: int) -> str:
+    literal = f"[{host}]" if ":" in host else host
+    return f"{literal}:{port}"
 
 
 async def _health(_: Request) -> JSONResponse:

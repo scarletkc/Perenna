@@ -1,6 +1,6 @@
 ---
 name: perenna-memory
-description: "Use Perenna when a non-trivial task may depend on prior decisions or preferences, when durable knowledge should survive the session, or when the user asks to remember or forget. Skip self-contained tasks and facts already authoritative in the current workspace."
+description: "Use Perenna when a non-trivial task may depend on prior decisions or preferences, when durable knowledge should survive the session, or when the user asks to remember, forget, or consolidate memories. Skip self-contained tasks and facts already authoritative in the current workspace."
 metadata:
   github-repo: https://github.com/scarletkc/Perenna
 ---
@@ -75,14 +75,16 @@ Never store credentials, private system or identity material, raw
 conversations, temporary progress, volatile runtime facts, or unapproved ideas
 presented as commitments.
 
-Before any create, patch, replace, or delete operation, read
+Before auditing memories for consolidation or performing any create, patch,
+replace, or delete operation, read
 [Curating memories](references/curation.md). It owns the detailed rules for
-write eligibility, scope, content, revisions, deletion, and result reporting.
+write eligibility, scope, content, consolidation, revisions, deletion, and
+result reporting.
 
 ## Conditional guides
 
-- Read [Curating memories](references/curation.md) only when a memory may be
-  created, changed, or deleted.
+- Read [Curating memories](references/curation.md) only when memories may be
+  audited for consolidation, created, changed, or deleted.
 - Read [Importing memories](references/importing.md) only when the user
   explicitly asks to migrate memory content from a host, export, or another
   memory system into Perenna.

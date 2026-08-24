@@ -125,14 +125,20 @@ initialization path.
 9. Stop on incompatible branches or diverged history. Never merge, rebase, or
    force-push automatically.
 
-Input, authentication-mode, compatibility, and divergence rejection must be
-atomic. An approved implementation would stage or fully roll back changes to
-the remote URL, `core.sshCommand`, `perenna.syncAuth`,
-`perenna.deployKeyPath`, and credential files created by the rejected attempt.
-It must also preserve whether the remote-name input was unset or explicitly
-empty. A `waiting-deploy-key` result is an accepted intermediate state, not a
-rejection: it intentionally retains the generated key and repository
-configuration so the operator can authorize that key and restart.
+Configuration rejection must be atomic. Invalid input must fail before
+repository initialization or deploy-key generation. Compatibility and
+divergence rejection must restore the prior remote URL, `core.sshCommand`,
+`perenna.syncAuth`, and `perenna.deployKeyPath`; preserve whether the
+remote-name input was unset or explicitly empty; and leave the local branch,
+working tree, and memory commits unchanged.
+
+Existing `setup_sync()` effects that do not change durable local memory remain
+outside that rollback boundary: repository initialization, fetched objects and
+remote-tracking refs, and a host key learned in the isolated `known_hosts` file
+may remain for later verification. A `waiting-deploy-key` result is an accepted
+intermediate state, not a rejection: it intentionally retains the generated
+key and repository configuration so the operator can authorize that key and
+restart.
 
 If a URL explicitly requests bootstrap but the remote cannot be verified,
 Perenna must not silently present the deployment as synchronized. Whether it
@@ -201,7 +207,8 @@ Coverage must include:
 - every deploy-key state in the candidate table, both with and without a
   bootstrap URL;
 - rejection before repository initialization for empty, whitespace, numeric,
-  case-variant, alias, and other invalid deploy-key values;
+  case-variant, alias, and other invalid deploy-key values, without creating
+  credential files;
 - unset, empty, and non-empty `PERENNA_GIT_REMOTE` values with and without a
   bootstrap URL, including rejection of the empty-plus-URL conflict before
   repository changes;
@@ -220,9 +227,11 @@ Coverage must include:
 - incompatible branches and diverged history;
 - simultaneous first starts using the same home;
 - rejected startup that leaves the existing remote URL, `core.sshCommand`,
-  `perenna.syncAuth`, and `perenna.deployKeyPath` unchanged, removes credential
-  files created by the rejected attempt, and preserves unset versus explicit
-  empty remote-name state;
+  `perenna.syncAuth`, and `perenna.deployKeyPath` unchanged, preserves unset
+  versus explicit empty remote-name state, and does not alter the local branch,
+  working tree, or memory commits;
+- compatibility rejection after fetch, covering the allowed persistence of
+  derived Git objects, remote-tracking refs, and learned SSH host keys;
 - absence of credentials and private-key material from errors and logs.
 
 Tests and experiments must use disposable homes and repositories, never the

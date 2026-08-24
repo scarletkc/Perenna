@@ -57,6 +57,7 @@ of truth:
 - [Perenna repository](https://github.com/scarletkc/Perenna)
 - [Getting started](https://github.com/scarletkc/Perenna/blob/main/docs/getting-started.md)
 - [Client setup](https://github.com/scarletkc/Perenna/blob/main/docs/guides/client-setup.md)
+- [Secure MCP Tunnel](https://github.com/scarletkc/Perenna/blob/main/docs/guides/secure-mcp-tunnel.md)
 - [Docker self-hosting](https://github.com/scarletkc/Perenna/blob/main/docs/guides/self-hosting.md)
 
 Follow the guide for the actual client and preserve unrelated packages, skills,
@@ -75,20 +76,25 @@ retain Perenna's data directory, and start a long-lived stdio subprocess. In
 that environment, follow Getting Started, install Perenna on the same host, and
 register `perenna mcp` through the client setup guide.
 
-For a web-based, HTTP-only, or ephemeral client, explain that local stdio setup
-does not apply and ask the user to configure a persistent Docker deployment.
-Guide them through the maintained self-hosting document rather than attempting
-to deploy infrastructure from the web session. The user must provide or
-operate the VPS, public domain, HTTPS reverse proxy, OAuth provider, persistent
-volume, and deployment credentials.
+For a web-based or HTTP-only client, explain that local stdio setup does not
+apply. When the client supports OpenAI Secure MCP Tunnel and the user has a
+persistent trusted host, follow the maintained tunnel guide and run
+`perenna serve --local-only` on loopback. Select no authentication for the
+tunnel-backed MCP app. Do not expose or forward that local port.
 
-Proceed one user-confirmed milestone at a time: the container runs
-`perenna serve`, the public `https://.../mcp` endpoint and protected-resource
-metadata respond as documented, OAuth succeeds, and the web client discovers
-all three Perenna tools. Do not run remote deployment commands, create cloud or
-OAuth resources, change DNS or proxy configuration, or claim a milestone from
-instructions alone. Do not substitute a local stdio command for the Docker HTTP
-deployment.
+When no suitable local host is available, Secure MCP Tunnel is unavailable, or
+the user instead wants a public endpoint, guide them through the maintained
+Docker self-hosting document rather than attempting to deploy infrastructure
+from the web session. The user must provide or operate the VPS, public domain,
+HTTPS reverse proxy, OAuth provider, persistent volume, and deployment
+credentials.
+
+Proceed one user-confirmed milestone at a time. For Tunnel, verify the
+loopback-only Perenna endpoint, tunnel-client readiness, and discovery of all
+three tools. For public self-hosting, verify the container, public endpoint,
+protected-resource metadata, and OAuth separately. Do not run remote deployment
+commands, create cloud or OAuth resources, change DNS or proxy configuration,
+or claim a milestone from instructions alone.
 
 ## Verify the live connection
 

@@ -1,22 +1,24 @@
 # Configuration Reference
 
 This page is the canonical reference for Perenna startup configuration, local
-paths, remote OAuth, optional Git synchronization, and Vexor provider settings.
+paths, local-only HTTP, remote OAuth, optional Git synchronization, and Vexor
+provider settings.
 
 ## CLI entry point
 
 ```text
 perenna mcp [--home PATH]
-perenna serve [--home PATH] [--host HOST] [--port PORT]
+perenna serve [--local-only] [--home PATH] [--host HOST] [--port PORT]
 perenna sync setup REPOSITORY_URL [--home PATH] [--replace] [--deploy-key]
 perenna sync status [--home PATH]
 perenna skill install --agent AGENT [--agent AGENT] [--scope SCOPE] [--replace]
 ```
 
-`mcp` serves local clients over stdio. `serve` exposes an OAuth-protected
-Streamable HTTP endpoint at `/mcp`. The default HTTP listen address is
-`127.0.0.1` and the default port is `8000`; a container normally overrides the
-address to `0.0.0.0` while publishing the port only to a trusted reverse proxy.
+`mcp` serves local clients over stdio. `serve` exposes a Streamable HTTP
+endpoint at `/mcp`. Without `--local-only`, HTTP is OAuth-protected. The default
+listen address is `127.0.0.1` and the default port is `8000`; a remote container
+normally overrides the address to `0.0.0.0` while publishing the port only to a
+trusted reverse proxy.
 
 ## Bundled Agent Skill
 
@@ -75,9 +77,34 @@ The resolved home contains:
 not be reversed or merged, and the runtime memory repository must remain
 separate from the Perenna source-code repository.
 
+## Local-only Streamable HTTP
+
+`perenna serve --local-only` exposes the standard MCP server without OAuth for
+a tunnel client running on the same machine:
+
+```text
+perenna serve --local-only --host 127.0.0.1 --port 8000
+```
+
+This mode accepts only an IP address whose operating-system classification is
+loopback, such as `127.0.0.1` or `::1`. Hostnames, wildcard listeners such as
+`0.0.0.0` or `::`, LAN addresses, and public addresses are rejected. The
+accepted HTTP `Host` and optional `Origin` are derived from that exact listen
+address and port.
+
+Local-only HTTP does not read `PERENNA_PUBLIC_URL` or any `PERENNA_OAUTH_*`
+variable. It does not publish protected-resource metadata, attach OAuth
+security schemes to tools, or require a bearer token. Other local processes can
+reach the endpoint, so use this mode only on a trusted single-user host and do
+not publish or forward its port.
+
+Follow [Connect ChatGPT through Secure MCP Tunnel](../guides/secure-mcp-tunnel.md)
+for the OpenAI tunnel-client workflow.
+
 ## Remote MCP and OAuth
 
-`perenna serve` requires all of these environment variables:
+`perenna serve` without `--local-only` requires all of these environment
+variables:
 
 | Variable | Contract |
 | --- | --- |
@@ -112,8 +139,8 @@ signature, issuer, audience, time claims, owner subject, and tool scope. It is
 only an OAuth resource server: the configured provider owns login, consent,
 client registration, token issuance, refresh, and revocation.
 
-These variables are not required by `perenna mcp`; local stdio behavior and
-configuration remain unchanged. Follow the
+These variables are not required by `perenna mcp`; `perenna serve --local-only`
+also ignores them. Local stdio behavior remains unchanged. Follow the
 [self-hosting guide](../guides/self-hosting.md) for Docker, Nginx, OAuth-provider,
 and ChatGPT setup.
 

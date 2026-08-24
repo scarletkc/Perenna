@@ -32,7 +32,7 @@ Internally, Perenna provides:
 - global and project-specific scopes;
 - semantic retrieval through a rebuildable Vexor collection;
 - safe coordination between multiple local Perenna processes;
-- local stdio and single-user authenticated HTTP access;
+- local stdio, loopback-only HTTP, and single-user authenticated HTTP access;
 - optional Git import, fast-forward, and push with explicit conflict reporting.
 
 The exact tool contract is documented in the
@@ -65,11 +65,12 @@ ordinary versioned Markdown files that can be read without proprietary tools.
 
 ## Current product boundary
 
-Perenna runs locally over stdio or as one OAuth-protected Streamable HTTP
-service for one owner. It does not provide multi-user accounts, an OAuth
-authorization server, automatic reconciliation for concurrent remote writers,
-a web interface, bundled TLS or reverse-proxy management, or automatic
-extraction from conversations.
+Perenna runs locally over stdio, over loopback-only Streamable HTTP for a local
+tunnel client, or as one OAuth-protected Streamable HTTP service for one owner.
+It does not provide multi-user accounts, an OAuth authorization server,
+automatic reconciliation for concurrent remote writers, a web interface,
+bundled TLS or reverse-proxy management, or automatic extraction from
+conversations.
 
 For the technical boundary, see [Architecture](concepts/architecture.md).
 For practical memory choices, see

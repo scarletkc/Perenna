@@ -14,10 +14,11 @@ from perenna.config import (
     resolve_home,
     resolve_remote_settings,
     resolve_settings,
+    validate_loopback_host,
 )
 from perenna.core import PerennaCore
 from perenna.errors import PerennaError
-from perenna.http_server import run_http
+from perenna.http_server import run_http, run_local_http
 from perenna.mcp_server import run_stdio
 from perenna.skill_installer import SUPPORTED_AGENTS, install_bundled_skill
 from perenna.sync import inspect_sync, setup_sync
@@ -35,9 +36,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     serve = subparsers.add_parser(
         "serve",
-        help="Run the authenticated remote MCP server over Streamable HTTP.",
+        help="Run the MCP server over Streamable HTTP.",
     )
     _add_runtime_arguments(serve)
+    serve.add_argument(
+        "--local-only",
+        action="store_true",
+        help=(
+            "Serve without OAuth on a loopback IP for a local tunnel client. "
+            "Non-loopback --host values are rejected."
+        ),
+    )
     serve.add_argument(
         "--host",
         default="127.0.0.1",
@@ -140,10 +149,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             _run_skill(args)
             return 0
         settings = resolve_settings(cli_home=args.home)
-        remote_settings = resolve_remote_settings() if args.command == "serve" else None
+        local_http = args.command == "serve" and args.local_only
+        if local_http:
+            validate_loopback_host(args.host)
+        remote_settings = (
+            resolve_remote_settings() if args.command == "serve" and not local_http else None
+        )
         core = PerennaCore(settings)
         if args.command == "mcp":
             asyncio.run(run_stdio(core))
+        elif local_http:
+            run_local_http(core, host=args.host, port=args.port)
         else:
             assert remote_settings is not None
             run_http(core, remote_settings, host=args.host, port=args.port)

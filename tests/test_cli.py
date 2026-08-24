@@ -83,6 +83,68 @@ def test_main_runs_authenticated_http_server(tmp_path: Path, monkeypatch) -> Non
     assert observed == [(core, remote, "0.0.0.0", 8788)]
 
 
+def test_main_runs_local_only_http_without_remote_settings(tmp_path: Path, monkeypatch) -> None:
+    settings = RuntimeSettings(RuntimePaths(tmp_path / "home"), None)
+    core = object()
+    observed: list[tuple[object, str, int]] = []
+
+    monkeypatch.setattr(cli, "resolve_settings", lambda **_kwargs: settings)
+    monkeypatch.setattr(
+        cli,
+        "resolve_remote_settings",
+        lambda: pytest.fail("local-only HTTP must not resolve OAuth settings"),
+    )
+    monkeypatch.setattr(cli, "PerennaCore", lambda value: core if value is settings else None)
+    monkeypatch.setattr(
+        cli,
+        "run_local_http",
+        lambda value, *, host, port: observed.append((value, host, port)),
+    )
+
+    assert (
+        cli.main(
+            [
+                "serve",
+                "--local-only",
+                "--home",
+                str(tmp_path),
+                "--port",
+                "8788",
+            ]
+        )
+        == 0
+    )
+    assert observed == [(core, "127.0.0.1", 8788)]
+
+
+def test_local_only_http_rejects_network_listener(tmp_path: Path, capsys, monkeypatch) -> None:
+    settings = RuntimeSettings(RuntimePaths(tmp_path / "home"), None)
+    monkeypatch.setattr(cli, "resolve_settings", lambda **_kwargs: settings)
+    monkeypatch.setattr(
+        cli,
+        "PerennaCore",
+        lambda _settings: pytest.fail("invalid local-only host must fail before core startup"),
+    )
+
+    assert (
+        cli.main(
+            [
+                "serve",
+                "--local-only",
+                "--home",
+                str(tmp_path),
+                "--host",
+                "0.0.0.0",
+            ]
+        )
+        == 2
+    )
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "--local-only requires --host to be a loopback IP address" in captured.err
+    assert "omit --local-only and configure OAuth" in captured.err
+
+
 def test_sync_setup_and_status_do_not_require_vexor(
     tmp_path: Path,
     capsys,

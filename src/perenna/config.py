@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
+from ipaddress import ip_address
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -102,6 +103,23 @@ def resolve_remote_settings(environ: Mapping[str, str] | None = None) -> RemoteS
         jwks_url=_required_https_url(env, "PERENNA_OAUTH_JWKS_URL"),
         allowed_subject=allowed_subject,
     )
+
+
+def validate_loopback_host(host: str) -> None:
+    try:
+        address = ip_address(host)
+    except ValueError as exc:
+        raise ConfigurationError(
+            "--local-only requires --host to be a loopback IP address such as "
+            f"127.0.0.1 or ::1; received {host!r}. Remove --host to use the default, "
+            "or omit --local-only and configure OAuth for network access."
+        ) from exc
+    if not address.is_loopback:
+        raise ConfigurationError(
+            "--local-only requires --host to be a loopback IP address such as "
+            f"127.0.0.1 or ::1; received {host!r}. Remove --host to use the default, "
+            "or omit --local-only and configure OAuth for network access."
+        )
 
 
 def _required_https_url(env: Mapping[str, str], name: str) -> str:

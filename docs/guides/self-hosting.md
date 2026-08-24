@@ -4,6 +4,10 @@ This guide runs one authenticated Perenna instance for one owner. Perenna
 serves plain HTTP inside the host; the operator supplies the public domain,
 HTTPS certificate, reverse proxy, and OAuth provider.
 
+For a Perenna process that stays on loopback behind OpenAI Secure MCP Tunnel,
+use the [Secure MCP Tunnel guide](secure-mcp-tunnel.md) instead; that path does
+not require this public ingress or OAuth infrastructure.
+
 The remote mode is a private ChatGPT developer-mode connection. It does not
 create a multi-user Perenna service or publish a plugin.
 

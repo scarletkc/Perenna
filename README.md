@@ -24,7 +24,7 @@ ChatGPT, Cursor, and other MCP clients can share durable memories without
 sharing a vendor account or conversation history.
 
 - Separate MCP tools for reading, writing, and deleting memories
-- Local stdio and single-user OAuth-protected Streamable HTTP transports
+- Local stdio, loopback-only Streamable HTTP, and OAuth-protected remote HTTP
 - Human-readable Markdown stored in an independent Git repository
 - Local Vexor retrieval index that can always be rebuilt from Git
 - Cross-process locking for multiple local agent processes
@@ -149,6 +149,7 @@ then follow the path for your task:
 - [Getting started](https://github.com/scarletkc/Perenna/blob/main/docs/getting-started.md)
 - [Client setup](https://github.com/scarletkc/Perenna/blob/main/docs/guides/client-setup.md)
 - [Plugin setup](https://github.com/scarletkc/Perenna/blob/main/docs/guides/plugin-setup.md)
+- [Secure MCP Tunnel](https://github.com/scarletkc/Perenna/blob/main/docs/guides/secure-mcp-tunnel.md)
 - [Self-hosting for ChatGPT](https://github.com/scarletkc/Perenna/blob/main/docs/guides/self-hosting.md)
 - [Using permanent memory](https://github.com/scarletkc/Perenna/blob/main/docs/guides/using-memory.md)
 - [`perenna-memory` Agent Skill](https://github.com/scarletkc/Perenna/blob/main/skills/perenna-memory)

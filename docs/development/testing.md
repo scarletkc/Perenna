@@ -156,12 +156,12 @@ that:
 
 Keep at least one real subprocess path when changing CLI or MCP startup code.
 
-## Remote HTTP tests
+## Streamable HTTP tests
 
-The remote suite runs the real ASGI application in process with the official
-MCP client. It verifies OAuth discovery and challenges, JWT validation,
-single-subject access, per-tool scopes, public-host checks, and serialized tool
-metadata without requiring an external identity provider.
+The HTTP suite runs the real ASGI application in process with the official MCP
+client. It verifies the loopback-only no-OAuth path, OAuth discovery and
+challenges, JWT validation, single-subject access, tool scopes, host checks, and
+serialized tool metadata without requiring an external identity provider.
 
 Docker image execution is a separate environment check. A passing Python test
 suite does not establish that a particular container runtime, reverse proxy,

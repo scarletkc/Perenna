@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import httpx2
@@ -132,12 +133,13 @@ async def test_http_server_exposes_metadata_requires_oauth_and_enforces_tool_sco
         if request.method == "POST" and request.url.path == "/mcp"
     ]
     assert protocol_posts
-    assert all(request.headers.get("mcp-method") for request in protocol_posts)
-    assert all(
-        request.headers.get("mcp-name")
-        for request in protocol_posts
-        if request.headers["mcp-method"] == "tools/call"
-    )
+    for request in protocol_posts:
+        payload = json.loads(request.content)
+        method = payload["method"]
+        assert request.headers.get("mcp-protocol-version") == "2026-07-28"
+        assert request.headers.get("mcp-method") == method
+        expected_name = payload.get("params", {}).get("name") if method == "tools/call" else None
+        assert request.headers.get("mcp-name") == expected_name
     routed_requests = [
         (
             request.headers.get("mcp-method"),
@@ -175,9 +177,20 @@ async def test_http_server_keeps_legacy_protocol_compatibility() -> None:
             async with Client(client_transport, mode="legacy") as client:
                 assert client.protocol_version == "2025-11-25"
                 listed = await client.call_tool("memory_read", {"action": "list"})
+                rejected = await client.call_tool(
+                    "memory_write",
+                    {
+                        "action": "create",
+                        "title": "Title",
+                        "summary": "Summary.",
+                        "body": "Body",
+                    },
+                )
 
     assert not listed.is_error
     assert listed.structured_content["action"] == "list"
+    assert rejected.is_error
+    assert "memory:write" in result_text(rejected)
 
 
 @pytest.mark.asyncio

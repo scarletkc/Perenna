@@ -43,14 +43,14 @@ stays ordinary Markdown you can inspect, edit, version, and back up yourself.
 
 | Design point | Perenna | [AgentMemory](https://github.com/rohitg00/agentmemory) | [Mem0](https://github.com/mem0ai/mem0) |
 | --- | --- | --- | --- |
-| Source of truth | **Ordinary Markdown in your Git repository** | iii-managed persistent runtime state | Memory service backed by configured storage |
-| Inspect and edit without the memory runtime | **Yes — use normal editors and Git tools** | Runtime/API-oriented state | Library/API/storage-oriented state |
-| Version history | **Native Git history; one commit per changed mutation** | Runtime-managed persistence | Backend-managed persistence |
-| Write safety | **Revision-guarded exact patches reject stale updates** | Runtime-managed writes | API/library-managed writes |
-| Sync conflicts | **Diverged Git history blocks writes until you reconcile it** | Runtime-managed coordination | Backend/service-managed coordination |
-| Retrieval state | **Disposable Vexor index; rebuild it from committed Markdown** | Search state managed by the runtime | Search/index state managed by configured backends |
-| Core agent surface | **3 focused MCP tools** | 54 MCP tools plus hooks and skills | SDK/API/CLI-oriented memory layer |
-| Runtime model | **stdio locally; one self-hosted service for remote clients** | iii engine plus memory server, streams, viewer, and worker processes | Self-hosted server stack or managed cloud |
+| Source of truth | **Ordinary Markdown in your Git repository** | iii-managed runtime state; Git is not the authoritative store | Service/database-backed memory; Git is not the authoritative store |
+| Human inspection | **Read, edit, diff, and recover with normal file and Git tools** | Durable state is runtime-managed, not ordinary Markdown | Durable state lives in storage backends, not ordinary Markdown |
+| Audit trail | **One Git commit per changed mutation; standard Git history** | Runtime-managed persistence; not Git-native | Backend-managed persistence; not Git-native |
+| Stale-write protection | **Revision-guarded exact patches reject stale updates** | Runtime/API-managed writes; no Git revision boundary | API/library-managed writes; no Git revision boundary |
+| Divergence behavior | **Diverged Git histories block later writes until you reconcile them** | No Git-history divergence model; runtime coordinates state | No Git-history divergence model; backend/service coordinates state |
+| Retrieval dependency | **Disposable Vexor index; rebuild it from committed Markdown** | Search state is managed by the runtime | Search/index state depends on configured backends |
+| Agent surface area | **3 focused MCP tools** | 54 MCP tools plus hooks and skills | SDK/API/CLI-oriented surface |
+| Runtime footprint | **stdio locally; one HTTP service only when remote access is needed** | Pinned iii engine plus multiple local services and four ports | Self-hosted server stack via Docker Compose or managed cloud |
 
 Perenna optimizes for ownership and recoverability over automation breadth:
 **your Git repository is the durable memory, every changed mutation is auditable,

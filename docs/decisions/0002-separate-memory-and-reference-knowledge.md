@@ -51,6 +51,14 @@ schemas or final names. A later API design must preserve strict validation and
 must not turn `memory_read`, `memory_write`, or `memory_delete` into generic
 context operations.
 
+Ship a separate `perenna-knowledge` Agent Skill with the first public
+knowledge operations. It will teach clients when to use knowledge instead of
+memory, how to select a collection, how to search before getting a complete
+source, and how to keep answers grounded in that source. The Skill must
+describe only tools that are actually available, must not simulate missing
+knowledge operations, and must not promote reference documents into memories
+without separate authority for a memory write.
+
 Memory and knowledge may refer to each other through stable, typed references
 instead of duplicating content. A link such as
 `knowledge://perenna/design/architecture` is illustrative; the identifier and

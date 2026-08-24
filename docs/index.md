@@ -18,6 +18,7 @@ more exact layers only when you need them.
 | [Client setup](guides/client-setup.md) | Connect Claude Code, Codex, ChatGPT Desktop, or Cursor |
 | [Plugin setup](guides/plugin-setup.md) | Install the combined Skill and MCP plugin for Codex or Claude Code |
 | [Self-hosting](guides/self-hosting.md) | Run one OAuth-protected Perenna instance for ChatGPT web |
+| [Glama MCP in ChatGPT web](guides/glama-chatgpt.md) | Connect a tokenized Glama Perenna endpoint to ChatGPT without OAuth |
 | [Using permanent memory](guides/using-memory.md) | List, search, get, create, patch, replace, and delete memories |
 | [`perenna-memory` Agent Skill](../skills/perenna-memory/SKILL.md) | Teach a compatible AI client when and how to curate permanent memory |
 | [Maintenance and recovery](guides/maintenance.md) | Inspect Git history, handle local edits, and rebuild the index |
@@ -47,6 +48,14 @@ more exact layers only when you need them.
 | [Testing](development/testing.md) | Run offline, concurrency, integration, and live-provider tests |
 | [Releasing](development/releasing.md) | Understand and run the GitHub Release to PyPI workflow |
 
+## Review proposals
+
+Proposals are unapproved designs, not current behavior or roadmap commitments.
+
+| Document | Use it to |
+| --- | --- |
+| [Hosted Git bootstrap](proposals/hosted-git-bootstrap.md) | Review a candidate design for configuring Git synchronization during container startup |
+
 ## Directory map
 
 ```text
@@ -57,6 +66,7 @@ docs/
 ├── guides/
 │   ├── agent-installation.md
 │   ├── client-setup.md
+│   ├── glama-chatgpt.md
 │   ├── plugin-setup.md
 │   ├── self-hosting.md
 │   ├── using-memory.md
@@ -71,6 +81,8 @@ docs/
 │   ├── configuration.md
 │   ├── mcp-api.md
 │   └── memory-format.md
+├── proposals/
+│   └── hosted-git-bootstrap.md
 └── development/
     ├── contributing.md
     ├── releasing.md

@@ -3,8 +3,9 @@
 This guide connects supported local MCP clients to the same Perenna home. It
 assumes that `perenna` is installed and available on `PATH`.
 
-For an OAuth-protected ChatGPT web connection to a VPS, use the separate
-[self-hosting guide](self-hosting.md).
+For ChatGPT web, choose either the OAuth-protected
+[self-hosting guide](self-hosting.md) or the third-party
+[Glama connection guide](glama-chatgpt.md).
 
 Codex and Claude Code users can instead follow the combined
 [Plugin setup](plugin-setup.md), which installs the Agent Skill and MCP
@@ -80,9 +81,14 @@ Use `/mcp` in the composer to inspect connected servers.
 
 ## ChatGPT web
 
-ChatGPT web connects to `perenna serve` through a public HTTPS reverse proxy
-and OAuth. It does not start a local process or share the desktop stdio
-configuration. Follow [Self-host Perenna for ChatGPT](self-hosting.md).
+ChatGPT web requires a public Streamable HTTP connection. It does not start a
+local process or share the desktop stdio configuration.
+
+- To operate the endpoint and OAuth resource server yourself, follow
+  [Self-host Perenna for ChatGPT](self-hosting.md).
+- To connect an existing Glama-hosted Perenna endpoint, follow
+  [Connect a Glama MCP server to ChatGPT web](glama-chatgpt.md). The tokenized
+  Glama instance URL uses ChatGPT's **No authentication** option, not OAuth.
 
 ## Cursor
 

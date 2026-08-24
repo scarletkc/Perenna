@@ -32,7 +32,7 @@ Internally, Perenna provides:
 - global and project-specific scopes;
 - semantic retrieval through a rebuildable Vexor collection;
 - safe coordination between multiple local Perenna processes;
-- local stdio and single-user authenticated HTTP access;
+- local stdio, loopback-only HTTP, and single-user authenticated HTTP access;
 - optional Git import, fast-forward, and push with explicit conflict reporting.
 
 The exact tool contract is documented in the

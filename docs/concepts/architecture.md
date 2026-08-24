@@ -90,8 +90,9 @@ passage.
 - Committed Markdown is trusted only after strict schema and integrity checks.
 - Vexor metadata is treated as a cache hint and cross-checked against Git.
 - Remote embedding providers receive text only when the user configures one.
-- Local-only HTTP rejects non-loopback listeners and validates its exact local
-  `Host`; it relies on host trust and the external tunnel for remote access.
+- Local-only HTTP rejects non-loopback listeners, validates its exact local
+  `Host`, and requires any supplied `Origin` to match the derived local origin.
+  It relies on host trust and the external tunnel for remote access.
 - The remote adapter accepts only JWTs whose signature, issuer, audience,
   lifetime, subject, and tool scope validate against operator configuration.
 - The configured public URL, rather than forwarded headers, owns the OAuth

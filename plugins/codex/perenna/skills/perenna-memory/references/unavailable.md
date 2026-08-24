@@ -82,11 +82,12 @@ persistent trusted host, follow the maintained tunnel guide and run
 `perenna serve --local-only` on loopback. Select no authentication for the
 tunnel-backed MCP app. Do not expose or forward that local port.
 
-When Secure MCP Tunnel is unavailable or the user instead wants a public
-endpoint, guide them through the maintained Docker self-hosting document rather
-than attempting to deploy infrastructure from the web session. The user must
-provide or operate the VPS, public domain, HTTPS reverse proxy, OAuth provider,
-persistent volume, and deployment credentials.
+When no suitable local host is available, Secure MCP Tunnel is unavailable, or
+the user instead wants a public endpoint, guide them through the maintained
+Docker self-hosting document rather than attempting to deploy infrastructure
+from the web session. The user must provide or operate the VPS, public domain,
+HTTPS reverse proxy, OAuth provider, persistent volume, and deployment
+credentials.
 
 Proceed one user-confirmed milestone at a time. For Tunnel, verify the
 loopback-only Perenna endpoint, tunnel-client readiness, and discovery of all

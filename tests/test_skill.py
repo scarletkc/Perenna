@@ -70,6 +70,7 @@ def test_perenna_memory_skill_is_discoverable_and_covers_the_tool_surface() -> N
     assert "perenna serve --local-only" in flattened
     assert "perenna serve" in combined
     assert "Do not expose or forward that local port" in flattened
+    assert "When no suitable local host is available" in flattened
     assert "Do not run remote deployment commands" in flattened
     assert "both the local commit result and the synchronization state" in flattened
     assert "Do not repeat a successful local mutation" in flattened

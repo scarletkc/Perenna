@@ -166,6 +166,14 @@ async def test_local_http_server_uses_streamable_http_without_oauth() -> None:
         ) as client:
             health = await client.get("/healthz")
             metadata = await client.get("/.well-known/oauth-protected-resource/mcp")
+            wrong_origin = await client.post(
+                "/mcp",
+                json={"jsonrpc": "2.0", "id": 1, "method": "ping"},
+                headers={
+                    "accept": "application/json, text/event-stream",
+                    "origin": "http://127.0.0.2:8000",
+                },
+            )
             async with streamable_http_client(
                 "http://127.0.0.1:8000/mcp",
                 http_client=client,
@@ -187,6 +195,7 @@ async def test_local_http_server_uses_streamable_http_without_oauth() -> None:
 
     assert health.status_code == 200
     assert metadata.status_code == 404
+    assert wrong_origin.status_code == 403
     assert [tool.name for tool in tools.tools] == [
         "memory_read",
         "memory_write",

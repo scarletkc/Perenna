@@ -10,6 +10,10 @@ scope per tool: `memory:read`, `memory:write`, or `memory:delete`. Missing,
 invalid, or insufficient credentials fail before the core operation. Local
 stdio does not attach OAuth metadata or require a token.
 
+Tool discovery is returned in deterministic order with private, zero-lifetime
+cache hints. Clients can therefore refresh the catalog without relying on a
+connection-specific tool list.
+
 ## `memory_read`
 
 `memory_read` has three actions.

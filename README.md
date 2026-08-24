@@ -41,13 +41,17 @@ Perenna gives them one **shared, Git-backed memory**. Local agents and ChatGPT
 can connect to the same self-hosted Perenna service, while every durable memory
 stays ordinary Markdown you can inspect, edit, version, and back up yourself.
 
-[Mem0's self-hosted stack](https://docs.mem0.ai/open-source/setup) is much
-heavier, while its hosted [Free Plan](https://mem0.ai/terms) currently allows
-customer content to be used for model training and product improvement.
+| | Perenna | [AgentMemory](https://github.com/rohitg00/agentmemory) | [Mem0](https://github.com/mem0ai/mem0) |
+| --- | --- | --- | --- |
+| Durable state | Markdown in your Git repository | Runtime-managed persistent state | Memory service with pluggable storage |
+| MCP surface | 3 memory tools | Broad MCP/API surface | SDK/API-first memory layer |
+| Writes | Explicit agent writes with revision guards | Hooks, skills, and automation | Automatic and explicit memory workflows |
+| Retrieval | Rebuildable Vexor index | BM25, vector, graph, and hybrid search | Semantic memory retrieval |
+| UI | None | Real-time viewer | Hosted dashboard available |
+| Best fit | Small, inspectable, Git-native shared memory | Feature-rich agent memory platform | Managed or embedded application memory |
 
-Perenna is different by design: **no account, no proprietary memory cloud, no
-lock-in.** Just your memories, in your Git repository, on infrastructure you
-control.
+Perenna is deliberately narrow: **no account, no proprietary memory cloud, no
+lock-in.** The retrieval index is disposable. The Markdown is not.
 
 ## Quickstart
 

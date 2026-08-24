@@ -38,21 +38,44 @@ setup implementation before serving tools.
 | `PERENNA_GIT_REMOTE` | Existing remote-name selector; defaults to `origin` during setup |
 | `PERENNA_GIT_DEPLOY_KEY` | Persistent opt-in to the existing repository-specific deploy-key flow |
 
-If deploy-key bootstrap is enabled, the repository URL must use SSH. Perenna
-rejects an HTTPS URL before changing the remote configuration.
+Hosted bootstrap would accept only credential-free HTTPS URLs with a non-empty
+host and repository path, `ssh://` URLs with a non-empty host and repository
+path, and SCP-style SSH addresses such as `git@example.com:owner/memory.git`.
+The host policy would remain provider-neutral so public, private, and
+self-hosted Git services can use the same interface.
 
-The deploy-key setting would select a persistent authentication mode, not a
-one-time bootstrap action. It must remain enabled on every restart of a home
-configured with a deploy key. If that home contains a deploy-key configuration
-but startup omits or disables the mode, Perenna should fail with actionable
-guidance instead of silently changing authentication methods.
+Local paths, `file://`, insecure `http://` and `git://` URLs, Git remote-helper
+forms such as `ext::`, missing-host or missing-path addresses, and every other
+transport would be rejected before repository initialization or remote and
+authentication configuration changes.
+
+An implementation should tighten the existing `_validated_repository_url()`
+validator and use it through `setup_sync()` for both manual setup and hosted
+startup.
+
+If deploy-key bootstrap is enabled, the repository URL must use SSH. Perenna
+would reject an HTTPS URL during the same pre-mutation validation.
+
+The deploy-key setting would select the authentication mode only when a
+bootstrap URL is present. Its semantic states would be:
+
+| Bootstrap URL | Deploy-key value | Candidate startup behavior |
+| --- | --- | --- |
+| Absent | Unset | Skip bootstrap and preserve the current startup refresh, including persisted repository-specific deploy-key configuration |
+| Absent | `false` | Behave as unset and preserve the current startup refresh |
+| Absent | `true` | Reject the incomplete bootstrap configuration and require a repository URL before changing repository state |
+| Present | Unset | Request ordinary Git authentication; reject a persisted deploy-key mode before changing remote or authentication configuration |
+| Present | `false` | Behave as unset and reject a persisted deploy-key mode before configuration changes |
+| Present | `true` | Require an SSH URL and bootstrap or verify repository-specific deploy-key authentication |
+
+This preserves existing homes configured by `perenna sync setup`: when no
+bootstrap URL is supplied, their persisted `core.sshCommand` continues to own
+authentication. A deployment that keeps supplying a bootstrap URL for a
+deploy-key home must also keep the deploy-key mode enabled on every restart.
 
 `--remote` should not be used for the repository address because Perenna
 already uses *remote* to mean the configured Git name. The candidate URL and
 deploy-key names are placeholders, not approved public fields.
-
-No Git URL or deploy-key option would be required. With no bootstrap URL,
-startup and local-only behavior would remain unchanged.
 
 ## Startup behavior
 
@@ -60,20 +83,23 @@ Any approved implementation should run bootstrap under the existing exclusive
 Perenna-home lock and reuse `setup_sync()` rather than introduce a second Git
 initialization path.
 
-1. Resolve the home, source, remote name, and optional repository URL.
-2. When no URL is configured, retain the current startup refresh behavior.
-3. When the named remote is absent, validate the URL and run the existing safe
-   setup operation.
-4. When the named remote already has the same URL and authentication mode,
+1. Resolve the home, source, remote name, optional repository URL, and
+   deploy-key mode.
+2. Validate the input combination and any configured URL before initializing or
+   changing the repository.
+3. When no URL is configured, retain the current startup refresh behavior.
+4. When the named remote is absent, run `setup_sync()`.
+5. When the named remote already has the same URL and authentication mode,
    treat bootstrap as idempotent and verify compatible state.
-5. When a persisted deploy-key configuration conflicts with the requested
-   authentication mode, fail before changing the remote configuration.
-6. When the remote points somewhere else, fail with an actionable error. Never
+6. When a persisted deploy-key configuration conflicts with the requested
+   authentication mode, fail before changing remote or authentication
+   configuration.
+7. When the remote points somewhere else, fail with an actionable error. Never
    replace it automatically.
-7. Import an existing compatible remote into an empty local repository, or
+8. Import an existing compatible remote into an empty local repository, or
    publish existing local history to an empty remote, using the current setup
    rules.
-8. Stop on incompatible branches or diverged history. Never merge, rebase, or
+9. Stop on incompatible branches or diverged history. Never merge, rebase, or
    force-push automatically.
 
 If a URL explicitly requests bootstrap but the remote cannot be verified,
@@ -129,17 +155,27 @@ current Git and deploy-key modules.
 
 Coverage must include:
 
+- accepted HTTPS, `ssh://`, and SCP-style SSH addresses for public, private,
+  and self-hosted Git hosts;
+- rejection of local paths, `file://`, `http://`, `git://`, remote-helper,
+  missing-host, missing-path, and unsupported-scheme addresses;
+- every deploy-key state in the candidate table, both with and without a
+  bootstrap URL;
 - empty local and empty remote;
 - empty local importing existing compatible history;
 - existing local publishing to an empty remote;
 - repeated startup with the same address and authentication mode;
-- a persisted deploy-key home restarted without deploy-key mode, which must
-  fail before changing the remote configuration;
+- a persisted deploy-key home restarted without a bootstrap URL, which must
+  retain its current startup refresh and authentication configuration;
+- a persisted deploy-key home given a bootstrap URL without deploy-key mode,
+  which must fail before configuration changes;
 - an existing remote with a different address;
 - unavailable authentication and network;
 - deploy-key authorization pending across a persistent-home restart;
 - incompatible branches and diverged history;
 - simultaneous first starts using the same home;
+- rejected startup that leaves the existing remote URL, `core.sshCommand`,
+  `perenna.syncAuth`, and `perenna.deployKeyPath` unchanged;
 - absence of credentials and private-key material from errors and logs.
 
 Tests and experiments must use disposable homes and repositories, never the

@@ -35,6 +35,10 @@ Use global scope for preferences or constraints that apply across projects.
 Use project scope for repository-specific architecture, history, policy, and
 workflows. Prefer a stable project slug already present in the index.
 
+Group related durable statements into one memory when they form one coherent
+subject. Do not create a separate memory for every atomic fact, and do not
+combine unrelated subjects merely to reduce the number of memories.
+
 Write the final reusable state:
 
 - a specific, durable title;
@@ -57,6 +61,47 @@ subject. For an existing memory, use the current ID and revision returned by
 - If a revision is stale or an exact patch anchor no longer matches, re-read
   the memory and reconcile the new state. Never force or approximate the edit.
 - Update the summary only when the subject covered by the memory changes.
+
+## Consolidate overlapping memories
+
+When the user asks to organize, deduplicate, merge, or clean up memories, use
+the existing MCP tools instead of inventing a background process or bypassing
+the memory contract.
+
+Start with a read-only audit. Use `memory_read` with `list` to inspect titles,
+scopes, and summaries. For a store-wide request, enumerate the global index and
+each available project, counting the global references only once. Shortlist
+plausible overlaps before using `get`; do not load every complete body unless
+the collection is small or the user explicitly requests an exhaustive audit.
+
+Compare memories within the same scope by default. Similar global and project
+memories may intentionally express a cross-project rule and a project-specific
+exception. Report cross-scope overlap separately rather than proposing an
+automatic merge.
+
+Read every shortlisted memory completely and classify the relationship before
+proposing a change:
+
+- duplicate: the durable meaning is already preserved elsewhere;
+- overlap: the memories share material but each contains useful content;
+- conflict: their current claims cannot both be applied safely;
+- supersession: one memory clearly replaces an older rule or state;
+- distinct: the similarity does not justify a change.
+
+The initial cleanup request authorizes this read-only analysis, not an
+irreversible choice about which durable wording or identity to keep, unless the
+user explicitly authorizes the concrete mutations in the same request. Present
+a concise plan naming each affected title and scope, the memory to retain, the
+resulting coverage, and every proposed patch, replacement, or deletion. Do not
+store the audit report as permanent memory.
+
+After approval, get every affected memory again and use its current revision.
+If any revision or exact patch anchor changed, stop that consolidation group,
+re-read it, and revise the plan instead of forcing the old proposal. Merge
+useful content into the retained memory successfully before deleting a
+redundant memory. Treat each mutation result independently: a committed merge
+followed by a failed deletion is a partial outcome to report, not a reason to
+repeat the merge.
 
 ## Forget deliberately
 

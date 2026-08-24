@@ -49,9 +49,13 @@ async def test_http_server_exposes_metadata_requires_oauth_and_enforces_tool_sco
     )
     transport = httpx2.ASGITransport(app=app)
     protocol_requests: list[httpx2.Request] = []
+    protocol_responses: list[httpx2.Response] = []
 
     async def capture_request(request: httpx2.Request) -> None:
         protocol_requests.append(request)
+
+    async def capture_response(response: httpx2.Response) -> None:
+        protocol_responses.append(response)
 
     async with app.router.lifespan_context(app):
         async with httpx2.AsyncClient(
@@ -86,7 +90,10 @@ async def test_http_server_exposes_metadata_requires_oauth_and_enforces_tool_sco
             transport=transport,
             base_url="https://memory.example.com",
             headers={"authorization": "Bearer read-token"},
-            event_hooks={"request": [capture_request]},
+            event_hooks={
+                "request": [capture_request],
+                "response": [capture_response],
+            },
         ) as authenticated:
             client_transport = streamable_http_client(
                 "https://memory.example.com/mcp",
@@ -132,6 +139,7 @@ async def test_http_server_exposes_metadata_requires_oauth_and_enforces_tool_sco
     assert ("tools/call", "memory_read", "2026-07-28") in routed_requests
     assert ("tools/call", "memory_write", "2026-07-28") in routed_requests
     assert all("mcp-session-id" not in request.headers for request in protocol_requests)
+    assert all("mcp-session-id" not in response.headers for response in protocol_responses)
 
 
 @pytest.mark.asyncio

@@ -114,7 +114,11 @@ def create_server(
         tools = [MEMORY_READ_TOOL, MEMORY_WRITE_TOOL, MEMORY_DELETE_TOOL]
         if oauth_metadata_url is not None:
             tools = [_with_oauth(tool) for tool in tools]
-        return types.ListToolsResult(tools=tools)
+        return types.ListToolsResult(
+            tools=tools,
+            ttlMs=0,
+            cacheScope="private",
+        )
 
     async def call_tool(
         _context: ServerRequestContext[object],

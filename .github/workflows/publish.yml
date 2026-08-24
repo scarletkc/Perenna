@@ -35,7 +35,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: "3.13"
           enable-cache: false
@@ -105,7 +105,7 @@ jobs:
 
       - name: Check distribution metadata
         if: steps.version.outputs.release_changed == 'true'
-        run: uvx --from twine twine check dist/*
+        run: uv run --locked --extra dev twine check dist/*
 
       - name: Verify wheel in a clean environment
         if: steps.version.outputs.release_changed == 'true'
@@ -243,8 +243,8 @@ jobs:
       - name: Install mcp-publisher
         shell: bash
         env:
-          MCP_PUBLISHER_VERSION: v1.7.9
-          MCP_PUBLISHER_SHA256: ab128162b0616090b47cf245afe0a23f3ef08936fdce19074f5ba0a4469281ac
+          MCP_PUBLISHER_VERSION: v1.8.1
+          MCP_PUBLISHER_SHA256: a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc
         run: |
           set -euo pipefail
           archive="mcp-publisher_linux_amd64.tar.gz"

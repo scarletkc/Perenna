@@ -44,6 +44,13 @@ Streamable HTTP, protected-resource metadata, bearer-token verification,
 single-subject authorization, and per-tool scopes. Neither adapter owns
 storage, indexing, or Git behavior.
 
+The current Streamable HTTP path is request-scoped: each modern request carries
+its protocol version and routing metadata, and no MCP session identifier is
+required. The same endpoint retains the SDK's earlier handshake-era support for
+clients that have not negotiated the current protocol. This transport
+compatibility does not add application state or change Perenna's single-owner
+storage boundary.
+
 ### Core
 
 The core exposes list, search, get, create, patch, replace, and delete

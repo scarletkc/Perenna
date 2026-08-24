@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import httpx2
 import pytest
-from mcp import ClientSession
+from mcp import Client
 from mcp.client.streamable_http import streamable_http_client
 from mcp.server.auth.provider import AccessToken
 
@@ -48,6 +49,14 @@ async def test_http_server_exposes_metadata_requires_oauth_and_enforces_tool_sco
         token_verifier=_TokenVerifier(),
     )
     transport = httpx2.ASGITransport(app=app)
+    protocol_requests: list[httpx2.Request] = []
+    protocol_responses: list[httpx2.Response] = []
+
+    async def capture_request(request: httpx2.Request) -> None:
+        protocol_requests.append(request)
+
+    async def capture_response(response: httpx2.Response) -> None:
+        protocol_responses.append(response)
 
     async with app.router.lifespan_context(app):
         async with httpx2.AsyncClient(
@@ -82,36 +91,106 @@ async def test_http_server_exposes_metadata_requires_oauth_and_enforces_tool_sco
             transport=transport,
             base_url="https://memory.example.com",
             headers={"authorization": "Bearer read-token"},
+            event_hooks={
+                "request": [capture_request],
+                "response": [capture_response],
+            },
         ) as authenticated:
-            async with streamable_http_client(
+            client_transport = streamable_http_client(
                 "https://memory.example.com/mcp",
                 http_client=authenticated,
-            ) as (read_stream, write_stream):
-                async with ClientSession(read_stream, write_stream) as session:
-                    await session.initialize()
-                    tools = await session.list_tools()
-                    listed = await session.call_tool("memory_read", {"action": "list"})
-                    rejected = await session.call_tool(
-                        "memory_write",
-                        {
-                            "action": "create",
-                            "title": "Title",
-                            "summary": "Summary.",
-                            "body": "Body",
-                        },
-                    )
+            )
+            async with Client(client_transport) as client:
+                assert client.protocol_version == "2026-07-28"
+                tools = await client.list_tools()
+                listed = await client.call_tool("memory_read", {"action": "list"})
+                rejected = await client.call_tool(
+                    "memory_write",
+                    {
+                        "action": "create",
+                        "title": "Title",
+                        "summary": "Summary.",
+                        "body": "Body",
+                    },
+                )
 
     assert [tool.meta for tool in tools.tools] == [
         {"securitySchemes": [{"type": "oauth2", "scopes": ["memory:read"]}]},
         {"securitySchemes": [{"type": "oauth2", "scopes": ["memory:write"]}]},
         {"securitySchemes": [{"type": "oauth2", "scopes": ["memory:delete"]}]},
     ]
+    assert tools.ttl_ms == 0
+    assert tools.cache_scope == "private"
     assert not listed.is_error
     assert listed.structured_content["action"] == "list"
     assert rejected.is_error
     assert "memory:write" in result_text(rejected)
     assert rejected.meta is not None
     assert "mcp/www_authenticate" in rejected.meta
+    protocol_posts = [
+        request
+        for request in protocol_requests
+        if request.method == "POST" and request.url.path == "/mcp"
+    ]
+    assert protocol_posts
+    for request in protocol_posts:
+        payload = json.loads(request.content)
+        method = payload["method"]
+        assert request.headers.get("mcp-protocol-version") == "2026-07-28"
+        assert request.headers.get("mcp-method") == method
+        expected_name = payload.get("params", {}).get("name") if method == "tools/call" else None
+        assert request.headers.get("mcp-name") == expected_name
+    routed_requests = [
+        (
+            request.headers.get("mcp-method"),
+            request.headers.get("mcp-name"),
+            request.headers.get("mcp-protocol-version"),
+        )
+        for request in protocol_posts
+    ]
+    assert ("tools/list", None, "2026-07-28") in routed_requests
+    assert ("tools/call", "memory_read", "2026-07-28") in routed_requests
+    assert ("tools/call", "memory_write", "2026-07-28") in routed_requests
+    assert all("mcp-session-id" not in request.headers for request in protocol_requests)
+    assert all("mcp-session-id" not in response.headers for response in protocol_responses)
+
+
+@pytest.mark.asyncio
+async def test_http_server_keeps_legacy_protocol_compatibility() -> None:
+    app = create_http_app(
+        _Core(),  # type: ignore[arg-type]
+        _settings(),
+        token_verifier=_TokenVerifier(),
+    )
+    transport = httpx2.ASGITransport(app=app)
+
+    async with app.router.lifespan_context(app):
+        async with httpx2.AsyncClient(
+            transport=transport,
+            base_url="https://memory.example.com",
+            headers={"authorization": "Bearer read-token"},
+        ) as authenticated:
+            client_transport = streamable_http_client(
+                "https://memory.example.com/mcp",
+                http_client=authenticated,
+            )
+            async with Client(client_transport, mode="legacy") as client:
+                assert client.protocol_version == "2025-11-25"
+                listed = await client.call_tool("memory_read", {"action": "list"})
+                rejected = await client.call_tool(
+                    "memory_write",
+                    {
+                        "action": "create",
+                        "title": "Title",
+                        "summary": "Summary.",
+                        "body": "Body",
+                    },
+                )
+
+    assert not listed.is_error
+    assert listed.structured_content["action"] == "list"
+    assert rejected.is_error
+    assert "memory:write" in result_text(rejected)
 
 
 @pytest.mark.asyncio

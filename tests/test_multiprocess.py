@@ -14,12 +14,12 @@ import sys
 from perenna.config import resolve_settings
 from perenna.core import PerennaCore
 
-settings = resolve_settings(cli_home=sys.argv[1], cli_source=sys.argv[2])
+settings = resolve_settings(cli_home=sys.argv[1])
 core = PerennaCore(settings)
 core.create(
-    title=sys.argv[3],
-    summary=f'Concurrent memory from {sys.argv[3]}.',
-    body=sys.argv[4],
+    title=sys.argv[2],
+    summary=f'Concurrent memory from {sys.argv[2]}.',
+    body=sys.argv[3],
     project='shared-project',
 )
 """
@@ -38,7 +38,6 @@ def test_two_process_writers_create_two_clean_commits(tmp_path: Path) -> None:
                     "-c",
                     WORKER,
                     os.fspath(home),
-                    source,
                     title,
                     body,
                 ],
@@ -48,9 +47,9 @@ def test_two_process_writers_create_two_clean_commits(tmp_path: Path) -> None:
                 stderr=subprocess.PIPE,
                 text=True,
             )
-            for source, title, body in (
-                ("claude-code", "Writer A", "First concurrent memory"),
-                ("codex", "Writer B", "Second concurrent memory"),
+            for title, body in (
+                ("Writer A", "First concurrent memory"),
+                ("Writer B", "Second concurrent memory"),
             )
         ]
         completed = [process.communicate(timeout=45) for process in processes]

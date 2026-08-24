@@ -86,17 +86,21 @@ want to discard all derived index state:
 Rebuild reads only the committed Git snapshot. Uncommitted working-tree files
 never enter the collection.
 
-## Recover from an embedding failure
+## Recover from an indexing failure
 
 If a mutation reports successful Git persistence but indexing is pending:
 
 1. Do not repeat the same mutation merely to trigger embedding again.
-2. Check the effective Vexor provider, model, endpoint, and API key.
-3. Correct the provider configuration.
-4. Search again to retry recovery.
-5. Rebuild the index if the provider, model, or vector dimension changed.
+2. Read the search error to identify which stage failed.
+3. For an embedding or query failure, check the effective Vexor provider,
+   model, endpoint, and API key.
+4. For a local collection or marker failure, check access to the index
+   directory and follow the rebuild procedure above.
+5. Search again to retry recovery synchronously.
+6. Rebuild the index if the provider, model, or vector dimension changed.
 
-The committed Markdown remains authoritative throughout this process.
+There is no background indexing job to wait for. The committed Markdown
+remains authoritative throughout this process.
 
 ## Recover from a Git commit failure
 

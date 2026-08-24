@@ -6,8 +6,8 @@ paths, remote OAuth, optional Git synchronization, and Vexor provider settings.
 ## CLI entry point
 
 ```text
-perenna mcp [--source SOURCE] [--home PATH]
-perenna serve [--source SOURCE] [--home PATH] [--host HOST] [--port PORT]
+perenna mcp [--home PATH]
+perenna serve [--home PATH] [--host HOST] [--port PORT]
 perenna sync setup REPOSITORY_URL [--home PATH] [--replace] [--deploy-key]
 perenna sync status [--home PATH]
 perenna skill install --agent AGENT [--agent AGENT] [--scope SCOPE] [--replace]
@@ -74,30 +74,6 @@ The resolved home contains:
 `index/` can be rebuilt from `memory/`. The memory and index directories must
 not be reversed or merged, and the runtime memory repository must remain
 separate from the Perenna source-code repository.
-
-## Source identity
-
-The source is resolved in this order:
-
-1. `--source SOURCE`
-2. `PERENNA_SOURCE`
-
-There is no default source. Perenna refuses to start when neither value is
-present.
-
-Source normalization and validation:
-
-- Unicode NFKC normalization;
-- leading and trailing whitespace removed;
-- 1 to 64 characters;
-- first character must be an ASCII letter or digit;
-- remaining characters may be ASCII letters, digits, `.`, `_`, or `-`;
-- case is preserved.
-
-Stable examples include `claude-code`, `codex`, and `cursor`.
-
-The host injects source into changed mutations. `source` is not an MCP tool
-field.
 
 ## Remote MCP and OAuth
 
@@ -377,6 +353,6 @@ sends diagnostics and redacted operational logs to stderr.
 Uvicorn access log is disabled so bearer headers and request details do not
 enter routine logs.
 
-Logs may include action, source, project, operation, result count, short commit
-ID, and exception type. They must not include a memory summary, body, search
-query, provider key, or complete MCP request payload.
+Logs may include action, project, operation, result count, short commit ID, and
+exception type. They must not include a memory summary, body, search query,
+provider key, or complete MCP request payload.

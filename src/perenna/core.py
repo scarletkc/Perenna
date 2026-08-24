@@ -65,8 +65,7 @@ class PerennaCore:
             projects = []
         memories = [_memory_ref(memory) for memory in sorted(selected, key=_memory_sort_key)]
         logger.info(
-            "tool=memory_read action=list source=%s project=%s results=%d",
-            self.settings.source,
+            "tool=memory_read action=list project=%s results=%d",
             normalized_project or "all",
             len(memories),
         )
@@ -120,8 +119,7 @@ class PerennaCore:
         matches = [] if results is None else [_match_payload(match) for match in results.matches]
         truncated = False if results is None else results.truncated
         logger.info(
-            "tool=memory_read action=search source=%s project=%s results=%d",
-            self.settings.source,
+            "tool=memory_read action=search project=%s results=%d",
             normalized_project or "all",
             len(matches),
         )
@@ -144,8 +142,7 @@ class PerennaCore:
                 "memories again, then retry with a current memory ID."
             )
         logger.info(
-            "tool=memory_read action=get source=%s project=%s results=1",
-            self.settings.source,
+            "tool=memory_read action=get project=%s results=1",
             memory.project or "global",
         )
         return {"action": "get", "memory": _memory_payload(memory)}
@@ -163,7 +160,6 @@ class PerennaCore:
                 title=title,
                 summary=summary,
                 body=body,
-                source=self.settings.source,
                 project=project,
             )
         )
@@ -181,7 +177,6 @@ class PerennaCore:
                 memory_id=memory_id,
                 base_revision=base_revision,
                 edits=edits,
-                source=self.settings.source,
                 summary=summary,
             )
         )
@@ -200,7 +195,6 @@ class PerennaCore:
                 base_revision=base_revision,
                 summary=summary,
                 body=body,
-                source=self.settings.source,
             )
         )
 
@@ -237,9 +231,8 @@ class PerennaCore:
                 except Exception as exc:
                     index_status = "pending"
                     logger.warning(
-                        "memory_index=failed operation=%s source=%s project=%s error_type=%s",
+                        "memory_index=failed operation=%s project=%s error_type=%s",
                         receipt.operation,
-                        self.settings.source,
                         receipt.memory.project or "global",
                         type(exc).__name__,
                     )
@@ -255,11 +248,10 @@ class PerennaCore:
                 index_status = refreshed_index_status
 
         logger.info(
-            "tool=%s action=%s changed=%s source=%s project=%s commit=%s",
+            "tool=%s action=%s changed=%s project=%s commit=%s",
             "memory_delete" if receipt.operation == "delete" else "memory_write",
             receipt.operation,
             str(receipt.changed).lower(),
-            self.settings.source,
             receipt.memory.project or "global",
             receipt.commit[:12],
         )
@@ -297,9 +289,8 @@ class PerennaCore:
                 except Exception as exc:
                     refreshed_index_status = "pending"
                     logger.warning(
-                        "memory_index=failed operation=%s source=%s project=%s error_type=%s",
+                        "memory_index=failed operation=%s project=%s error_type=%s",
                         receipt.operation,
-                        self.settings.source,
                         receipt.memory.project or "global",
                         type(exc).__name__,
                     )
@@ -369,7 +360,6 @@ def _memory_ref(memory: Memory) -> dict[str, str]:
 def _memory_payload(memory: Memory) -> dict[str, str]:
     return {
         **_memory_ref(memory),
-        "source": memory.source,
         "created_at": memory.created_at,
         "updated_at": memory.updated_at,
         "revision": memory_revision(memory),

@@ -13,7 +13,6 @@ from perenna.config import (
     resolve_home,
     resolve_remote_settings,
     resolve_settings,
-    resolve_source,
 )
 from perenna.errors import ConfigurationError
 
@@ -48,27 +47,6 @@ def test_home_rejects_an_explicit_empty_value(
         resolve_home(cli_home, environment)
 
 
-def test_source_flag_takes_priority_and_is_normalized() -> None:
-    environment = {"PERENNA_SOURCE": "cursor"}
-
-    assert resolve_source("  codex  ", environment) == "codex"
-
-
-def test_source_uses_environment() -> None:
-    assert resolve_source(None, {"PERENNA_SOURCE": "claude-code"}) == "claude-code"
-
-
-def test_source_is_required() -> None:
-    with pytest.raises(ConfigurationError, match="source is missing"):
-        resolve_source(None, {})
-
-
-@pytest.mark.parametrize("source", ["", "with space", "../agent", "x" * 65])
-def test_source_rejects_invalid_values(source: str) -> None:
-    with pytest.raises(ConfigurationError, match="is invalid"):
-        resolve_source(source, {})
-
-
 def test_git_remote_is_opt_in_and_can_be_normalized_or_disabled() -> None:
     assert resolve_git_remote({}) is None
     assert resolve_git_remote({"PERENNA_GIT_REMOTE": " origin "}) == "origin"
@@ -79,10 +57,8 @@ def test_resolve_settings_uses_each_precedence_rule(tmp_path: Path) -> None:
     cli_home = tmp_path / "cli"
     settings = resolve_settings(
         cli_home=cli_home,
-        cli_source="codex",
         environ={
             "PERENNA_HOME": str(tmp_path / "environment"),
-            "PERENNA_SOURCE": "cursor",
             "PERENNA_GIT_REMOTE": "",
         },
     )
@@ -90,7 +66,6 @@ def test_resolve_settings_uses_each_precedence_rule(tmp_path: Path) -> None:
     assert settings.paths == RuntimePaths(cli_home.resolve())
     assert settings.paths.memory == cli_home.resolve() / "memory"
     assert settings.paths.index == cli_home.resolve() / "index"
-    assert settings.source == "codex"
     assert settings.git_remote is None
 
 

@@ -60,7 +60,6 @@ def _memory(memory_id: str, scope: str, path: str, body: str) -> Memory:
         id=memory_id,
         title=body.split()[0],
         summary=f"Memory about {body}.",
-        source="codex",
         created_at="2026-08-22T00:00:00.000000Z",
         updated_at="2026-08-22T00:00:00.000000Z",
         body=body,

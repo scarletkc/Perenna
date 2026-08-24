@@ -65,7 +65,6 @@ _GET_MEMORY_SCHEMA: dict[str, object] = {
     "type": "object",
     "properties": {
         **_MEMORY_REF_PROPERTIES,
-        "source": {"type": "string"},
         "created_at": {"type": "string"},
         "updated_at": {"type": "string"},
         "revision": {"type": "string"},
@@ -76,7 +75,6 @@ _GET_MEMORY_SCHEMA: dict[str, object] = {
         "title",
         "scope",
         "summary",
-        "source",
         "created_at",
         "updated_at",
         "revision",
@@ -87,43 +85,95 @@ _GET_MEMORY_SCHEMA: dict[str, object] = {
 
 MEMORY_READ_SCHEMA: dict[str, object] = {
     "type": "object",
-    "properties": {
-        "action": {"type": "string", "enum": ["list", "search", "get"]},
-        "query": {"type": "string"},
-        "project": {"type": "string"},
-        "memory_id": {"type": "string"},
-        "limit": {"type": "integer", "minimum": 1, "maximum": MAX_SEARCH_MATCHES},
-    },
-    "required": ["action"],
-    "additionalProperties": False,
+    "oneOf": [
+        {
+            "type": "object",
+            "properties": {
+                "action": {"const": "list"},
+                "project": {"type": "string"},
+            },
+            "required": ["action"],
+            "additionalProperties": False,
+        },
+        {
+            "type": "object",
+            "properties": {
+                "action": {"const": "search"},
+                "query": {"type": "string"},
+                "project": {"type": "string"},
+                "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": MAX_SEARCH_MATCHES,
+                },
+            },
+            "required": ["action", "query"],
+            "additionalProperties": False,
+        },
+        {
+            "type": "object",
+            "properties": {
+                "action": {"const": "get"},
+                "memory_id": {"type": "string"},
+            },
+            "required": ["action", "memory_id"],
+            "additionalProperties": False,
+        },
+    ],
 }
 
 MEMORY_WRITE_SCHEMA: dict[str, object] = {
     "type": "object",
-    "properties": {
-        "action": {"type": "string", "enum": ["create", "patch", "replace"]},
-        "title": {"type": "string"},
-        "summary": {"type": "string"},
-        "body": {"type": "string"},
-        "project": {"type": "string"},
-        "memory_id": {"type": "string"},
-        "base_revision": {"type": "string"},
-        "edits": {
-            "type": "array",
-            "minItems": 1,
-            "items": {
-                "type": "object",
-                "properties": {
-                    "old_text": {"type": "string"},
-                    "new_text": {"type": "string"},
-                },
-                "required": ["old_text", "new_text"],
-                "additionalProperties": False,
+    "oneOf": [
+        {
+            "type": "object",
+            "properties": {
+                "action": {"const": "create"},
+                "title": {"type": "string"},
+                "summary": {"type": "string"},
+                "body": {"type": "string"},
+                "project": {"type": "string"},
             },
+            "required": ["action", "title", "summary", "body"],
+            "additionalProperties": False,
         },
-    },
-    "required": ["action"],
-    "additionalProperties": False,
+        {
+            "type": "object",
+            "properties": {
+                "action": {"const": "patch"},
+                "memory_id": {"type": "string"},
+                "base_revision": {"type": "string"},
+                "summary": {"type": "string"},
+                "edits": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "old_text": {"type": "string"},
+                            "new_text": {"type": "string"},
+                        },
+                        "required": ["old_text", "new_text"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            "required": ["action", "memory_id", "base_revision", "edits"],
+            "additionalProperties": False,
+        },
+        {
+            "type": "object",
+            "properties": {
+                "action": {"const": "replace"},
+                "memory_id": {"type": "string"},
+                "base_revision": {"type": "string"},
+                "summary": {"type": "string"},
+                "body": {"type": "string"},
+            },
+            "required": ["action", "memory_id", "base_revision", "summary", "body"],
+            "additionalProperties": False,
+        },
+    ],
 }
 
 MEMORY_DELETE_SCHEMA: dict[str, object] = {

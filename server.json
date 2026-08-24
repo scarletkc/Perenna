@@ -27,13 +27,6 @@
         },
         {
           "type": "named",
-          "name": "--source",
-          "description": "Stable identifier for the MCP client writing memories",
-          "placeholder": "codex",
-          "isRequired": true
-        },
-        {
-          "type": "named",
           "name": "--home",
           "description": "Perenna data directory; defaults to ~/.perenna",
           "format": "filepath",

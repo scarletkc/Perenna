@@ -12,10 +12,8 @@ MAX_TITLE_LENGTH = 120
 MAX_SUMMARY_LENGTH = 300
 MAX_BODY_LENGTH = 20_000
 MAX_PROJECT_LENGTH = 64
-MAX_SOURCE_LENGTH = 64
 
 _PROJECT_RE = re.compile(r"[a-z0-9._-]+\Z")
-_SOURCE_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}\Z")
 _ULID_RE = re.compile(r"[0-7][0-9A-HJKMNP-TV-Z]{25}\Z")
 _REVISION_RE = re.compile(r"[0-9a-f]{64}\Z")
 _TIMESTAMP_RE = re.compile(
@@ -38,7 +36,6 @@ class Memory:
     id: str
     title: str
     summary: str
-    source: str
     created_at: str
     updated_at: str
     body: str
@@ -161,15 +158,6 @@ def normalize_project(value: str) -> str:
         raise ValueError("project contains unsupported characters")
     if normalized.endswith(".") or normalized.split(".", 1)[0] in _WINDOWS_RESERVED_NAMES:
         raise ValueError("project is not a portable directory name")
-    return normalized
-
-
-def normalize_source(value: str) -> str:
-    if not isinstance(value, str):
-        raise ValueError("source must be a string")
-    normalized = unicodedata.normalize("NFKC", value).strip()
-    if len(normalized) > MAX_SOURCE_LENGTH or _SOURCE_RE.fullmatch(normalized) is None:
-        raise ValueError("source is invalid")
     return normalized
 
 

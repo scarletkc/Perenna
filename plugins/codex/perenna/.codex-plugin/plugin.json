@@ -1,6 +1,6 @@
 {
   "name": "perenna",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "A lightweight, Git-backed permanent memory for AI agents.",
   "author": {
     "name": "scarletkc"

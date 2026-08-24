@@ -36,10 +36,16 @@ setup implementation before serving tools.
 | `PERENNA_GIT_URL` | Repository address used to bootstrap or verify synchronization |
 | `--git-url URL` | CLI override for the same address |
 | `PERENNA_GIT_REMOTE` | Existing remote-name selector; defaults to `origin` during setup |
-| `PERENNA_GIT_DEPLOY_KEY` | Possible opt-in to the existing repository-specific deploy-key flow |
+| `PERENNA_GIT_DEPLOY_KEY` | Persistent opt-in to the existing repository-specific deploy-key flow |
 
 If deploy-key bootstrap is enabled, the repository URL must use SSH. Perenna
 rejects an HTTPS URL before changing the remote configuration.
+
+The deploy-key setting would select a persistent authentication mode, not a
+one-time bootstrap action. It must remain enabled on every restart of a home
+configured with a deploy key. If that home contains a deploy-key configuration
+but startup omits or disables the mode, Perenna should fail with actionable
+guidance instead of silently changing authentication methods.
 
 `--remote` should not be used for the repository address because Perenna
 already uses *remote* to mean the configured Git name. The candidate URL and
@@ -58,14 +64,16 @@ initialization path.
 2. When no URL is configured, retain the current startup refresh behavior.
 3. When the named remote is absent, validate the URL and run the existing safe
    setup operation.
-4. When the named remote already has the same URL, treat bootstrap as
-   idempotent and verify compatible state.
-5. When the remote points somewhere else, fail with an actionable error. Never
+4. When the named remote already has the same URL and authentication mode,
+   treat bootstrap as idempotent and verify compatible state.
+5. When a persisted deploy-key configuration conflicts with the requested
+   authentication mode, fail before changing the remote configuration.
+6. When the remote points somewhere else, fail with an actionable error. Never
    replace it automatically.
-6. Import an existing compatible remote into an empty local repository, or
+7. Import an existing compatible remote into an empty local repository, or
    publish existing local history to an empty remote, using the current setup
    rules.
-7. Stop on incompatible branches or diverged history. Never merge, rebase, or
+8. Stop on incompatible branches or diverged history. Never merge, rebase, or
    force-push automatically.
 
 If a URL explicitly requests bootstrap but the remote cannot be verified,
@@ -124,7 +132,9 @@ Coverage must include:
 - empty local and empty remote;
 - empty local importing existing compatible history;
 - existing local publishing to an empty remote;
-- repeated startup with the same address;
+- repeated startup with the same address and authentication mode;
+- a persisted deploy-key home restarted without deploy-key mode, which must
+  fail before changing the remote configuration;
 - an existing remote with a different address;
 - unavailable authentication and network;
 - deploy-key authorization pending across a persistent-home restart;

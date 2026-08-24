@@ -8,7 +8,7 @@
 [![PyPI](https://img.shields.io/pypi/v/perenna.svg)](https://pypi.org/project/perenna/)
 [![CI](https://img.shields.io/github/actions/workflow/status/scarletkc/Perenna/validate.yml?branch=main)](https://github.com/scarletkc/Perenna/actions/workflows/validate.yml)
 [![Codecov](https://img.shields.io/codecov/c/github/scarletkc/Perenna/main)](https://codecov.io/github/scarletkc/Perenna)
-[![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/scarletkc/Perenna?utm_source=oss&utm_medium=github&utm_campaign=scarletkc%2FPerenna&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)](https://coderabbit.ai)
+[![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/scarletkc/Perenna?utm_source=oss&utm_medium=github&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai)](https://coderabbit.ai)
 [![License](https://img.shields.io/github/license/scarletkc/Perenna.svg)](https://github.com/scarletkc/Perenna/blob/main/LICENSE)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/scarletkc/Perenna)
 [![perenna MCP server](https://glama.ai/mcp/servers/scarletkc/perenna/badges/score.svg)](https://glama.ai/mcp/servers/scarletkc/perenna)
@@ -41,13 +41,17 @@ Perenna gives them one **shared, Git-backed memory**. Local agents and ChatGPT
 can connect to the same self-hosted Perenna service, while every durable memory
 stays ordinary Markdown you can inspect, edit, version, and back up yourself.
 
-[Mem0's self-hosted stack](https://docs.mem0.ai/open-source/setup) is much
-heavier, while its hosted [Free Plan](https://mem0.ai/terms) currently allows
-customer content to be used for model training and product improvement.
+| | Perenna | [AgentMemory](https://github.com/rohitg00/agentmemory) | [Mem0](https://github.com/mem0ai/mem0) |
+| --- | --- | --- | --- |
+| Durable state | Markdown in your Git repository | Runtime-managed persistent state | Memory service with pluggable storage |
+| MCP surface | 3 memory tools | Broad MCP/API surface | SDK/API-first memory layer |
+| Writes | Explicit agent writes with revision guards | Hooks, skills, and automation | Automatic and explicit memory workflows |
+| Retrieval | Rebuildable Vexor index | BM25, vector, graph, and hybrid search | Semantic memory retrieval |
+| UI | None | Real-time viewer | Hosted dashboard available |
+| Best fit | Small, inspectable, Git-native shared memory | Feature-rich agent memory platform | Managed or embedded application memory |
 
-Perenna is different by design: **no account, no proprietary memory cloud, no
-lock-in.** Just your memories, in your Git repository, on infrastructure you
-control.
+Perenna is deliberately narrow: **no account, no proprietary memory cloud, no
+lock-in.** The retrieval index is disposable. The Markdown is not.
 
 ## Quickstart
 

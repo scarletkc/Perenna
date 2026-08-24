@@ -38,6 +38,9 @@ setup implementation before serving tools.
 | `PERENNA_GIT_REMOTE` | Existing remote-name selector; defaults to `origin` during setup |
 | `PERENNA_GIT_DEPLOY_KEY` | Possible opt-in to the existing repository-specific deploy-key flow |
 
+If deploy-key bootstrap is enabled, the repository URL must use SSH. Perenna
+rejects an HTTPS URL before changing the remote configuration.
+
 `--remote` should not be used for the repository address because Perenna
 already uses *remote* to mean the configured Git name. The candidate URL and
 deploy-key names are placeholders, not approved public fields.

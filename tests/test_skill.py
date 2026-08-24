@@ -34,6 +34,8 @@ def test_perenna_memory_skill_is_discoverable_and_covers_the_tool_surface() -> N
     flattened_curation = " ".join(curation.split())
     assert "Treat feedback as source material" in flattened_curation
     assert "do not preserve feedback as an event or category" in flattened_curation
+    assert "Do not create a separate memory for every atomic fact" in flattened_curation
+    assert "do not combine unrelated subjects" in flattened_curation
     assert "Start with a read-only audit" in flattened_curation
     assert "Compare memories within the same scope by default" in flattened_curation
     assert "Do not store the audit report as permanent memory" in flattened_curation

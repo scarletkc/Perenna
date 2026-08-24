@@ -35,6 +35,10 @@ Use global scope for preferences or constraints that apply across projects.
 Use project scope for repository-specific architecture, history, policy, and
 workflows. Prefer a stable project slug already present in the index.
 
+Group related durable statements into one memory when they form one coherent
+subject. Do not create a separate memory for every atomic fact, and do not
+combine unrelated subjects merely to reduce the number of memories.
+
 Write the final reusable state:
 
 - a specific, durable title;

@@ -85,8 +85,11 @@ and the complete current body:
 }
 ```
 
-Use global scope for cross-project preferences and project scope for
-repository-specific architecture, workflow, history, and policy.
+Use global scope for cross-project preferences or durable context. Use project
+scope for repository-specific history, preferences, lessons, and concise
+advisory pointers to current architecture, policy, and workflows. The
+[eligibility rules](#what-belongs-in-permanent-memory) exclude current
+contracts and volatile state.
 
 Good summaries remain valid while details evolve. Avoid a summary such as
 `Current implementation uses five search results`; that is a volatile detail,

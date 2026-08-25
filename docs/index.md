@@ -32,6 +32,7 @@ more exact layers only when you need them.
 | [Memory model](concepts/memory-model.md) | Understand identity, summaries, scopes, reads, and mutations |
 | [Consistency model](concepts/consistency.md) | Understand commits, locks, snapshots, indexing, and failures |
 | [ADR 0001: Cross-device access and Git sync](decisions/0001-cross-device-access-and-git-sync.md) | Understand why active cross-device access uses one HTTP service instead of Git multi-writer coordination |
+| [ADR 0002: Memory and reference knowledge](decisions/0002-separate-memory-and-reference-knowledge.md) | Understand why a future knowledge base remains a distinct domain while reusing Perenna's storage and retrieval principles |
 
 ## Look up an exact contract
 
@@ -78,7 +79,8 @@ docs/
 │   ├── memory-model.md
 │   └── consistency.md
 ├── decisions/
-│   └── 0001-cross-device-access-and-git-sync.md
+│   ├── 0001-cross-device-access-and-git-sync.md
+│   └── 0002-separate-memory-and-reference-knowledge.md
 ├── reference/
 │   ├── configuration.md
 │   ├── mcp-api.md

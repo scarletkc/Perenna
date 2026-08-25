@@ -109,6 +109,14 @@ The exact input and file contracts live in the
 [MCP API reference](../reference/mcp-api.md) and
 [memory file format](../reference/memory-format.md).
 
+## Future knowledge-base boundary
+
+Perenna does not currently expose knowledge-base operations. If reference
+knowledge is added, it will remain a separate domain from memory while reusing
+the applicable Git, file, and rebuildable-index principles. This accepted
+direction, including its deliberately narrow first-delivery scope, is recorded
+in [ADR 0002](../decisions/0002-separate-memory-and-reference-knowledge.md).
+
 ## Deployment boundary
 
 The implemented product deliberately excludes:

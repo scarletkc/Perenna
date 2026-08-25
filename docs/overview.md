@@ -10,7 +10,7 @@ An agent often needs information that outlives one conversation:
 - stable user preferences;
 - project history and previous implementation attempts;
 - architectural decisions and pointers to their current records;
-- unresolved issues and learned context;
+- recurring problems, durable open questions, and learned context;
 - historical context that should not be rediscovered from scratch.
 
 Native agent memory is usually tied to one platform. Perenna provides a

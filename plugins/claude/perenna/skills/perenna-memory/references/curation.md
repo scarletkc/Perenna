@@ -8,13 +8,14 @@ Use `memory_write` only for information likely to remain useful in another
 session:
 
 - stable user preferences and collaboration boundaries;
-- long-lived project constraints and architectural decisions;
-- verified recovery procedures and recurring workflows;
+- durable project history, decision context, and previous outcomes;
+- concise pointers that help locate an authoritative project rule, procedure,
+  or workflow without duplicating its contract;
 - concise lessons whose cause and remedy are not obvious from current files.
 
 Treat feedback as source material: store it only after converting a durable,
-reusable correction into the preference, constraint, workflow, or lesson it
-changes; do not preserve feedback as an event or category.
+reusable correction into the preference, context, workflow insight, or lesson
+it changes; do not preserve feedback as an event or category.
 
 Do not turn ordinary task completion into a routine write. Do not store:
 
@@ -31,9 +32,11 @@ create a duplicate.
 
 ## Choose scope and content
 
-Use global scope for preferences or constraints that apply across projects.
-Use project scope for repository-specific architecture, history, policy, and
-workflows. Prefer a stable project slug already present in the index.
+Use global scope for preferences or durable context that applies across
+projects.
+Use project scope for repository-specific history, preferences, lessons, and
+discovery pointers to current architecture, policy, and workflows. Prefer a
+stable project slug already present in the index.
 
 Group related durable statements into one memory when they form one coherent
 subject. Do not create a separate memory for every atomic fact, and do not
@@ -44,8 +47,9 @@ Write the final reusable state:
 - a specific, durable title;
 - a one-sentence summary describing what the memory covers, not a snapshot of
   its current details;
-- a body containing the decision, constraint, evidence, and recovery details
-  another agent would actually need.
+- a body containing the context, evidence, lessons, and recovery details
+  another agent would actually need, with pointers to current authority where
+  applicable.
 
 Do not narrate abandoned attempts or the conversation that produced the final
 state unless that history is itself necessary to avoid a repeated failure.

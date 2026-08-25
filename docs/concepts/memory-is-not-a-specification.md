@@ -18,7 +18,7 @@ Memory records information such as:
 - stable user preferences;
 - project history and previous implementation attempts;
 - decisions and the context in which they were made;
-- unresolved issues and observations worth revisiting;
+- recurring problems, durable open questions, and observations worth revisiting;
 - pointers to current architecture or workflow documents.
 
 This information can guide later work, but it may become stale. Preferences
@@ -28,6 +28,12 @@ every memory into every prompt.
 
 Git history makes a memory auditable. It does not promote an old statement
 into a current rule.
+
+Revisable does not mean short-lived. Active task progress, temporary deployment
+state, transient debugging results, and other rapidly expiring facts belong in
+the current task, issue tracker, workspace, or runtime diagnostics. A permanent
+memory should have expected value beyond the current session even when it may
+need a later correction.
 
 ## Specifications are normative
 

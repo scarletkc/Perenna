@@ -154,8 +154,8 @@ from local or synchronized remote Git history.
 ## What belongs in permanent memory
 
 Good candidates include stable preferences, project history, previous attempts,
-unresolved issues, and concise summaries or pointers that help another agent
-find a current decision or workflow.
+recurring problems, durable open questions, and concise summaries or pointers
+that help another agent find a current decision or workflow.
 
 Do not use memory as the only home for a mandatory project rule, architectural
 invariant, API contract, or required workflow. Keep those in the current

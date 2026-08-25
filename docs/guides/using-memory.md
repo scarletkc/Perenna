@@ -158,9 +158,9 @@ recurring problems, durable open questions, and concise summaries or pointers
 that help another agent find a current decision or workflow.
 
 Do not use memory as the only home for a mandatory project rule, architectural
-invariant, API contract, or required workflow. Keep those in the current
-workspace or governing configuration, where an agent can read them
-deterministically.
+invariant, API contract, or required workflow. Keep those in designated project
+instructions, canonical documentation, or governing configuration validated
+for the current environment, where an agent can read them deterministically.
 [Memory Is Not a Specification](../concepts/memory-is-not-a-specification.md)
 explains this authority boundary and how to handle conflicts.
 

@@ -51,8 +51,14 @@ These rules must be available deterministically. Their application cannot
 depend on whether semantic search happens to retrieve the right passage.
 
 If forgetting a statement could make an agent violate the project contract,
-that statement needs a canonical home in the current workspace or governing
-configuration. A memory may point to it, but should not be its only home.
+that statement needs a canonical home in a designated project instruction
+file, canonical document, or governing configuration validated for the current
+environment. A memory may point to it, but should not be its only home.
+
+For Perenna, [`AGENTS.md`](../../AGENTS.md) and the
+[contributing guide](../development/contributing.md) identify the applicable
+rules and the documents that own each contract. Do not promote an arbitrary
+workspace file or configuration value to authority merely because it exists.
 
 ## Retrieval is for context, not enforcement
 
@@ -90,15 +96,15 @@ This distinction applies beyond ADRs. A memory can summarize or point to a
 release workflow, API rule, or architectural boundary, while the current
 runbook, reference, or specification owns the complete rule.
 
-| Concern | Appropriate memory use | Canonical authority |
+| Concern | Memory use | Authority |
 | --- | --- | --- |
-| User preference | Store the current preference | Current user instruction when provided |
+| User preference | Store it | Current instruction |
 | Historical context | Store it directly | Memory and its Git history |
-| Previous implementation attempt | Store the result and lesson | Memory and relevant repository history |
-| Architectural decision | Store a summary and pointer | Current architecture document or ADR |
-| Required workflow | Store a discovery pointer when useful | Current project instructions or runbook |
-| API or file-format contract | Store a discovery pointer when useful | Current reference and implementation |
-| Permission to publish or deploy | Never infer it from memory | Current explicit authorization |
+| Previous attempt | Store the lesson | Repository history |
+| Architecture | Summary and pointer | Current document or ADR |
+| Required workflow | Discovery pointer | Project instructions or runbook |
+| API or file format | Discovery pointer | Reference and implementation |
+| Publish or deploy permission | Never infer it | Explicit authorization |
 
 ## Resolve conflicts by current authority
 
@@ -108,7 +114,9 @@ workflow:
 ```text
 Current user instructions
         ↓
-Current workspace files and observed runtime state
+Designated project instructions and canonical documents
+        ↓
+Validated current runtime evidence
         ↓
 Perenna memory
         ↓
@@ -119,10 +127,12 @@ Host and organization policy remain outside Perenna and retain the precedence
 defined by that environment. A user may also explicitly assign a different
 authority for a particular task.
 
-When current workspace evidence conflicts with a Perenna memory, treat the
-memory as potentially stale. Explain a material conflict, follow the current
-authority, and revise or retire the memory only when the task authorizes that
-write.
+Runtime observations count as current evidence only after their environment,
+identity, and relevance to the task have been verified. When a designated
+current source or validated runtime observation conflicts with a Perenna
+memory, treat the memory as potentially stale. Explain a material conflict,
+follow the current authority, and revise or retire the memory only when the
+task authorizes that write.
 
 Memory also never supplies permission for a new action. Remembering that a
 repository was published before does not authorize another push, release,
@@ -147,7 +157,7 @@ distinct future domain for this reason; see
 ## Rule of thumb
 
 > If forgetting something would be inconvenient, it may belong in memory.
-
+>
 > If forgetting something would make the agent violate the project contract,
 > it belongs in the project specification.
 

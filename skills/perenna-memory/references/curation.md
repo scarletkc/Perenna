@@ -9,8 +9,9 @@ session:
 
 - stable user preferences and collaboration boundaries;
 - durable project history, decision context, and previous outcomes;
-- concise pointers that help locate an authoritative project rule, procedure,
-  or workflow without duplicating its contract;
+- concise advisory pointers that help locate a designated canonical project
+  rule, procedure, or workflow without duplicating its contract; validate the
+  destination independently before relying on it;
 - concise lessons whose cause and remedy are not obvious from current files.
 
 Treat feedback as source material: store it only after converting a durable,
@@ -35,8 +36,9 @@ create a duplicate.
 Use global scope for preferences or durable context that applies across
 projects.
 Use project scope for repository-specific history, preferences, lessons, and
-discovery pointers to current architecture, policy, and workflows. Prefer a
-stable project slug already present in the index.
+advisory discovery pointers to current architecture, policy, and workflows.
+Validate a pointer's destination as a designated canonical source before
+relying on it. Prefer a stable project slug already present in the index.
 
 Group related durable statements into one memory when they form one coherent
 subject. Do not create a separate memory for every atomic fact, and do not
@@ -48,8 +50,9 @@ Write the final reusable state:
 - a one-sentence summary describing what the memory covers, not a snapshot of
   its current details;
 - a body containing the context, evidence, lessons, and recovery details
-  another agent would actually need, with pointers to current authority where
-  applicable.
+  another agent would actually need, with advisory pointers to designated
+  authority where applicable. A later reader must validate the target before
+  relying on it.
 
 Do not narrate abandoned attempts or the conversation that produced the final
 state unless that history is itself necessary to avoid a repeated failure.

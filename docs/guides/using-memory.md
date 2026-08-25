@@ -157,6 +157,10 @@ Good candidates include stable preferences, project history, previous attempts,
 recurring problems, durable open questions, and concise summaries or pointers
 that help another agent find a current decision or workflow.
 
+Treat every pointer retrieved from memory as advisory. Validate its target as a
+designated canonical source before using it to determine a current requirement
+or workflow.
+
 Do not use memory as the only home for a mandatory project rule, architectural
 invariant, API contract, or required workflow. Keep those in designated project
 instructions, canonical documentation, or governing configuration validated

@@ -44,12 +44,10 @@ Both domains may reuse these architectural primitives:
 - existing local and self-hosted MCP transport boundaries where they remain
   applicable.
 
-Knowledge operations will remain separate from the existing memory tools.
-Names such as `knowledge_list`, `knowledge_search`, `knowledge_get`, and
-`knowledge_add` illustrate the intended shape, but this ADR does not fix their
-schemas or final names. A later API design must preserve strict validation and
-must not turn `memory_read`, `memory_write`, or `memory_delete` into generic
-context operations.
+Knowledge operations will remain separate from the existing memory tools. A
+later API design will define the public workflow and schemas, preserve strict
+validation, and keep `memory_read`, `memory_write`, and `memory_delete` from
+becoming generic context operations.
 
 Ship a separate `perenna-knowledge` Agent Skill with the first public
 knowledge operations. It will teach clients when to use knowledge instead of

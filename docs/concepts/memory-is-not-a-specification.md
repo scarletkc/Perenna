@@ -114,9 +114,8 @@ workflow:
 ```text
 Current user instructions
         ↓
-Designated project instructions and canonical documents
-        ↓
-Validated current runtime evidence
+Designated project instructions, canonical documents,
+and validated current runtime evidence
         ↓
 Perenna memory
         ↓
@@ -127,12 +126,22 @@ Host and organization policy remain outside Perenna and retain the precedence
 defined by that environment. A user may also explicitly assign a different
 authority for a particular task.
 
+Sources in the shared project tier establish different kinds of claims:
+designated instructions and canonical documents define the project contract,
+while validated runtime evidence establishes current state. Apply each source
+only to claims it can establish instead of treating either category as a
+blanket override.
+
 Runtime observations count as current evidence only after their environment,
 identity, and relevance to the task have been verified. When a designated
 current source or validated runtime observation conflicts with a Perenna
 memory, treat the memory as potentially stale. Explain a material conflict,
 follow the current authority, and revise or retire the memory only when the
 task authorizes that write.
+
+Validated runtime evidence establishes current state only. It does not
+authorize publishing, release, deployment, destructive operations, or other
+consequential actions; those require separate current authorization.
 
 Memory also never supplies permission for a new action. Remembering that a
 repository was published before does not authorize another push, release,

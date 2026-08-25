@@ -12,6 +12,10 @@ perenna serve [--local-only] [--home PATH] [--host HOST] [--port PORT]
 perenna sync setup REPOSITORY_URL [--home PATH] [--replace] [--deploy-key]
 perenna sync status [--home PATH]
 perenna skill install --agent AGENT [--agent AGENT] [--scope SCOPE] [--replace]
+perenna session list [--home PATH]
+perenna session start NAME [--home PATH]
+perenna session promote NAME [--apply] [--home PATH]
+perenna session discard NAME [--home PATH]
 ```
 
 `mcp` serves local clients over stdio. `serve` exposes a Streamable HTTP
@@ -52,6 +56,49 @@ Replacement first moves the previous copy to the agent configuration
 directory's `skill-backups` folder and prints the complete backup path. Skill
 installation does not configure or start the MCP server; follow the
 [client setup guide](../guides/client-setup.md) for that separate step.
+
+## Session working-memory branches
+
+A session is a `session/<slug>` branch in the memory repository. It gives one
+Project, Chat, or Agent a private place to draft working memory without
+touching the base branch (normally `main`). Perenna treats the branch as
+ordinary Git: drafts are committed Markdown, and the MCP server can run against
+any checked-out clean branch.
+
+```text
+perenna session start chat-42
+git -C <home>/memory checkout session/chat-42
+# draft memory files under global/ and projects/, then commit them with git
+git -C <home>/memory checkout main
+perenna session promote chat-42          # preview the plan
+perenna session promote chat-42 --apply  # commit confirmed changes to main
+perenna session discard chat-42          # throw away unapplied drafts
+```
+
+- `start` forks the session branch from the currently checked-out branch. It
+  refuses a dirty or commit-less repository and an existing session name.
+- `promote` compares the session branch against the checked-out branch and
+  replays only memory changes under `global/` and `projects/` as normal
+  Perenna mutations: added files become `create`, changed files become
+  `replace`, and deleted files become `delete`. Every mutation keeps the
+  revision guard, single-path commit, index rebuild, and synchronization
+  behavior of a regular memory write.
+- `promote` prints the plan by default. `--apply` commits the changes. Run it
+  from the base branch; promoting a checked-out session branch is refused.
+  Re-running it after a successful apply reports no new changes.
+- A memory deleted on the base branch after the session started is skipped
+  when promoting, and a session edit of a memory that the base branch no
+  longer has stops with a conflict instead of resurrecting it silently.
+- Files outside `global/` and `projects/` are ignored by promotion, so a
+  session may carry scratch notes that never become memory.
+- Renaming a memory file on a session branch is not supported: the ULID
+  filename is the memory's stable identity, and promotion stops with a
+  validation error.
+- `discard` force-deletes the session branch; it refuses the checked-out
+  branch and never touches the base branch.
+- `promote` never performs a Git merge, rebase, or force-push. Perenna does
+  not coordinate concurrent writers on separate homes; see
+  [ADR 0001](../decisions/0001-cross-device-access-and-git-sync.md).
 
 ## Perenna home
 

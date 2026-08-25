@@ -8,9 +8,9 @@ native memory features and conversation histories.
 An agent often needs information that outlives one conversation:
 
 - stable user preferences;
-- long-lived project constraints;
-- architectural decisions and their current outcome;
-- workflows that another agent must follow later;
+- project history and previous implementation attempts;
+- architectural decisions and pointers to their current records;
+- unresolved issues and learned context;
 - historical context that should not be rediscovered from scratch.
 
 Native agent memory is usually tied to one platform. Perenna provides a
@@ -75,3 +75,6 @@ conversations.
 For the technical boundary, see [Architecture](concepts/architecture.md).
 For practical memory choices, see
 [Using permanent memory](guides/using-memory.md).
+For the authority boundary between remembered context and current project
+rules, see
+[Memory Is Not a Specification](concepts/memory-is-not-a-specification.md).

@@ -153,8 +153,16 @@ from local or synchronized remote Git history.
 
 ## What belongs in permanent memory
 
-Good candidates include stable preferences, long-lived project constraints,
-current architectural decisions, and workflows another agent will need later.
+Good candidates include stable preferences, project history, previous attempts,
+unresolved issues, and concise summaries or pointers that help another agent
+find a current decision or workflow.
+
+Do not use memory as the only home for a mandatory project rule, architectural
+invariant, API contract, or required workflow. Keep those in the current
+workspace or governing configuration, where an agent can read them
+deterministically.
+[Memory Is Not a Specification](../concepts/memory-is-not-a-specification.md)
+explains this authority boundary and how to handle conflicts.
 
 Do not store passwords, API keys, tokens, raw transcripts, temporary progress,
 transient debugging state, or facts already obvious from the current

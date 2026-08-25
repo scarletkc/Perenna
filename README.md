@@ -43,10 +43,10 @@ stays ordinary Markdown you can inspect, edit, version, and back up yourself.
 
 | | **Perenna** | [AgentMemory](https://github.com/rohitg00/agentmemory) | [Mem0](https://github.com/mem0ai/mem0) | [MemPalace](https://github.com/MemPalace/mempalace) |
 | --- | --- | --- | --- | --- |
-| Simplicity | **3 MCP tools** | 54 tools + hooks | SDK/API/server stack | CLI + MCP server |
-| Local use | **stdio, no daemon** | Multiple local services | Library or server | stdio, local-first |
-| Storage | **Plain Markdown + Git** | Runtime-managed | Database/service-managed | Verbatim text + ChromaDB |
-| Ownership | **Your files, your Git history** | Runtime-managed | Backend-managed | Local data, pluggable backend |
+| Simplicity | **3 MCP tools** | 54 tools + hooks | SDK/API/server stack | CLI + MCP server + database |
+| Local use | **stdio, no daemon** | Multiple local services | Library or server | stdio + embedded database |
+| Storage | **Plain Markdown + Git** | Runtime-managed | Database/service-managed | ChromaDB by default |
+| Ownership | **Your files, your Git history** | Runtime-managed | Backend-managed | Local backend-managed data |
 
 Perenna is small by design: **no account, no proprietary memory cloud, no
 lock-in.** Just plain Markdown, Git history, and three focused tools.

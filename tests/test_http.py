@@ -253,14 +253,13 @@ async def test_local_http_server_uses_streamable_http_without_oauth() -> None:
                     "origin": "http://127.0.0.2:8000",
                 },
             )
-            async with streamable_http_client(
+            client_transport = streamable_http_client(
                 "http://127.0.0.1:8000/mcp",
                 http_client=client,
-            ) as (read_stream, write_stream):
-                async with ClientSession(read_stream, write_stream) as session:
-                    await session.initialize()
-                    tools = await session.list_tools()
-                    listed = await session.call_tool("memory_read", {"action": "list"})
+            )
+            async with Client(client_transport) as mcp_client:
+                tools = await mcp_client.list_tools()
+                listed = await mcp_client.call_tool("memory_read", {"action": "list"})
 
         async with httpx2.AsyncClient(
             transport=transport,

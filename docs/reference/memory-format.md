@@ -71,10 +71,9 @@ string. Perenna serializes each value as a quoted YAML string.
 Perenna writes UTC timestamps with a `Z` suffix. A manually written timestamp
 must include an RFC 3339 timezone. `updated_at` cannot precede `created_at`.
 
-The removed `source` field is not accepted. Before upgrading a repository from
-the earlier six-field format, remove `source` from every memory in the current
-tree and commit that exact conversion. The conversion changes every affected
-memory revision, so clients must read those memories again before mutating them.
+Repositories that still contain the removed `source` field must follow the
+[0.2.0 upgrade note](../release-notes/0.2.0.md) before Perenna can read the
+current five-field format.
 
 ## ULID rules
 

@@ -41,15 +41,8 @@ Perenna gives them one **shared, Git-backed memory**. Local agents and ChatGPT
 can connect to the same self-hosted Perenna service, while every durable memory
 stays ordinary Markdown you can inspect, edit, version, and back up yourself.
 
-| | **Perenna** | [AgentMemory](https://github.com/rohitg00/agentmemory) | [Mem0](https://github.com/mem0ai/mem0) | [MemPalace](https://github.com/MemPalace/mempalace) |
-| --- | --- | --- | --- | --- |
-| Simplicity | **3 MCP tools** | 54 tools + hooks | SDK/API/server stack | MCP/database stack |
-| Local use | **stdio, no daemon** | Multiple local services | Library or server | Local database |
-| Storage | **Plain Markdown + Git** | Runtime-managed | Database/service-managed | Database-managed |
-| Ownership | **Your files, your Git history** | Runtime-managed | Backend-managed | Backend-managed |
-
-Perenna is small by design: **no account, no proprietary memory cloud, no
-lock-in.** Just plain Markdown, Git history, and three focused tools.
+Perenna stays focused on permanent memory: no required account, proprietary
+memory cloud, or automatic conversation extraction.
 
 ## Quickstart
 
@@ -69,26 +62,13 @@ https://raw.githubusercontent.com/scarletkc/Perenna/main/docs/guides/agent-insta
 Perenna requires Python 3.12+, Git, and
 [uv](https://docs.astral.sh/uv/).
 
+#### Install Perenna
+
 ```bash
 uv tool install perenna
 ```
 
-Install the optional memory behavior skill for the local client:
-
-```bash
-perenna skill install --agent codex
-# or
-perenna skill install --agent claude-code
-```
-
-Repeat `--agent` in one command when both clients should receive the skill.
-The [configuration reference](https://github.com/scarletkc/Perenna/blob/main/docs/reference/configuration.md#bundled-agent-skill)
-documents user and project scope, destinations, and replacement safeguards.
-
-Codex and Claude Code can instead install the combined Skill and MCP connection
-from Perenna's repository Marketplace. Follow the
-[Plugin setup guide](https://github.com/scarletkc/Perenna/blob/main/docs/guides/plugin-setup.md)
-and choose one setup path per client.
+#### Configure retrieval
 
 Perenna needs a working Vexor embedding provider. For interactive provider
 selection and configuration, run:
@@ -116,14 +96,39 @@ verify the selected provider with:
 uvx vexor doctor
 ```
 
-Configure an MCP client to start:
+#### Connect a client
+
+For the standalone setup, configure the MCP client to start:
 
 ```text
 perenna mcp
 ```
 
+Follow the
+[Client setup guide](https://github.com/scarletkc/Perenna/blob/main/docs/guides/client-setup.md)
+for the exact client command or configuration file.
+
+Codex and Claude Code can also install the optional memory behavior Skill:
+
+```bash
+perenna skill install --agent codex
+# or
+perenna skill install --agent claude-code
+```
+
+Repeat `--agent` in one command when both clients should receive the skill.
+The [configuration reference](https://github.com/scarletkc/Perenna/blob/main/docs/reference/configuration.md#bundled-agent-skill)
+documents user and project scope, destinations, and replacement safeguards.
+
+Codex and Claude Code can instead install the combined Skill and MCP connection
+from Perenna's repository Marketplace. Follow the
+[Plugin setup guide](https://github.com/scarletkc/Perenna/blob/main/docs/guides/plugin-setup.md)
+and choose one setup path per client.
+
 Perenna creates its local data under `~/.perenna/` unless another home is
 configured.
+
+#### Add optional Git synchronization
 
 To import, publish, or fast-forward compatible history through a private Git
 repository, run:
@@ -136,13 +141,20 @@ Successful setup saves the selected remote in the Perenna home. Use
 `perenna sync disable` to return to saved local-only mode without removing the
 Git remote.
 
-### Install from source for development
+The
+[configuration reference](https://github.com/scarletkc/Perenna/blob/main/docs/reference/configuration.md#git-remote-synchronization)
+owns remote selection, credentials, conflict handling, and recovery details.
+
+### Install from source
 
 ```bash
 git clone https://github.com/scarletkc/Perenna.git
 cd Perenna
 uv tool install .
 ```
+
+Source contributors should use the locked environment in the
+[development guide](https://github.com/scarletkc/Perenna/blob/main/docs/development/contributing.md#set-up-the-repository).
 
 ## Documentation
 

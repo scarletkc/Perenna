@@ -1,8 +1,9 @@
 # Using Permanent Memory
 
 Perenna treats a memory as a curated long-term note, not an automatically
-extracted fact or transcript. The examples below show MCP arguments; the
-complete field contract is in the [MCP API reference](../reference/mcp-api.md).
+extracted fact or transcript. The examples below show common tasks; the
+[MCP API reference](../reference/mcp-api.md) owns fields, limits, result shapes,
+and validation.
 
 Clients that support Agent Skills can install the bundled
 [`perenna-memory` skill](../../skills/perenna-memory/SKILL.md) for explicit
@@ -49,9 +50,9 @@ Search only when prior information could affect the current task:
 ```
 
 `limit` defaults to three and accepts one through five distinct memories. The
-response contains ranked bounded passages, not complete bodies. The first
-version has no relevance threshold; treat results as candidates and use their
-summary and passage to decide whether `get` is warranted.
+response contains ranked bounded passages, not complete bodies. Search has no
+relevance threshold; treat results as candidates and use their summary and
+passage to decide whether `get` is warranted.
 
 When `truncated` is true, refine the query rather than increasing context
 indiscriminately.

@@ -37,15 +37,19 @@ Use these as the source of truth:
    the Perenna process will inherit.
 5. Run `perenna sync status` once. If it reports an existing Git remote but no
    saved synchronization choice, ask whether I want to enable that remote or
-   save local-only mode. Otherwise ask whether I want to synchronize Perenna
-   with a private Git repository. If I do, ask me to provide or approve its
-   URL. Use `origin` unless I approve a different remote name, run
-   `perenna sync setup <repository-url>`, and verify `perenna sync status`.
-   Successful setup saves the selected remote in the Perenna home; use
-   `PERENNA_GIT_REMOTE` only when this host needs an environment override. If I
-   choose local-only mode, run `perenna sync disable`. Treat repository
-   creation, remote replacement, and reconciling diverged history as separate
-   choices that require my explicit approval.
+   save local-only mode. To enable it, reuse the exact remote name and URL that
+   status reports and follow the configuration reference's setup command. To
+   save local-only mode, run `perenna sync disable`. If status reports a saved
+   preference or environment override, preserve it without asking again. If
+   there is no saved choice and no existing remote, ask whether I want to
+   synchronize Perenna with a private Git repository. If I do, ask me to
+   provide or approve its URL. Use `origin` unless I approve a different remote
+   name, then run `perenna sync setup <repository-url>`. Verify
+   `perenna sync status` after any setup or disable command. Successful setup
+   saves the selected remote in the Perenna home; use `PERENNA_GIT_REMOTE` only
+   when this host needs an environment override. Treat repository creation,
+   remote replacement, credential changes, and reconciling diverged history as
+   separate choices that require my explicit approval.
 6. On the standalone path, register `perenna mcp` using the client-specific
    method in the setup guide. Preserve unrelated MCP servers and settings. For
    another client, use its official instructions for adding a local stdio MCP

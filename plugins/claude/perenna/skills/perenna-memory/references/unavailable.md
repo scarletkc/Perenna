@@ -52,10 +52,12 @@ before claiming that the remote is synchronized.
 During an installation or reconnection, run `perenna sync status` once before
 assuming local-only operation is intentional. If it reports a configured Git
 remote but no saved synchronization choice, ask whether the user wants to
-enable that remote or save local-only mode. Run `perenna sync setup` or
-`perenna sync disable` only after that explicit choice. Do not ask again when
-status reports a saved local preference or an environment override; the
-runtime configuration owns that decision.
+enable that remote or save local-only mode. To enable it, reuse the exact remote
+name and complete URL reported by status and follow the maintained
+[synchronization setup](https://github.com/scarletkc/Perenna/blob/main/docs/reference/configuration.md#git-remote-synchronization).
+Run `perenna sync setup` or `perenna sync disable` only after that explicit
+choice. Do not ask again when status reports a saved local preference or an
+environment override; the runtime configuration owns that decision.
 
 ## Install or reconnect only with authority
 

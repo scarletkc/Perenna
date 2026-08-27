@@ -61,6 +61,8 @@ Proposals are unapproved designs, not current behavior or roadmap commitments.
 
 ## Directory map
 
+The purpose-based layout makes each document's responsibility visible:
+
 ```text
 docs/
 ├── index.md

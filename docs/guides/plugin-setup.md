@@ -22,7 +22,7 @@ Successful `perenna sync setup` saves the optional Git synchronization choice
 in the Perenna home. The client uses that saved choice unless
 `PERENNA_GIT_REMOTE` provides a process-level override. See the
 [configuration reference](../reference/configuration.md#git-remote-synchronization)
-for the runtime contract.
+for remote selection and precedence.
 
 ## Codex
 

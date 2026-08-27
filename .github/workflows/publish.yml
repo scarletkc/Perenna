@@ -257,5 +257,5 @@ jobs:
       - name: Publish to MCP registry
         shell: bash
         run: |
-          ./mcp-publisher login github-oidc
-          ./mcp-publisher publish
+          set -euo pipefail
+          python scripts/publish_mcp_registry.py

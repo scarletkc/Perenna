@@ -1,6 +1,7 @@
 # Releasing
 
-This runbook describes how a committed Perenna version becomes a PyPI release.
+This runbook describes how a committed Perenna version becomes a GitHub
+Release and PyPI release, and how stable versions also enter the MCP Registry.
 The executable contract is the
 [`Publish` workflow](../../.github/workflows/publish.yml).
 
@@ -44,13 +45,20 @@ flowchart TD
     O -- No --> X
     O -- Yes --> P[Receive a short-lived upload token]
     P --> Q[Publish wheel and sdist to PyPI]
+    Q --> S{Stable version?}
+    S -- No --> V[Finish without Registry publication]
+    S -- Yes --> T[Wait for PyPI package metadata]
+    T --> U[Publish to MCP Registry]
 
     R[One-time Trusted Publisher registration] -. establishes trust .-> O
 ```
 
 The publish workflow runs only after the `Validate` workflow succeeds for a push to
-`main`. Pull-request CI cannot release directly. Every release step runs in one
-serial job, and any failure prevents all later steps.
+`main`. Pull-request CI cannot release directly. GitHub Release and PyPI
+publication run serially. Stable releases then enter the MCP Registry job after
+PyPI succeeds. That job retries when Registry validation has not observed the
+new PyPI version yet. Authentication, ownership, and manifest errors fail
+immediately.
 
 ## Optional hand-written release notes
 
@@ -86,7 +94,8 @@ Omit the file when the generated changelog is sufficient.
 3. Run the standard checks in [Testing](testing.md).
 4. Commit the release change and merge it through the normal review path.
 5. After `main` CI succeeds, verify that the publish workflow created the
-   GitHub Release and completed the PyPI upload.
+   GitHub Release, completed the PyPI upload, and published stable versions to
+   the MCP Registry.
 6. Install `perenna` in a new process and confirm the reported version.
 
 Do not edit generated plugin copies directly. After changing the canonical

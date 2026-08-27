@@ -17,8 +17,9 @@ The plugin process must inherit the selected provider configuration and any
 required API key. Remote embedding providers receive memory text and search
 queries.
 
-When optional Git synchronization is enabled, the plugin process must also
-inherit the same `PERENNA_GIT_REMOTE` used during setup and status checks.
+Successful `perenna sync setup` saves the optional Git synchronization choice
+in the Perenna home. The plugin process uses that saved choice unless
+`PERENNA_GIT_REMOTE` provides a process-level override.
 
 For complete installation, configuration, privacy, synchronization, and troubleshooting
 guidance, see the

@@ -5,19 +5,23 @@ import asyncio
 import logging
 import sys
 from collections.abc import Sequence
+from pathlib import Path
 
 from perenna import DESCRIPTION, __version__
 from perenna.cli_output import print_skill_report, print_sync_report
 from perenna.config import (
+    GitRemoteSelection,
     RuntimePaths,
-    resolve_git_remote,
+    resolve_git_remote_selection,
     resolve_home,
     resolve_remote_settings,
     resolve_settings,
+    save_git_remote,
     validate_loopback_host,
 )
 from perenna.core import PerennaCore
 from perenna.errors import PerennaError
+from perenna.git import GitRepository
 from perenna.http_server import run_http, run_local_http
 from perenna.mcp_server import run_stdio
 from perenna.skill_installer import SUPPORTED_AGENTS, install_bundled_skill
@@ -88,6 +92,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Check the effective remote, access, and synchronization state.",
     )
     status.add_argument(
+        "--home",
+        help="Perenna data directory. Overrides PERENNA_HOME; default: ~/.perenna.",
+    )
+    disable = sync_commands.add_parser(
+        "disable",
+        help="Save local-only mode without removing the configured Git remote.",
+    )
+    disable.add_argument(
         "--home",
         help="Perenna data directory. Overrides PERENNA_HOME; default: ~/.perenna.",
     )
@@ -180,9 +192,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 def _run_sync(args: argparse.Namespace) -> None:
     paths = RuntimePaths(resolve_home(args.home))
-    remote_name = resolve_git_remote()
+    selection = resolve_git_remote_selection(home=paths.home)
     if args.sync_command == "setup":
-        setup_remote = remote_name or "origin"
+        setup_remote = selection.remote or "origin"
         report = setup_sync(
             paths.memory,
             args.repository_url,
@@ -191,19 +203,72 @@ def _run_sync(args: argparse.Namespace) -> None:
             deploy_key=args.deploy_key,
         )
         print_sync_report(report)
-        if remote_name is None:
-            print(
-                f"Runtime mode: local until PERENNA_GIT_REMOTE={setup_remote} is set for "
-                "Perenna."
-            )
+        if report.state != "waiting-deploy-key":
+            config_path = save_git_remote(paths.home, setup_remote)
+            print(f"Saved runtime remote: {setup_remote} ({config_path})")
+            effective = resolve_git_remote_selection(home=paths.home)
+            if effective.remote != setup_remote:
+                print("Effective runtime remains local because PERENNA_GIT_REMOTE is empty.")
+                print(
+                    "Unset that variable and restart running Perenna clients to use the saved "
+                    "remote."
+                )
+            else:
+                print("Restart running Perenna clients to use the saved remote.")
         return
 
-    report = inspect_sync(paths.memory, remote_name=remote_name)
+    if args.sync_command == "disable":
+        config_path = save_git_remote(paths.home, None)
+        print(f"Memory repository: {paths.memory}")
+        print(f"Saved synchronization preference: local-only ({config_path})")
+        effective = resolve_git_remote_selection(home=paths.home)
+        if effective.remote is None:
+            _print_disabled_sync(effective)
+            print("Restart running Perenna clients to use the saved preference.")
+        else:
+            print(
+                f"Effective Git synchronization remains enabled by PERENNA_GIT_REMOTE="
+                f"{effective.remote}."
+            )
+            print("Unset that variable and restart running Perenna clients to use local-only mode.")
+        return
+
+    report = inspect_sync(paths.memory, remote_name=selection.remote)
     if report is None:
         print(f"Memory repository: {paths.memory}")
-        print("Git synchronization: disabled (PERENNA_GIT_REMOTE is unset or empty)")
+        _print_disabled_sync(selection)
+        if selection.source == "default":
+            remotes = _configured_remote_names(paths.memory)
+            if remotes:
+                print(f"Configured Git remote detected: {', '.join(remotes)}")
+                print(
+                    "No synchronization choice is saved. Ask before running 'perenna sync setup "
+                    "REPOSITORY_URL' or save local-only mode with 'perenna sync disable'."
+                )
         return
     print_sync_report(report)
+    if selection.source == "environment":
+        print(f"Runtime remote source: PERENNA_GIT_REMOTE={selection.remote}")
+    else:
+        print("Runtime remote source: saved local preference")
+
+
+def _print_disabled_sync(selection: GitRemoteSelection) -> None:
+    if selection.source == "environment":
+        print("Git synchronization: disabled (PERENNA_GIT_REMOTE is empty)")
+    elif selection.source == "local-config":
+        print("Git synchronization: disabled (saved local preference)")
+    else:
+        print("Git synchronization: disabled (no saved choice; PERENNA_GIT_REMOTE is unset)")
+
+
+def _configured_remote_names(memory_path: Path) -> list[str]:
+    if not (memory_path / ".git").is_dir():
+        return []
+    try:
+        return sorted(GitRepository.open(memory_path).remote_names())
+    except PerennaError:
+        return []
 
 
 def _run_skill(args: argparse.Namespace) -> None:

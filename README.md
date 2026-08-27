@@ -132,6 +132,10 @@ repository, run:
 perenna sync setup <repository-url>
 ```
 
+Successful setup saves the selected remote in the Perenna home. Use
+`perenna sync disable` to return to saved local-only mode without removing the
+Git remote.
+
 ### Install from source for development
 
 ```bash

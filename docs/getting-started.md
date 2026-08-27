@@ -115,7 +115,8 @@ For an unattended container, add `--deploy-key` to generate a persistent,
 repository-specific SSH key and receive the exact registration instructions.
 Setup imports an existing remote into an empty local repository, publishes an
 existing local repository to an empty remote, and fast-forwards compatible
-history. It stops on diverged history rather than merging automatically. Follow
+history. A successful setup saves the selected remote for later Perenna
+processes. It stops on diverged history rather than merging automatically. Follow
 [Git remote synchronization](reference/configuration.md#git-remote-synchronization)
 for the complete behavior, credential requirements, replacement safeguards,
 and status checks.

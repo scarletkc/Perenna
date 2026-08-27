@@ -11,6 +11,7 @@ perenna mcp [--home PATH]
 perenna serve [--local-only] [--home PATH] [--host HOST] [--port PORT]
 perenna sync setup REPOSITORY_URL [--home PATH] [--replace] [--deploy-key]
 perenna sync status [--home PATH]
+perenna sync disable [--home PATH]
 perenna skill install --agent AGENT [--agent AGENT] [--scope SCOPE] [--replace]
 ```
 
@@ -68,6 +69,7 @@ The resolved home contains:
 
 ```text
 <home>/
+├── config.json  # saved local runtime preferences
 ├── credentials/ # optional repository-specific deploy keys
 ├── memory/      # independent Git repository; permanent source of truth
 └── index/       # Vexor cache, indexed_commit, and repository.lock
@@ -146,13 +148,19 @@ and ChatGPT setup.
 
 ## Git remote synchronization
 
-`PERENNA_GIT_REMOTE` selects optional synchronization:
+Git synchronization uses this precedence:
 
-| Environment state | Behavior |
+| Configuration state | Behavior |
 | --- | --- |
-| Unset | Local-only operation; do not access a Git remote |
-| Non-empty | Use the configured remote name for startup refresh and mutation pushes |
-| Empty string | Local-only operation; do not access a Git remote |
+| Non-empty `PERENNA_GIT_REMOTE` | Use that remote name for this process |
+| Empty `PERENNA_GIT_REMOTE` | Disable synchronization for this process |
+| Saved non-empty `git_remote` | Use the remote selected by successful setup |
+| Saved `git_remote: null` | Use the saved local-only preference |
+| No environment value or saved choice | Local-only operation |
+
+The environment variable is an explicit process-level override. When it is
+absent, `<home>/config.json` supplies the saved local preference. Invalid or
+unknown local configuration is rejected instead of silently falling back.
 
 The local Git repository remains the durable write authority. Remote network or
 credential failures do not prevent a local commit. Every mutation result
@@ -174,10 +182,11 @@ perenna sync setup <repository-url>
 ```
 
 The command initializes `<home>/memory` when necessary. It uses the effective
-`PERENNA_GIT_REMOTE`, or `origin` when setup is run without that variable, and
-checks access with the same non-interactive Git environment used by Perenna.
-Set `PERENNA_GIT_REMOTE` in the runtime environment as well; configuring a Git
-remote alone does not enable automatic pushes.
+remote selection, or `origin` when no remote is selected, and checks access
+with the same non-interactive Git environment used by Perenna. After compatible
+history and access are verified, setup saves the selected remote in
+`<home>/config.json`. A deploy-key setup waiting for authorization does not save
+the selection until the follow-up setup succeeds.
 
 Setup resolves compatible history without creating a merge commit:
 
@@ -196,16 +205,28 @@ explicit:
 perenna sync setup <repository-url> --replace
 ```
 
-To use a different remote name, set `PERENNA_GIT_REMOTE` to that name in both the
-Perenna host and the environment running setup, then run the same command:
+To use a different remote name, set `PERENNA_GIT_REMOTE` for the setup command.
+Successful setup saves that name for later processes that do not override it:
 
 ```text
 perenna sync setup <repository-url>
 ```
 
-The setup command defaults to the remote name `origin` when
-`PERENNA_GIT_REMOTE` is unset or empty. Its output reminds the operator to set
-the same remote name in the Perenna runtime.
+The setup command defaults to `origin` when neither the environment nor the
+saved preference selects a remote.
+
+### Disable synchronization
+
+Save local-only mode without deleting the repository's Git remote:
+
+```text
+perenna sync disable
+```
+
+Running Perenna processes keep the selection they loaded at startup and must be
+restarted. A non-empty `PERENNA_GIT_REMOTE` still overrides the saved local-only
+preference; `perenna sync status` reports the effective source and the action
+needed to use the saved choice.
 
 #### Repository-specific deploy key
 
@@ -265,15 +286,17 @@ credential environment from your terminal.
 
 #### Check synchronization status
 
-Run the status check in the same environment that starts Perenna:
+Run the status check for the same Perenna home and process-level environment:
 
 ```text
 perenna sync status
 ```
 
-Status reports the resolved memory path, effective remote name and complete URL,
-current branch, repository access, write-access check, and whether the branch is
-synchronized, ahead, behind, or diverged. It does not change the checked-out
+Status reports the resolved memory path, effective remote name and source,
+complete URL, current branch, repository access, write-access check, and
+whether the branch is synchronized, ahead, behind, or diverged. When no choice
+is saved but the repository already has a remote, it reports that migration
+state without enabling synchronization. It does not change the checked-out
 branch, display credentials, or claim write access when no commit is available
 for a dry-run push.
 

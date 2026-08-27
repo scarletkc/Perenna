@@ -21,7 +21,8 @@ that Perenna is unavailable and leave memory unchanged.
 
 Every mutation reports `sync_status`:
 
-- `local` means no Git remote is configured and the local commit is complete;
+- `local` means no Git remote is selected for this process and the local commit
+  is complete;
 - `synchronized` means the changed local commit reached the configured remote;
 - `pending` means the local commit is complete but the remote could not be
   updated or checked;
@@ -47,6 +48,14 @@ rebase, or force-push diverged histories. Do not create or replace a remote,
 change credentials, reconcile commits, or repeat the memory mutation without
 the user's explicit authorization. Verify `perenna sync status` after recovery
 before claiming that the remote is synchronized.
+
+During an installation or reconnection, run `perenna sync status` once before
+assuming local-only operation is intentional. If it reports a configured Git
+remote but no saved synchronization choice, ask whether the user wants to
+enable that remote or save local-only mode. Run `perenna sync setup` or
+`perenna sync disable` only after that explicit choice. Do not ask again when
+status reports a saved local preference or an environment override; the
+runtime configuration owns that decision.
 
 ## Install or reconnect only with authority
 

@@ -7,7 +7,7 @@ import pytest
 
 from perenna import DESCRIPTION, __version__, cli
 from perenna.cli_output import print_sync_report
-from perenna.config import RemoteSettings, RuntimePaths, RuntimeSettings
+from perenna.config import LOCAL_CONFIG_NAME, RemoteSettings, RuntimePaths, RuntimeSettings
 from perenna.errors import ConfigurationError, SkillInstallError
 from perenna.skill_installer import SkillInstallReport
 from perenna.sync import SyncReport
@@ -168,14 +168,45 @@ def test_sync_setup_and_status_do_not_require_vexor(
     assert f"Git remote: origin -> {remote}" in setup_output.out
     assert "Write access: pending" in setup_output.out
     assert "Synchronization state: waiting for the first memory commit" in setup_output.out
-    assert "Runtime mode: local until PERENNA_GIT_REMOTE=origin is set" in setup_output.out
+    assert "Saved runtime remote: origin" in setup_output.out
+    assert "Restart running Perenna clients" in setup_output.out
 
-    monkeypatch.setenv("PERENNA_GIT_REMOTE", "origin")
     assert cli.main(["sync", "status", "--home", str(home)]) == 0
     status_output = capsys.readouterr()
     assert status_output.err == ""
     assert f"Memory repository: {home.resolve() / 'memory'}" in status_output.out
     assert "Git synchronization: enabled (remote: origin)" in status_output.out
+    assert "Runtime remote source: saved local preference" in status_output.out
+
+
+def test_sync_setup_saves_the_remote_while_an_empty_environment_override_stays_local(
+    tmp_path: Path,
+    capsys,
+    monkeypatch,
+) -> None:
+    home = tmp_path / "home"
+    remote = tmp_path / "sync.git"
+    subprocess.run(
+        ["git", "init", "--bare", str(remote)],
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("PERENNA_GIT_REMOTE", "")
+
+    assert cli.main(["sync", "setup", str(remote), "--home", str(home)]) == 0
+
+    setup_output = capsys.readouterr()
+    assert setup_output.err == ""
+    assert "Saved runtime remote: origin" in setup_output.out
+    assert "Effective runtime remains local because PERENNA_GIT_REMOTE is empty" in setup_output.out
+
+    monkeypatch.delenv("PERENNA_GIT_REMOTE")
+    assert cli.main(["sync", "status", "--home", str(home)]) == 0
+    status_output = capsys.readouterr()
+    assert "Git synchronization: enabled (remote: origin)" in status_output.out
+    assert "Runtime remote source: saved local preference" in status_output.out
 
 
 def test_sync_status_reports_local_authority_without_a_remote(
@@ -199,7 +230,97 @@ def test_sync_status_reports_local_authority_without_a_remote(
 
     captured = capsys.readouterr()
     assert captured.err == ""
-    assert "Git synchronization: disabled (PERENNA_GIT_REMOTE is unset or empty)" in captured.out
+    assert "Git synchronization: disabled (PERENNA_GIT_REMOTE is empty)" in captured.out
+
+
+def test_sync_disable_saves_local_only_without_removing_remote(
+    tmp_path: Path,
+    capsys,
+    monkeypatch,
+) -> None:
+    home = tmp_path / "home"
+    memory = home / "memory"
+    remote = tmp_path / "sync.git"
+    subprocess.run(
+        ["git", "init", "--bare", str(remote)],
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("PERENNA_GIT_REMOTE", raising=False)
+    assert cli.main(["sync", "setup", str(remote), "--home", str(home)]) == 0
+    capsys.readouterr()
+
+    assert cli.main(["sync", "disable", "--home", str(home)]) == 0
+
+    disabled = capsys.readouterr()
+    assert disabled.err == ""
+    assert "Saved synchronization preference: local-only" in disabled.out
+    assert "Git synchronization: disabled (saved local preference)" in disabled.out
+    assert "origin" in subprocess.run(
+        ["git", "-C", str(memory), "remote"],
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    ).stdout.split()
+
+    assert cli.main(["sync", "status", "--home", str(home)]) == 0
+    status = capsys.readouterr()
+    assert "Git synchronization: disabled (saved local preference)" in status.out
+    assert "Configured Git remote detected" not in status.out
+
+
+def test_sync_status_reports_an_existing_remote_without_a_saved_choice(
+    tmp_path: Path,
+    capsys,
+    monkeypatch,
+) -> None:
+    home = tmp_path / "home"
+    memory = home / "memory"
+    memory.mkdir(parents=True)
+    subprocess.run(
+        ["git", "init", "--initial-branch=main"],
+        cwd=memory,
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    subprocess.run(
+        ["git", "remote", "add", "origin", "https://example.com/private/memory.git"],
+        cwd=memory,
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("PERENNA_GIT_REMOTE", raising=False)
+
+    assert cli.main(["sync", "status", "--home", str(home)]) == 0
+
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    assert "Git synchronization: disabled (no saved choice" in captured.out
+    assert "Configured Git remote detected: origin" in captured.out
+    assert "Ask before running 'perenna sync setup REPOSITORY_URL'" in captured.out
+
+
+def test_sync_disable_reports_an_environment_override(
+    tmp_path: Path,
+    capsys,
+    monkeypatch,
+) -> None:
+    home = tmp_path / "home"
+    monkeypatch.setenv("PERENNA_GIT_REMOTE", "backup")
+
+    assert cli.main(["sync", "disable", "--home", str(home)]) == 0
+
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    assert "Saved synchronization preference: local-only" in captured.out
+    assert "remains enabled by PERENNA_GIT_REMOTE=backup" in captured.out
 
 
 def test_sync_setup_prints_guided_deploy_key_action(
@@ -231,6 +352,7 @@ def test_sync_setup_prints_guided_deploy_key_action(
     assert "Public key: ssh-ed25519 " in captured.out
     assert "Enable: Allow write access" in captured.out
     assert "PRIVATE KEY" not in captured.out
+    assert not (tmp_path / "home" / LOCAL_CONFIG_NAME).exists()
 
 
 @pytest.mark.parametrize(

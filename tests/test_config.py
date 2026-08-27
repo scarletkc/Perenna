@@ -6,13 +6,17 @@ import pytest
 
 from perenna.config import (
     DEFAULT_HOME,
+    LOCAL_CONFIG_NAME,
     REMOTE_SCOPES,
+    GitRemoteSelection,
     RemoteSettings,
     RuntimePaths,
     resolve_git_remote,
+    resolve_git_remote_selection,
     resolve_home,
     resolve_remote_settings,
     resolve_settings,
+    save_git_remote,
     validate_loopback_host,
 )
 from perenna.errors import ConfigurationError
@@ -54,6 +58,61 @@ def test_git_remote_is_opt_in_and_can_be_normalized_or_disabled() -> None:
     assert resolve_git_remote({"PERENNA_GIT_REMOTE": "  "}) is None
 
 
+def test_git_remote_uses_saved_preference_when_environment_is_unset(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+
+    assert resolve_git_remote_selection({}, home=home) == GitRemoteSelection(None, "default")
+
+    path = save_git_remote(home, " origin ")
+
+    assert path == home / LOCAL_CONFIG_NAME
+    assert resolve_git_remote_selection({}, home=home) == GitRemoteSelection(
+        "origin", "local-config"
+    )
+    assert resolve_git_remote({}, home=home) == "origin"
+
+
+def test_empty_environment_and_saved_local_only_override_a_saved_remote(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    save_git_remote(home, "origin")
+
+    assert resolve_git_remote_selection(
+        {"PERENNA_GIT_REMOTE": ""}, home=home
+    ) == GitRemoteSelection(None, "environment")
+
+    save_git_remote(home, None)
+
+    assert resolve_git_remote_selection({}, home=home) == GitRemoteSelection(
+        None, "local-config"
+    )
+    assert resolve_git_remote_selection(
+        {"PERENNA_GIT_REMOTE": " backup "}, home=home
+    ) == GitRemoteSelection("backup", "environment")
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "not json",
+        "[]",
+        '{}',
+        '{"git_remote": ""}',
+        '{"git_remote": 1}',
+        '{"git_remote": null, "extra": true}',
+    ],
+)
+def test_invalid_local_configuration_is_rejected(tmp_path: Path, content: str) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / LOCAL_CONFIG_NAME).write_text(content, encoding="utf-8")
+
+    with pytest.raises(ConfigurationError, match="local configuration"):
+        resolve_git_remote_selection({}, home=home)
+
+    with pytest.raises(ConfigurationError, match="local configuration"):
+        resolve_git_remote_selection({"PERENNA_GIT_REMOTE": "origin"}, home=home)
+
+
 def test_resolve_settings_uses_each_precedence_rule(tmp_path: Path) -> None:
     cli_home = tmp_path / "cli"
     settings = resolve_settings(
@@ -68,6 +127,15 @@ def test_resolve_settings_uses_each_precedence_rule(tmp_path: Path) -> None:
     assert settings.paths.memory == cli_home.resolve() / "memory"
     assert settings.paths.index == cli_home.resolve() / "index"
     assert settings.git_remote is None
+
+
+def test_resolve_settings_reads_the_saved_remote(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    save_git_remote(home, "origin")
+
+    settings = resolve_settings(cli_home=home, environ={})
+
+    assert settings.git_remote == "origin"
 
 
 def test_remote_settings_require_exact_https_values() -> None:

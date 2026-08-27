@@ -136,10 +136,9 @@ client configuration file. See
 [Vexor provider configuration](../reference/configuration.md#vexor-provider-configuration)
 for the supported sources and privacy boundary.
 
-When optional Git synchronization is enabled, the client process must also
-inherit the same `PERENNA_GIT_REMOTE` used by `perenna sync setup` and
-`perenna sync status`. Configuring the repository remote without forwarding
-that runtime value leaves Perenna in local-only mode. See
+Successful `perenna sync setup` saves the optional Git synchronization choice
+in the Perenna home. The client process uses that saved choice unless
+`PERENNA_GIT_REMOTE` provides a process-level override. See
 [Git remote synchronization](../reference/configuration.md#git-remote-synchronization)
 for the complete contract.
 

@@ -20,10 +20,11 @@ Perenna can keep local memory safely in that volume, yet an operator cannot
 configure a backup repository without another way to run the one-time setup
 operation.
 
-`PERENNA_GIT_REMOTE` does not solve that bootstrap step. It selects an existing
-Git remote name such as `origin`; it does not contain the repository address or
-configure authentication. A fresh Perenna home therefore starts locally when
-that remote is missing, and later mutations report synchronization as pending.
+The saved Git remote preference and `PERENNA_GIT_REMOTE` do not solve that
+bootstrap step. They select an existing Git remote name such as `origin`; they
+do not contain the repository address or configure authentication. A fresh
+Perenna home therefore starts locally when that remote is missing, and later
+mutations report synchronization as pending.
 
 ## Candidate interface
 
@@ -79,8 +80,10 @@ bootstrap URL is present. Its semantic states would be:
 | Present | `false` | Behave as unset and reject a persisted deploy-key mode before configuration changes |
 | Present | `true` | Require an SSH URL and bootstrap or verify repository-specific deploy-key authentication |
 
-Remote-name precedence would be evaluated before the deploy-key states above
-and preserve the distinction between unset and an explicit empty value:
+Remote-name precedence would be evaluated before the deploy-key states above.
+The table assumes that the Perenna home has no saved choice; when the
+environment is unset, an existing saved preference keeps the implemented
+precedence from the configuration reference.
 
 | `PERENNA_GIT_REMOTE` | Bootstrap URL | Candidate startup behavior |
 | --- | --- | --- |

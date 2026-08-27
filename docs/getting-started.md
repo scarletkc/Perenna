@@ -159,13 +159,16 @@ upgrade:
 
 ```bash
 perenna skill install --agent codex --replace
+# or
+perenna skill install --agent claude-code --replace
 ```
 
-Use `--agent claude-code` for Claude Code, or follow the
-[plugin setup guide](guides/plugin-setup.md) when using the combined plugin.
-The replacement keeps a backup; see the
-[configuration reference](reference/configuration.md#bundled-agent-skill) for
-the installation scopes and safeguards.
+Repeat `--agent` in one command when both standalone Skills should be updated.
+When an installed copy differs, `--replace` moves it to a timestamped backup
+before installing the bundled version. Follow the
+[plugin setup guide](guides/plugin-setup.md) to update the combined plugin. See
+the [configuration reference](reference/configuration.md#bundled-agent-skill)
+for the installation scopes and safeguards.
 
 For source development, use the locked environment in
 [Contributing](development/contributing.md#set-up-the-repository).

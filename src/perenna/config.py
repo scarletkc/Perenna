@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -10,9 +11,18 @@ from urllib.parse import urlsplit
 from pydantic import AnyHttpUrl, BaseModel, ConfigDict, ValidationError
 
 from perenna.errors import ConfigurationError
+from perenna.filesystem import atomic_replace
 
 DEFAULT_HOME = Path.home() / ".perenna"
+LOCAL_CONFIG_NAME = "config.json"
 REMOTE_SCOPES = ("memory:read", "memory:write", "memory:delete")
+
+
+class _Missing:
+    __slots__ = ()
+
+
+_MISSING = _Missing()
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,6 +42,12 @@ class RuntimePaths:
 class RuntimeSettings:
     paths: RuntimePaths
     git_remote: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class GitRemoteSelection:
+    remote: str | None
+    source: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,12 +84,51 @@ def resolve_home(
     return Path(expanded).resolve(strict=False)
 
 
-def resolve_git_remote(environ: Mapping[str, str] | None = None) -> str | None:
+def resolve_git_remote(
+    environ: Mapping[str, str] | None = None,
+    *,
+    home: Path | None = None,
+) -> str | None:
+    return resolve_git_remote_selection(environ, home=home).remote
+
+
+def resolve_git_remote_selection(
+    environ: Mapping[str, str] | None = None,
+    *,
+    home: Path | None = None,
+) -> GitRemoteSelection:
     env = os.environ if environ is None else environ
-    if "PERENNA_GIT_REMOTE" not in env:
-        return None
-    value = env["PERENNA_GIT_REMOTE"].strip()
-    return value or None
+    saved = _MISSING if home is None else _read_saved_git_remote(home)
+    if "PERENNA_GIT_REMOTE" in env:
+        value = env["PERENNA_GIT_REMOTE"].strip()
+        return GitRemoteSelection(value or None, "environment")
+    if isinstance(saved, _Missing):
+        return GitRemoteSelection(None, "default")
+    return GitRemoteSelection(saved, "local-config")
+
+
+def save_git_remote(home: Path, remote: str | None) -> Path:
+    normalized = None if remote is None else remote.strip()
+    if remote is not None and not normalized:
+        raise ConfigurationError(
+            "The saved Git remote name is empty. Provide a non-empty remote name or disable "
+            "synchronization explicitly."
+        )
+    path = home / LOCAL_CONFIG_NAME
+    payload = json.dumps(
+        {"git_remote": normalized},
+        ensure_ascii=False,
+        indent=2,
+        sort_keys=True,
+    )
+    try:
+        atomic_replace(path, f"{payload}\n".encode())
+    except OSError as exc:
+        raise ConfigurationError(
+            f"Perenna could not save the Git synchronization preference to {path}. Check the "
+            "directory permissions, then retry."
+        ) from exc
+    return path
 
 
 def resolve_settings(
@@ -81,10 +136,38 @@ def resolve_settings(
     cli_home: str | os.PathLike[str] | None,
     environ: Mapping[str, str] | None = None,
 ) -> RuntimeSettings:
+    paths = RuntimePaths(resolve_home(cli_home, environ))
     return RuntimeSettings(
-        paths=RuntimePaths(resolve_home(cli_home, environ)),
-        git_remote=resolve_git_remote(environ),
+        paths=paths,
+        git_remote=resolve_git_remote(environ, home=paths.home),
     )
+
+
+def _read_saved_git_remote(home: Path) -> str | None | _Missing:
+    path = home / LOCAL_CONFIG_NAME
+    if not path.exists():
+        return _MISSING
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ConfigurationError(
+            f"Perenna local configuration {path} is invalid or unreadable. Repair or remove "
+            "that file, then retry."
+        ) from exc
+    if not isinstance(payload, dict) or set(payload) != {"git_remote"}:
+        raise ConfigurationError(
+            f"Perenna local configuration {path} must contain exactly the git_remote field. "
+            "Repair or remove that file, then retry."
+        )
+    remote = payload["git_remote"]
+    if remote is None:
+        return None
+    if not isinstance(remote, str) or not remote.strip():
+        raise ConfigurationError(
+            f"Perenna local configuration {path} has an invalid git_remote value. Use a "
+            "non-empty remote name or null for local-only mode."
+        )
+    return remote.strip()
 
 
 def resolve_remote_settings(environ: Mapping[str, str] | None = None) -> RemoteSettings:

@@ -47,8 +47,8 @@ def setup_sync(
 ) -> SyncReport:
     if remote_name is None:
         raise ConfigurationError(
-            "Git synchronization is disabled because PERENNA_GIT_REMOTE is unset or empty. "
-            "Set it to the remote name used by the Perenna host, then retry."
+            "Git synchronization setup has no remote name. Select a saved remote or provide "
+            "PERENNA_GIT_REMOTE, then retry."
         )
     url = _validated_repository_url(repository_url)
     if deploy_key:

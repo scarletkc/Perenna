@@ -263,7 +263,7 @@ def test_setup_rejects_an_option_like_repository_address(tmp_path: Path) -> None
 
 
 def test_setup_respects_an_explicitly_disabled_effective_remote(tmp_path: Path) -> None:
-    with pytest.raises(ConfigurationError, match="PERENNA_GIT_REMOTE is unset or empty"):
+    with pytest.raises(ConfigurationError, match="setup has no remote name"):
         setup_sync(
             tmp_path / "memory",
             "git@example.com:owner/memory.git",

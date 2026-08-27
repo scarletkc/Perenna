@@ -34,8 +34,8 @@ Two scopes are supported:
 - `project:<slug>` applies to one project.
 
 Scope comes from the memory path. Global and project memories may share a
-title, but normalized titles remain unique inside one scope. The first MCP
-version keeps title and scope unchanged after creation.
+title, but normalized titles remain unique inside one scope. Title and scope
+remain unchanged after creation.
 
 ## Reads are separated by purpose
 
@@ -46,8 +46,8 @@ The read tool provides three paths:
 - `get` returns one complete committed memory and revision.
 
 Search chunks are derived cache data. They help choose a memory without loading
-every complete body. The first version does not apply a minimum relevance
-threshold, so ranked candidates are not a claim that a true match exists.
+every complete body. Search does not apply a minimum relevance threshold, so
+ranked candidates are not a claim that a true match exists.
 
 ## Mutations are explicit
 

@@ -106,8 +106,9 @@ changes. Perenna never stages an unrelated edit.
 
 ## Optional Git synchronization
 
-Without `PERENNA_GIT_REMOTE`, Perenna never accesses a remote. Local reads and
-writes retain the same behavior without network access.
+Without an environment override or saved remote selection, Perenna never
+accesses a remote. A saved local-only preference and an explicitly empty
+`PERENNA_GIT_REMOTE` also keep reads and writes offline.
 
 `perenna sync setup` safely establishes the portable remote state:
 
@@ -126,7 +127,7 @@ After a changed mutation, Perenna attempts one push and returns `sync_status`:
 
 | Status | Meaning |
 | --- | --- |
-| `local` | No remote is configured |
+| `local` | No remote is selected for this process |
 | `synchronized` | The remote contains the changed local commit |
 | `pending` | The local commit succeeded, but the remote could not be updated or checked |
 | `conflict` | Local and remote histories diverged |

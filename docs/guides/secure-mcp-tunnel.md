@@ -13,17 +13,15 @@ mutating tools; the client decides whether those actions are available.
 ## Requirements
 
 - Perenna installed on a persistent machine with its intended Perenna home;
-- the official OpenAI `tunnel-client` v0.0.11 or newer installed on the same
-  machine;
-- a tunnel ID and runtime API key from a supported OpenAI organization or
-  workspace;
+- the latest official OpenAI `tunnel-client` installed on the same machine;
+- a tunnel ID, runtime API key, and required tunnel permissions for the target
+  Platform organization and ChatGPT workspace;
 - a configured Vexor provider for semantic search.
 
-Use the current
-[Secure MCP Tunnel client documentation](https://github.com/openai/tunnel-client)
-for installation, tunnel creation, supported OpenAI products, and account
-requirements. Keep the runtime API key in the tunnel-client environment, not in
-Perenna configuration or the memory repository.
+Use the current [Secure MCP Tunnel documentation](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels)
+for installation, tunnel creation, permissions, workspace association, and
+supported OpenAI products. Keep the runtime API key in the tunnel-client
+environment, not in Perenna configuration or the memory repository.
 
 ## Start Perenna on loopback
 
@@ -51,10 +49,12 @@ restart it, but Perenna does not install or manage one.
 ## Configure tunnel-client
 
 Set `CONTROL_PLANE_API_KEY` to the runtime API key in the tunnel-client process
-environment, then create a profile from its no-auth HTTP sample:
+environment. Confirm the installed command's current quickstart, then create an
+HTTP profile for Perenna:
 
 ```text
-tunnel-client init --sample sample_mcp_remote_no_auth --profile perenna --tunnel-id <tunnel-id> --mcp-server-url http://127.0.0.1:8000/mcp
+tunnel-client help quickstart
+tunnel-client init --sample sample_mcp_stdio_local --profile perenna --tunnel-id <tunnel-id> --mcp-server-url http://127.0.0.1:8000/mcp
 tunnel-client doctor --profile perenna --explain
 tunnel-client run --profile perenna
 ```
@@ -63,11 +63,12 @@ Use the actual tunnel ID from OpenAI. `doctor` validates the selected
 configuration, local HTTP reachability, and OAuth metadata behavior. It does not
 perform MCP tool discovery; the next step verifies that in ChatGPT.
 
-In the supported OpenAI product, select that tunnel for the custom MCP app and
-choose **No authentication**. Scan or refresh the tools, then verify that
-`memory_read`, `memory_write`, and `memory_delete` are discovered. Product-level
-permissions may leave mutating actions unavailable even when Perenna advertises
-them correctly.
+In ChatGPT's developer-mode connection flow, choose **Tunnel** and select the
+associated tunnel or enter its tunnel ID. Choose **No authentication** because
+Perenna's loopback-only endpoint does not provide application-level OAuth.
+Review the discovered tools, then verify that `memory_read`, `memory_write`,
+and `memory_delete` are present. Product-level permissions may leave mutating
+actions unavailable even when Perenna advertises them correctly.
 
 ## Security boundary
 

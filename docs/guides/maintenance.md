@@ -140,7 +140,7 @@ either one:
 
 ```bash
 git -C <memory-repository> log --oneline --left-right HEAD...<remote>/<branch>
-git -C <memory-repository> diff HEAD...<remote>/<branch> -- global projects
+git -C <memory-repository> diff HEAD <remote>/<branch> -- global projects
 ```
 
 Reconcile the commits manually, validate the resulting Markdown, and leave the

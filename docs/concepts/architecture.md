@@ -50,12 +50,11 @@ remote mode adds protected-resource metadata, bearer-token verification,
 single-subject authorization, and per-tool scopes. Neither adapter owns storage,
 indexing, or Git behavior.
 
-The current Streamable HTTP path is request-scoped: each modern request carries
+Sessionless Streamable HTTP requests are request-scoped: each request carries
 its protocol version and routing metadata, and no MCP session identifier is
-required. The same endpoint retains the SDK's earlier handshake-era support for
-clients that have not negotiated the current protocol. This transport
-compatibility does not add application state or change Perenna's single-owner
-storage boundary.
+required. The same endpoint retains the SDK handshake path for clients that
+negotiate the session-based protocol. This transport compatibility does not add
+application state or change Perenna's single-owner storage boundary.
 
 ### Core
 
@@ -111,7 +110,7 @@ The exact input and file contracts live in the
 
 ## Future knowledge-base boundary
 
-Perenna does not currently expose knowledge-base operations. If reference
+Perenna exposes no knowledge-base operations. If reference
 knowledge is added, it will remain a separate domain from memory while reusing
 the applicable Git, file, and rebuildable-index principles. This accepted
 direction, including its deliberately narrow first-delivery scope, is recorded

@@ -63,7 +63,7 @@ The Markdown Git repository is the permanent source of truth. The Vexor index
 is derived cache data. If Perenna or Vexor disappears, the memories remain
 ordinary versioned Markdown files that can be read without proprietary tools.
 
-## Current product boundary
+## Product boundary
 
 Perenna runs locally over stdio, over loopback-only Streamable HTTP for a local
 tunnel client, or as one OAuth-protected Streamable HTTP service for one owner.

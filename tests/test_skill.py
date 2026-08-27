@@ -75,4 +75,6 @@ def test_perenna_memory_skill_is_discoverable_and_covers_the_tool_surface() -> N
     assert "both the local commit result and the synchronization state" in flattened
     assert "Do not repeat a successful local mutation" in flattened
     assert "perenna sync status" in combined
+    assert "configured Git remote but no saved synchronization choice" in flattened
+    assert "perenna sync disable" in combined
     assert "docs/guides/maintenance.md#recover-from-a-git-synchronization-failure" in combined

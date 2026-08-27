@@ -23,6 +23,10 @@ who obtains the URL may be able to call the exposed tools.
 
 ## Connect ChatGPT
 
+Follow OpenAI's current
+[plugin connection workflow](https://developers.openai.com/plugins/deploy/connect-chatgpt)
+through these Perenna-specific choices:
+
 1. In ChatGPT, open **Settings**.
 2. Select **Security and login** and enable **Developer mode**.
 3. Open **ChatGPT Plugins** and select the plus button.

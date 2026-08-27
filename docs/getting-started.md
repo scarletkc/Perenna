@@ -18,7 +18,7 @@ Install a published release:
 uv tool install perenna
 ```
 
-For source development instead:
+To install from source instead:
 
 ```bash
 git clone https://github.com/scarletkc/Perenna.git
@@ -53,11 +53,18 @@ For Codex or Claude Code, the combined
 connection together. Choose either the plugin path or the standalone Skill plus
 client configuration; do not install both.
 
-### Install local embedding support
+## Configure retrieval
 
-The base installation follows your existing Vexor provider configuration. To
-install Vexor's local embedding dependencies as well, install the `local`
-extra:
+Perenna uses Vexor for semantic retrieval. Configure and verify the provider in
+the same environment that will start the MCP client:
+
+```bash
+uvx vexor init
+uvx vexor doctor
+```
+
+Remote providers receive memory text and search queries. To keep embedding
+local, install Vexor's local dependencies with Perenna's `local` extra:
 
 ```bash
 uv tool install "perenna[local]"
@@ -68,15 +75,6 @@ For a source checkout, use `uv tool install ".[local]"` instead.
 The initial dependency and model downloads may still require network access.
 Provider configuration and privacy boundaries are documented in the
 [configuration reference](reference/configuration.md#vexor-provider-configuration).
-
-## Update
-
-Upgrade a published installation and confirm the installed version:
-
-```bash
-uv tool upgrade perenna
-perenna --version
-```
 
 ## Connect a client
 
@@ -96,12 +94,15 @@ Perenna initializes the resolved home automatically:
 
 ```text
 ~/.perenna/
-├── memory/   # independent Git repository and permanent Markdown
-└── index/    # Vexor cache, commit marker, and lock files
+├── config.json  # created after a synchronization choice is saved
+├── memory/      # independent Git repository and permanent Markdown
+└── index/       # Vexor cache, commit marker, and lock files
 ```
 
 The `memory/` directory starts on a `main` branch and uses a repository-local
-Perenna commit identity. Perenna does not change your global Git identity.
+Perenna commit identity. Perenna does not change your global Git identity. The
+[Perenna home](reference/configuration.md#perenna-home) section owns path
+resolution and the complete directory contract.
 
 ## Optional: set up Git synchronization
 
@@ -115,10 +116,12 @@ For an unattended container, add `--deploy-key` to generate a persistent,
 repository-specific SSH key and receive the exact registration instructions.
 Setup imports an existing remote into an empty local repository, publishes an
 existing local repository to an empty remote, and fast-forwards compatible
-history. It stops on diverged history rather than merging automatically. Follow
-[Git remote synchronization](reference/configuration.md#git-remote-synchronization)
-for the complete behavior, credential requirements, replacement safeguards,
-and status checks.
+history. A successful setup saves the selected remote for later Perenna
+processes. It stops on diverged history rather than merging automatically.
+
+Follow [Git remote synchronization](reference/configuration.md#git-remote-synchronization)
+for remote selection, credential requirements, replacement safeguards, local-only
+mode, and status checks.
 
 ## Verify the first session
 
@@ -141,3 +144,15 @@ On Windows, replace `~/.perenna` with the resolved home shown by your shell.
 Next, read [Using permanent memory](guides/using-memory.md). For non-default
 paths, sources, remote names, or embedding providers, use the
 [configuration reference](reference/configuration.md).
+
+## Update a published installation
+
+Upgrade Perenna and confirm the installed version:
+
+```bash
+uv tool upgrade perenna
+perenna --version
+```
+
+For source development, use the locked environment in
+[Contributing](development/contributing.md#set-up-the-repository).

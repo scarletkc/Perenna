@@ -86,7 +86,7 @@ sudoedit /etc/perenna/perenna.env
 The template includes the Docker runtime defaults and optional Vexor and Git
 synchronization settings. The
 [configuration reference](../reference/configuration.md#remote-mcp-and-oauth)
-owns the complete field contract.
+owns the field contract.
 
 ## Run the container
 
@@ -103,8 +103,14 @@ docker run --detach \
   perenna:local
 ```
 
-The image uses UID `10001`. When replacing the named volume with a host bind
-mount, make that directory writable by UID `10001` before starting the
+When replacing the named volume with a host bind mount, inspect the image's
+configured user instead of copying a UID from documentation:
+
+```bash
+docker run --rm perenna:local id -u
+```
+
+Make the bind-mount directory writable by the reported UID before starting the
 container.
 
 ## Configure Git synchronization
@@ -253,6 +259,10 @@ Use MCP Inspector with OAuth to verify token issuance and all three tool
 scopes before connecting ChatGPT.
 
 ## Connect ChatGPT
+
+Follow OpenAI's current
+[plugin connection workflow](https://developers.openai.com/plugins/deploy/connect-chatgpt)
+through these Perenna-specific choices:
 
 1. Enable developer mode in ChatGPT.
 2. Create a custom plugin and choose **Server URL**.

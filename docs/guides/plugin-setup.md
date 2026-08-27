@@ -18,11 +18,11 @@ The client that loads the plugin must inherit `VEXOR_CONFIG_JSON`,
 `VEXOR_API_KEY`, or the selected provider's environment variable. A remote
 embedding provider receives memory text and search queries.
 
-When optional Git synchronization is enabled, the client must also inherit the
-same `PERENNA_GIT_REMOTE` used by `perenna sync setup` and
-`perenna sync status`. See the
+Successful `perenna sync setup` saves the optional Git synchronization choice
+in the Perenna home. The client uses that saved choice unless
+`PERENNA_GIT_REMOTE` provides a process-level override. See the
 [configuration reference](../reference/configuration.md#git-remote-synchronization)
-for the runtime contract.
+for remote selection and precedence.
 
 ## Codex
 

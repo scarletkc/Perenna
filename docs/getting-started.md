@@ -154,5 +154,18 @@ uv tool upgrade perenna
 perenna --version
 ```
 
+If you installed the Skill separately, refresh its bundled copy after the
+upgrade:
+
+```bash
+perenna skill install --agent codex --replace
+```
+
+Use `--agent claude-code` for Claude Code, or follow the
+[plugin setup guide](guides/plugin-setup.md) when using the combined plugin.
+The replacement keeps a backup; see the
+[configuration reference](reference/configuration.md#bundled-agent-skill) for
+the installation scopes and safeguards.
+
 For source development, use the locked environment in
 [Contributing](development/contributing.md#set-up-the-repository).

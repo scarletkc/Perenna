@@ -41,15 +41,8 @@ Perenna gives them one **shared, Git-backed memory**. Local agents and ChatGPT
 can connect to the same self-hosted Perenna service, while every durable memory
 stays ordinary Markdown you can inspect, edit, version, and back up yourself.
 
-| | **Perenna** | [AgentMemory](https://github.com/rohitg00/agentmemory) | [Mem0](https://github.com/mem0ai/mem0) | [MemPalace](https://github.com/MemPalace/mempalace) |
-| --- | --- | --- | --- | --- |
-| Simplicity | **3 MCP tools** | 54 tools + hooks | SDK/API/server stack | MCP/database stack |
-| Local use | **stdio, no daemon** | Multiple local services | Library or server | Local database |
-| Storage | **Plain Markdown + Git** | Runtime-managed | Database/service-managed | Database-managed |
-| Ownership | **Your files, your Git history** | Runtime-managed | Backend-managed | Backend-managed |
-
-Perenna is small by design: **no account, no proprietary memory cloud, no
-lock-in.** Just plain Markdown, Git history, and three focused tools.
+Perenna stays focused on permanent memory: no required account, proprietary
+memory cloud, or automatic conversation extraction.
 
 ## Quickstart
 

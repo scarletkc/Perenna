@@ -18,7 +18,7 @@ Install a published release:
 uv tool install perenna
 ```
 
-For source development instead:
+To install from source instead:
 
 ```bash
 git clone https://github.com/scarletkc/Perenna.git

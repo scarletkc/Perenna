@@ -60,9 +60,9 @@ generated preview.
 and counts distinct memories after chunk results are aggregated by memory using
 the highest-scoring chunk. It does not control the number of Vexor candidates.
 
-Search returns ranked candidates, not a relevance guarantee. The first version
-has no minimum similarity threshold, so an unrelated query may still return
-the nearest candidates. Each result contains:
+Search returns ranked candidates, not a relevance guarantee. There is no
+minimum similarity threshold, so an unrelated query may still return the
+nearest candidates. Each result contains:
 
 - `memory_id`, `title`, `scope`, and authoritative `summary`;
 - opaque per-memory `revision`;
@@ -207,11 +207,11 @@ also contains:
 Vexor rebuild failed. It does not mean that a background indexing job is still
 running. The next non-empty search retries the rebuild before querying memory.
 
-For `sync_status`, `local` means no remote is configured, `synchronized` means
-the remote contains the changed commit, and `unchanged` means no commit or push
-was needed. `pending` and `conflict` still mean the local commit succeeded; do
-not repeat the mutation. A conflict blocks later writes until the Git histories
-are reconciled. The
+For `sync_status`, `local` means no remote is selected for the process,
+`synchronized` means the remote contains the changed commit, and `unchanged`
+means no commit or push was needed. `pending` and `conflict` still mean the
+local commit succeeded; do not repeat the mutation. A conflict blocks later
+writes until the Git histories are reconciled. The
 [consistency model](../concepts/consistency.md#optional-git-synchronization)
 owns the complete synchronization contract.
 

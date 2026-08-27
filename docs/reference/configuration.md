@@ -162,6 +162,27 @@ The environment variable is an explicit process-level override. When it is
 absent, `<home>/config.json` supplies the saved local preference. Invalid or
 unknown local configuration is rejected instead of silently falling back.
 
+The local file is strict JSON with exactly one field. A named remote is stored
+as a string:
+
+```json
+{
+  "git_remote": "origin"
+}
+```
+
+Saved local-only mode uses `null`:
+
+```json
+{
+  "git_remote": null
+}
+```
+
+Missing fields, additional fields, empty remote names, and non-string values
+other than `null` are errors. `perenna sync setup` and `perenna sync disable`
+write this file atomically; normal setup does not require manual editing.
+
 The local Git repository remains the durable write authority. Remote network or
 credential failures do not prevent a local commit. Every mutation result
 reports `sync_status`; the complete state contract is in the
@@ -206,10 +227,20 @@ perenna sync setup <repository-url> --replace
 ```
 
 To use a different remote name, set `PERENNA_GIT_REMOTE` for the setup command.
-Successful setup saves that name for later processes that do not override it:
+Successful setup saves that name for later processes that do not override it.
 
-```text
+POSIX shell:
+
+```bash
+PERENNA_GIT_REMOTE=backup perenna sync setup <repository-url>
+```
+
+PowerShell:
+
+```powershell
+$env:PERENNA_GIT_REMOTE = "backup"
 perenna sync setup <repository-url>
+Remove-Item Env:PERENNA_GIT_REMOTE
 ```
 
 The setup command defaults to `origin` when neither the environment nor the
@@ -346,7 +377,7 @@ VEXOR_CONFIG_JSON={"provider":"openai","model":"text-embedding-3-small"}
 
 Refer to the
 [Vexor configuration documentation](https://github.com/scarletkc/vexor/blob/main/docs/configuration.md)
-for its complete provider field and precedence contract.
+for its provider field and precedence contract.
 
 ## Remote provider privacy boundary
 

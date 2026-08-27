@@ -16,7 +16,13 @@ from perenna.filesystem import atomic_replace
 DEFAULT_HOME = Path.home() / ".perenna"
 LOCAL_CONFIG_NAME = "config.json"
 REMOTE_SCOPES = ("memory:read", "memory:write", "memory:delete")
-_MISSING = object()
+
+
+class _Missing:
+    __slots__ = ()
+
+
+_MISSING = _Missing()
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,7 +102,7 @@ def resolve_git_remote_selection(
     if "PERENNA_GIT_REMOTE" in env:
         value = env["PERENNA_GIT_REMOTE"].strip()
         return GitRemoteSelection(value or None, "environment")
-    if saved is _MISSING:
+    if isinstance(saved, _Missing):
         return GitRemoteSelection(None, "default")
     return GitRemoteSelection(saved, "local-config")
 
@@ -137,7 +143,7 @@ def resolve_settings(
     )
 
 
-def _read_saved_git_remote(home: Path) -> str | None | object:
+def _read_saved_git_remote(home: Path) -> str | None | _Missing:
     path = home / LOCAL_CONFIG_NAME
     if not path.exists():
         return _MISSING

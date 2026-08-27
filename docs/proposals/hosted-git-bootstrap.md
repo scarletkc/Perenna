@@ -21,10 +21,10 @@ configure a backup repository without another way to run the one-time setup
 operation.
 
 The saved Git remote preference and `PERENNA_GIT_REMOTE` do not solve that
-bootstrap step. They select an existing Git remote name such as `origin`; they
-do not contain the repository address or configure authentication. A fresh
-Perenna home therefore starts locally when that remote is missing, and later
-mutations report synchronization as pending.
+bootstrap step. They select a Git remote name such as `origin`; they do not
+contain the repository address or configure authentication. A process that
+selects a missing remote starts with local state, and later mutations report
+synchronization as pending.
 
 ## Candidate interface
 
@@ -36,7 +36,6 @@ setup implementation before serving tools.
 | --- | --- |
 | `PERENNA_GIT_URL` | Repository address used to bootstrap or verify synchronization |
 | `--git-url URL` | CLI override for the same address |
-| `PERENNA_GIT_REMOTE` | Existing remote-name selector; hosted precedence is defined below |
 | `PERENNA_GIT_DEPLOY_KEY` | Exact lowercase `true` or `false` selecting the repository-specific deploy-key flow |
 
 An unset deploy-key value would remain distinct from `false`. Empty or
@@ -80,18 +79,18 @@ bootstrap URL is present. Its semantic states would be:
 | Present | `false` | Behave as unset and reject a persisted deploy-key mode before configuration changes |
 | Present | `true` | Require an SSH URL and bootstrap or verify repository-specific deploy-key authentication |
 
-Remote-name precedence would be evaluated before the deploy-key states above.
-The table assumes that the Perenna home has no saved choice; when the
-environment is unset, an existing saved preference keeps the implemented
-precedence from the configuration reference.
+Remote-name resolution is not a new interface in this proposal. It would reuse
+the implemented resolution in
+[Git remote synchronization](../reference/configuration.md#git-remote-synchronization),
+then apply bootstrap behavior to the effective state:
 
-| `PERENNA_GIT_REMOTE` | Bootstrap URL | Candidate startup behavior |
+| Effective remote state | Bootstrap URL | Candidate startup behavior |
 | --- | --- | --- |
-| Unset | Absent | Preserve the current local-only startup behavior |
-| Unset | Present | Use `origin` for bootstrap |
-| Empty | Absent | Preserve the explicit local-only opt-out |
-| Empty | Present | Reject the conflicting configuration before repository or remote changes |
-| Non-empty | Either | Use that exact remote name |
+| No saved choice | Absent | Preserve local-only startup |
+| No saved choice | Present | Use `origin` for bootstrap |
+| Named remote | Either | Use that remote name |
+| Explicit local-only preference | Absent | Preserve local-only startup |
+| Explicit local-only preference | Present | Reject the conflict before repository or remote changes |
 
 This preserves existing homes configured by `perenna sync setup`: when no
 bootstrap URL is supplied, their persisted `core.sshCommand` continues to own
@@ -108,9 +107,9 @@ Any approved implementation should run bootstrap under the existing exclusive
 Perenna-home lock and reuse `setup_sync()` rather than introduce a second Git
 initialization path.
 
-1. Resolve the home, source, remote-name state, optional repository URL, and
-   deploy-key mode without collapsing an unset remote name into an explicit
-   empty value.
+1. Resolve the home, source, effective remote state, optional repository URL,
+   and deploy-key mode while preserving the distinction between no choice, a
+   named remote, and an explicit local-only preference.
 2. Validate the input combination and any configured URL before initializing or
    changing the repository.
 3. When no URL is configured, retain the current startup refresh behavior.
@@ -131,9 +130,9 @@ initialization path.
 Configuration rejection must be atomic. Invalid input must fail before
 repository initialization or deploy-key generation. Compatibility and
 divergence rejection must restore the prior remote URL, `core.sshCommand`,
-`perenna.syncAuth`, and `perenna.deployKeyPath`; preserve whether the
-remote-name input was unset or explicitly empty; and leave the local branch,
-working tree, and memory commits unchanged.
+`perenna.syncAuth`, and `perenna.deployKeyPath`; leave the saved synchronization
+preference unchanged; and leave the local branch, working tree, and memory
+commits unchanged.
 
 Existing `setup_sync()` effects that do not change durable local memory remain
 outside that rollback boundary: repository initialization, fetched objects and
@@ -212,9 +211,8 @@ Coverage must include:
 - rejection before repository initialization for empty, whitespace, numeric,
   case-variant, alias, and other invalid deploy-key values, without creating
   credential files;
-- unset, empty, and non-empty `PERENNA_GIT_REMOTE` values with and without a
-  bootstrap URL, including rejection of the empty-plus-URL conflict before
-  repository changes;
+- no-choice, named-remote, and explicit local-only effective states from both
+  environment and saved configuration, with and without a bootstrap URL;
 - empty local and empty remote;
 - empty local importing existing compatible history;
 - existing local publishing to an empty remote;
@@ -230,9 +228,9 @@ Coverage must include:
 - incompatible branches and diverged history;
 - simultaneous first starts using the same home;
 - rejected startup that leaves the existing remote URL, `core.sshCommand`,
-  `perenna.syncAuth`, and `perenna.deployKeyPath` unchanged, preserves unset
-  versus explicit empty remote-name state, and does not alter the local branch,
-  working tree, or memory commits;
+  `perenna.syncAuth`, `perenna.deployKeyPath`, and the saved synchronization
+  preference unchanged, and does not alter the local branch, working tree, or
+  memory commits;
 - compatibility rejection after fetch, covering the allowed persistence of
   derived Git objects, remote-tracking refs, and learned SSH host keys;
 - absence of credentials and private-key material from errors and logs.

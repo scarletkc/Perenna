@@ -24,13 +24,7 @@ match their canonical sources:
 uv run python scripts/sync_plugin.py --check
 ```
 
-Run the default test suite:
-
-```bash
-uv run pytest
-```
-
-Run the same coverage gate used by CI:
+Run the default suite once through the same coverage gate used by CI:
 
 ```bash
 uv run coverage erase

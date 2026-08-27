@@ -155,12 +155,22 @@ perenna --version
 ```
 
 If you installed the Skill separately, refresh its bundled copy after the
-upgrade:
+upgrade using the same scope as the original installation.
+
+For the default user scope:
 
 ```bash
 perenna skill install --agent codex --replace
 # or
 perenna skill install --agent claude-code --replace
+```
+
+For project scope, run the command from that Git working tree:
+
+```bash
+perenna skill install --agent codex --scope project --replace
+# or
+perenna skill install --agent claude-code --scope project --replace
 ```
 
 Repeat `--agent` in one command when both standalone Skills should be updated.

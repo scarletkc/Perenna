@@ -251,8 +251,8 @@ def _claude_manifest(metadata: dict[str, Any], version: str) -> dict[str, Any]:
 
 def _mcp_manifest(*, env_vars: list[str] | None = None) -> dict[str, Any]:
     server = {
-        "command": "perenna",
-        "args": ["mcp"],
+        "command": "uvx",
+        "args": ["perenna@latest", "mcp"],
     }
     if env_vars:
         server["env_vars"] = env_vars

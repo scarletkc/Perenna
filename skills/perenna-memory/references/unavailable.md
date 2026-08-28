@@ -85,7 +85,8 @@ cloud shell provides durable storage.
 Use the local path only when the current client host can install packages,
 retain Perenna's data directory, and start a long-lived stdio subprocess. In
 that environment, follow Getting Started, install Perenna on the same host, and
-register `perenna mcp` through the client setup guide.
+register the latest published Perenna MCP command through the client setup
+guide.
 
 For a web-based or HTTP-only client, explain that local stdio setup does not
 apply. When the client supports OpenAI Secure MCP Tunnel and the user has a

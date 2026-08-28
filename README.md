@@ -62,6 +62,11 @@ https://raw.githubusercontent.com/scarletkc/Perenna/main/docs/guides/agent-insta
 Perenna requires Python 3.12+, Git, and
 [uv](https://docs.astral.sh/uv/).
 
+Codex and Claude Code users can use the combined
+[Plugin setup](https://github.com/scarletkc/Perenna/blob/main/docs/guides/plugin-setup.md),
+which runs the latest stable Perenna release through `uvx`. The steps below
+describe the standalone CLI path.
+
 #### Install Perenna
 
 ```bash
@@ -82,11 +87,8 @@ configuration, make sure the MCP server receives `VEXOR_CONFIG_JSON` plus
 `VEXOR_API_KEY` or the selected provider's key from its host environment.
 Remote providers receive memory text and search queries.
 
-If you choose local embeddings, also install Perenna's local extra:
-
-```bash
-uv tool install "perenna[local]"
-```
+If you choose local embeddings, use the local-extra MCP runtime in the
+[Client setup guide](https://github.com/scarletkc/Perenna/blob/main/docs/guides/client-setup.md#use-local-embeddings).
 
 [Vexor provider configuration](https://github.com/scarletkc/Perenna/blob/main/docs/reference/configuration.md#vexor-provider-configuration)
 covers remote and local setup. From the environment that starts the MCP client,
@@ -101,7 +103,7 @@ uvx vexor doctor
 For the standalone setup, configure the MCP client to start:
 
 ```text
-perenna mcp
+uvx perenna@latest mcp
 ```
 
 Follow the

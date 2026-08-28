@@ -1,7 +1,10 @@
 # Client Setup
 
 This guide connects supported local MCP clients to the same Perenna home. It
-assumes that `perenna` is installed and available on `PATH`.
+assumes that [uv](https://docs.astral.sh/uv/) and its `uvx` command are
+available on `PATH`. Each registration requests the latest stable Perenna
+release from PyPI through `uvx`. The resolved runtime is independent of any
+`perenna` executable already installed on `PATH`.
 
 For ChatGPT web, choose the local
 [Secure MCP Tunnel guide](secure-mcp-tunnel.md), the OAuth-protected
@@ -18,13 +21,13 @@ combine both paths for the same client.
 Install Perenna's optional memory behavior skill for Claude Code:
 
 ```bash
-perenna skill install --agent claude-code
+uvx perenna@latest skill install --agent claude-code
 ```
 
 Add Perenna as a user-scoped stdio server:
 
 ```bash
-claude mcp add --transport stdio --scope user perenna -- perenna mcp
+claude mcp add --transport stdio --scope user perenna -- uvx perenna@latest mcp
 ```
 
 Verify the saved configuration and connection:
@@ -44,13 +47,13 @@ separator marks the start of the Perenna command and arguments.
 Install Perenna's optional memory behavior skill for Codex:
 
 ```bash
-perenna skill install --agent codex
+uvx perenna@latest skill install --agent codex
 ```
 
 Add Perenna with the Codex CLI:
 
 ```bash
-codex mcp add perenna -- perenna mcp
+codex mcp add perenna -- uvx perenna@latest mcp
 codex mcp list
 ```
 
@@ -58,8 +61,8 @@ The equivalent `~/.codex/config.toml` entry is:
 
 ```toml
 [mcp_servers.perenna]
-command = "perenna"
-args = ["mcp"]
+command = "uvx"
+args = ["perenna@latest", "mcp"]
 ```
 
 The Codex CLI and IDE extension share this configuration on the same Codex
@@ -74,8 +77,8 @@ use the Codex CLI command above, or configure the server from the desktop app:
 2. Select **MCP servers**.
 3. Add a server named `perenna`.
 4. Choose **STDIO**.
-5. Set the command to `perenna`.
-6. Set the arguments to `mcp`.
+5. Set the command to `uvx`.
+6. Add `perenna@latest` and `mcp` as separate arguments, in that order.
 7. Save and restart the app.
 
 Use `/mcp` in the composer to inspect connected servers.
@@ -103,8 +106,8 @@ Add Perenna to the global `~/.cursor/mcp.json` file:
   "mcpServers": {
     "perenna": {
       "type": "stdio",
-      "command": "perenna",
-      "args": ["mcp"]
+      "command": "uvx",
+      "args": ["perenna@latest", "mcp"]
     }
   }
 }
@@ -121,7 +124,7 @@ Add `--home` to the server arguments when a client should use another Perenna
 home:
 
 ```text
-perenna mcp --home /path/to/perenna-home
+uvx perenna@latest mcp --home /path/to/perenna-home
 ```
 
 Clients share memories only when they resolve the same home. The exact
@@ -135,6 +138,20 @@ variables inherited by the Perenna process. Do not place API keys in a tracked
 client configuration file. See
 [Vexor provider configuration](../reference/configuration.md#vexor-provider-configuration)
 for the supported sources and privacy boundary.
+
+## Use local embeddings
+
+The default `perenna@latest` runtime installs Perenna's base distribution. A
+local Vexor provider also needs the `local` extra. Register this local-extra
+command:
+
+```text
+uvx --refresh-package perenna --from "perenna[local]" perenna mcp
+```
+
+For configuration files, set the command to `uvx` and pass each remaining
+token as a separate argument. `--refresh-package perenna` makes uv revalidate
+the Perenna package before resolving the local-extra environment.
 
 Successful `perenna sync setup` saves the optional Git synchronization choice
 in the Perenna home. The client process uses that saved choice unless

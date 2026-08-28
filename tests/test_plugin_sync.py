@@ -31,8 +31,10 @@ def test_repository_plugin_artifacts_are_synchronized() -> None:
     claude_mcp = json.loads(
         (REPO_ROOT / "plugins/claude/perenna/.mcp.json").read_text(encoding="utf-8")
     )
-    assert codex_mcp["mcpServers"]["perenna"]["args"] == ["mcp"]
-    assert claude_mcp["mcpServers"]["perenna"]["args"] == ["mcp"]
+    for manifest in (codex_mcp, claude_mcp):
+        runtime = manifest["mcpServers"]["perenna"]
+        assert runtime["command"] == "uvx"
+        assert runtime["args"] == ["perenna@latest", "mcp"]
     server = json.loads((REPO_ROOT / "server.json").read_text(encoding="utf-8"))
     assert all(
         argument.get("name") != "--source"

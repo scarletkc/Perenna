@@ -1,8 +1,9 @@
 {
   "mcpServers": {
     "perenna": {
-      "command": "perenna",
+      "command": "uvx",
       "args": [
+        "perenna@latest",
         "mcp"
       ],
       "env_vars": [

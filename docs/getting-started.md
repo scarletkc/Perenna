@@ -10,6 +10,10 @@ connection.
 - [uv](https://docs.astral.sh/uv/)
 - an MCP client that can start a local stdio server
 
+Codex and Claude Code users can use the combined
+[Plugin setup](guides/plugin-setup.md), which runs the latest stable Perenna
+release through `uvx`. The steps below describe the standalone CLI path.
+
 ## Install
 
 Install a published release:
@@ -64,7 +68,9 @@ uvx vexor doctor
 ```
 
 Remote providers receive memory text and search queries. To keep embedding
-local, install Vexor's local dependencies with Perenna's `local` extra:
+local, use the `perenna[local]` runtime in the
+[client setup guide](guides/client-setup.md#use-local-embeddings). For a
+persistently installed CLI, install the same extra with:
 
 ```bash
 uv tool install "perenna[local]"

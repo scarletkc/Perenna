@@ -131,6 +131,18 @@ Clients share memories only when they resolve the same home. The exact
 precedence rules are in the
 [configuration reference](../reference/configuration.md#perenna-home).
 
+## Use an installed or source version
+
+An intentionally installed or source-built Perenna version uses this runtime:
+
+```text
+perenna mcp
+```
+
+Use `perenna` as the command and `mcp` as its first argument in the client
+configurations above. This path follows the installed package version until it
+is upgraded or reinstalled.
+
 ## Pass runtime configuration
 
 Embedding provider settings belong in Vexor configuration or environment

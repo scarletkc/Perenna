@@ -4,7 +4,8 @@ This runbook covers local Git inspection, manual edits, index recovery, remote
 synchronization failures, and disaster recovery. Permanent recovery always
 starts from the memory Git repository, never from the Vexor index.
 
-In the commands below:
+Use the [command form](../reference/configuration.md#command-forms) selected
+during setup. In the commands below:
 
 - `<home>` is the resolved Perenna home;
 - `<memory-repository>` is `<home>/memory`.

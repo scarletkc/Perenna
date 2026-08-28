@@ -57,7 +57,7 @@ install and connect Perenna:
 https://raw.githubusercontent.com/scarletkc/Perenna/main/docs/guides/agent-installation.md
 ```
 
-### Install a published release
+### Run a published release
 
 Perenna requires Python 3.12+, Git, and
 [uv](https://docs.astral.sh/uv/).
@@ -65,12 +65,12 @@ Perenna requires Python 3.12+, Git, and
 Codex and Claude Code users can use the combined
 [Plugin setup](https://github.com/scarletkc/Perenna/blob/main/docs/guides/plugin-setup.md),
 which runs the latest stable Perenna release through `uvx`. The steps below
-describe the standalone CLI path.
+describe the standalone PyPI path.
 
-#### Install Perenna
+#### Verify Perenna
 
 ```bash
-uv tool install perenna
+uvx perenna@latest --help
 ```
 
 #### Configure retrieval
@@ -113,9 +113,9 @@ for the exact client command or configuration file.
 Codex and Claude Code can also install the optional memory behavior Skill:
 
 ```bash
-perenna skill install --agent codex
+uvx perenna@latest skill install --agent codex
 # or
-perenna skill install --agent claude-code
+uvx perenna@latest skill install --agent claude-code
 ```
 
 Repeat `--agent` in one command when both clients should receive the skill.
@@ -136,11 +136,11 @@ To import, publish, or fast-forward compatible history through a private Git
 repository, run:
 
 ```bash
-perenna sync setup <repository-url>
+uvx perenna@latest sync setup <repository-url>
 ```
 
 Successful setup saves the selected remote in the Perenna home. Use
-`perenna sync disable` to return to saved local-only mode without removing the
+`uvx perenna@latest sync disable` to save local-only mode while retaining the
 Git remote.
 
 The
@@ -154,6 +154,9 @@ git clone https://github.com/scarletkc/Perenna.git
 cd Perenna
 uv tool install .
 ```
+
+A source installation uses `perenna mcp` for client registration and follows
+the checked-out package version.
 
 Source contributors should use the locked environment in the
 [development guide](https://github.com/scarletkc/Perenna/blob/main/docs/development/contributing.md#set-up-the-repository).

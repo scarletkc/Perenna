@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide installs Perenna, checks the command, and prepares the first client
+This guide runs Perenna, checks the command, and prepares the first client
 connection.
 
 ## Requirements
@@ -12,17 +12,17 @@ connection.
 
 Codex and Claude Code users can use the combined
 [Plugin setup](guides/plugin-setup.md), which runs the latest stable Perenna
-release through `uvx`. The steps below describe the standalone CLI path.
+release through `uvx`. The steps below describe the standalone PyPI path.
 
-## Install
+## Run Perenna
 
-Install a published release:
+Run the latest published release:
 
 ```bash
-uv tool install perenna
+uvx perenna@latest --help
 ```
 
-To install from source instead:
+For a source installation:
 
 ```bash
 git clone https://github.com/scarletkc/Perenna.git
@@ -30,20 +30,23 @@ cd Perenna
 uv tool install .
 ```
 
-Verify that the installed command is available:
+Verify the source installation:
 
 ```bash
 perenna --help
 ```
+
+Published commands below use `uvx perenna@latest`. A source installation uses
+`perenna` in the same position and follows the checked-out package version.
 
 ### Install the memory behavior skill
 
 Install the bundled skill for the client that will use Perenna:
 
 ```bash
-perenna skill install --agent codex
+uvx perenna@latest skill install --agent codex
 # or
-perenna skill install --agent claude-code
+uvx perenna@latest skill install --agent claude-code
 ```
 
 If both clients are installed, repeat `--agent` in one command. The default is
@@ -76,7 +79,7 @@ persistently installed CLI, install the same extra with:
 uv tool install "perenna[local]"
 ```
 
-For a source checkout, use `uv tool install ".[local]"` instead.
+For a source checkout, use `uv tool install ".[local]"`.
 
 The initial dependency and model downloads may still require network access.
 Provider configuration and privacy boundaries are documented in the
@@ -115,7 +118,7 @@ resolution and the complete directory contract.
 You can attach a private Git repository before or after the first connection:
 
 ```text
-perenna sync setup <repository-url>
+uvx perenna@latest sync setup <repository-url>
 ```
 
 For an unattended container, add `--deploy-key` to generate a persistent,
@@ -151,32 +154,32 @@ Next, read [Using permanent memory](guides/using-memory.md). For non-default
 paths, sources, remote names, or embedding providers, use the
 [configuration reference](reference/configuration.md).
 
-## Update a published installation
+## Refresh a published setup
 
-Upgrade Perenna and confirm the installed version:
+Confirm the current published version. The `@latest` request refreshes package
+metadata before it runs:
 
 ```bash
-uv tool upgrade perenna
-perenna --version
+uvx perenna@latest --version
 ```
 
-If you installed the Skill separately, refresh its bundled copy after the
-upgrade using the same scope as the original installation.
+If you installed the Skill separately, refresh its bundled copy using the same
+scope as the original installation.
 
 For the default user scope:
 
 ```bash
-perenna skill install --agent codex --replace
+uvx perenna@latest skill install --agent codex --replace
 # or
-perenna skill install --agent claude-code --replace
+uvx perenna@latest skill install --agent claude-code --replace
 ```
 
 For project scope, run the command from that Git working tree:
 
 ```bash
-perenna skill install --agent codex --scope project --replace
+uvx perenna@latest skill install --agent codex --scope project --replace
 # or
-perenna skill install --agent claude-code --scope project --replace
+uvx perenna@latest skill install --agent claude-code --scope project --replace
 ```
 
 Repeat `--agent` in one command when both standalone Skills should be updated.
@@ -185,6 +188,9 @@ before installing the bundled version. Follow the
 [plugin setup guide](guides/plugin-setup.md) to update the combined plugin. See
 the [configuration reference](reference/configuration.md#bundled-agent-skill)
 for the installation scopes and safeguards.
+
+An intentionally persistent PyPI tool installation uses
+`uv tool upgrade perenna` and `perenna --version`.
 
 For source development, use the locked environment in
 [Contributing](development/contributing.md#set-up-the-repository).

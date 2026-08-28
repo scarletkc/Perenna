@@ -4,6 +4,18 @@ This page is the canonical reference for Perenna startup configuration, local
 paths, local-only HTTP, remote OAuth, optional Git synchronization, and Vexor
 provider settings.
 
+## Command forms
+
+Choose the command prefix that matches the installation:
+
+| Runtime | Command prefix | Version behavior |
+| --- | --- | --- |
+| Latest published release | `uvx perenna@latest` | Revalidates PyPI before running |
+| Installed or source-built release | `perenna` | Uses that installation until it is updated |
+
+The CLI examples below use the shorter installed form. Published `uvx` setups
+use the same subcommands after `uvx perenna@latest`.
+
 ## CLI entry point
 
 ```text

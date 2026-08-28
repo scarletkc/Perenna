@@ -4,9 +4,6 @@ REPOSITORY_ROOT = Path(__file__).parents[1]
 README_PATH = REPOSITORY_ROOT / "README.md"
 AGENT_INSTALLATION_PATH = REPOSITORY_ROOT / "docs" / "guides" / "agent-installation.md"
 DOCUMENTATION_INDEX_PATH = REPOSITORY_ROOT / "docs" / "index.md"
-CLIENT_SETUP_PATH = REPOSITORY_ROOT / "docs" / "guides" / "client-setup.md"
-PLUGIN_SETUP_PATH = REPOSITORY_ROOT / "docs" / "guides" / "plugin-setup.md"
-GETTING_STARTED_PATH = REPOSITORY_ROOT / "docs" / "getting-started.md"
 RAW_AGENT_INSTALLATION_URL = (
     "https://raw.githubusercontent.com/scarletkc/Perenna/main/"
     "docs/guides/agent-installation.md"
@@ -26,7 +23,7 @@ EXPECTED_README_AGENT_INSTALLATION_SECTION = (
 def test_readme_delegates_agent_installation_to_the_raw_canonical_guide() -> None:
     readme = README_PATH.read_text(encoding="utf-8")
     section = readme.split("### Install with your AI agent", maxsplit=1)[1].split(
-        "### Run a published release", maxsplit=1
+        "### Install a published release", maxsplit=1
     )[0]
     guide = AGENT_INSTALLATION_PATH.read_text(encoding="utf-8")
     documentation_index = DOCUMENTATION_INDEX_PATH.read_text(encoding="utf-8")
@@ -43,33 +40,7 @@ def test_agent_installation_avoids_mixed_setup_and_propagates_safe_configuration
     flattened = " ".join(guide.split())
 
     assert "Choose exactly one path" in flattened
-    assert "Do not install a second Skill" in flattened
+    assert "do not install the standalone Skill" in flattened
     assert guide.count("PERENNA_GIT_REMOTE") >= 2
     assert "Redact secrets and sensitive repository URLs" in flattened
     assert "without exposing its value" in flattened
-
-
-def test_local_mcp_setup_runs_the_latest_published_perenna() -> None:
-    readme = README_PATH.read_text(encoding="utf-8")
-    client_setup = CLIENT_SETUP_PATH.read_text(encoding="utf-8")
-    plugin_setup = PLUGIN_SETUP_PATH.read_text(encoding="utf-8")
-    getting_started = GETTING_STARTED_PATH.read_text(encoding="utf-8")
-    published_readme_setup = readme.split(
-        "### Run a published release", maxsplit=1
-    )[1].split("### Install from source", maxsplit=1)[0]
-
-    assert client_setup.count("uvx perenna@latest mcp") >= 3
-    assert 'command = "uvx"' in client_setup
-    assert 'args = ["perenna@latest", "mcp"]' in client_setup
-    assert '"command": "uvx"' in client_setup
-    assert '"args": ["perenna@latest", "mcp"]' in client_setup
-    assert '"command": "perenna"' not in client_setup
-    assert '--refresh-package perenna --from "perenna[local]" perenna mcp' in client_setup
-    assert "uvx perenna@latest mcp" in plugin_setup
-    assert "uv tool install perenna" not in plugin_setup
-    assert "uvx perenna@latest --help" in published_readme_setup
-    assert "uv tool install perenna" not in published_readme_setup
-    assert "uvx perenna@latest --help" in getting_started
-    assert "uv tool install perenna" not in getting_started.split(
-        "For a source installation", maxsplit=1
-    )[0]

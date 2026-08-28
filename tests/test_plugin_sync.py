@@ -56,6 +56,10 @@ def test_repository_plugin_artifacts_are_synchronized() -> None:
     assert server["version"] == __version__
     assert all(package["version"] == __version__ for package in server["packages"])
 
+    plugin_readme = (REPO_ROOT / "plugins/README.md").read_text(encoding="utf-8")
+    assert "uvx perenna@latest mcp" in plugin_readme
+    assert "uv tool install perenna" not in plugin_readme
+
 
 def test_generated_json_uses_the_repository_crlf_contract() -> None:
     generated = sync_plugin._json_bytes({"name": "perenna"})

@@ -57,20 +57,15 @@ install and connect Perenna:
 https://raw.githubusercontent.com/scarletkc/Perenna/main/docs/guides/agent-installation.md
 ```
 
-### Run a published release
+### Install a published release
 
 Perenna requires Python 3.12+, Git, and
 [uv](https://docs.astral.sh/uv/).
 
-Codex and Claude Code users can use the combined
-[Plugin setup](https://github.com/scarletkc/Perenna/blob/main/docs/guides/plugin-setup.md),
-which runs the latest stable Perenna release through `uvx`. The steps below
-describe the standalone PyPI path.
-
-#### Verify Perenna
+#### Install Perenna
 
 ```bash
-uvx perenna@latest --help
+uv tool install perenna
 ```
 
 #### Configure retrieval
@@ -87,8 +82,11 @@ configuration, make sure the MCP server receives `VEXOR_CONFIG_JSON` plus
 `VEXOR_API_KEY` or the selected provider's key from its host environment.
 Remote providers receive memory text and search queries.
 
-If you choose local embeddings, use the local-extra MCP runtime in the
-[Client setup guide](https://github.com/scarletkc/Perenna/blob/main/docs/guides/client-setup.md#use-local-embeddings).
+If you choose local embeddings, also install Perenna's local extra:
+
+```bash
+uv tool install "perenna[local]"
+```
 
 [Vexor provider configuration](https://github.com/scarletkc/Perenna/blob/main/docs/reference/configuration.md#vexor-provider-configuration)
 covers remote and local setup. From the environment that starts the MCP client,
@@ -103,7 +101,7 @@ uvx vexor doctor
 For the standalone setup, configure the MCP client to start:
 
 ```text
-uvx perenna@latest mcp
+perenna mcp
 ```
 
 Follow the
@@ -113,9 +111,9 @@ for the exact client command or configuration file.
 Codex and Claude Code can also install the optional memory behavior Skill:
 
 ```bash
-uvx perenna@latest skill install --agent codex
+perenna skill install --agent codex
 # or
-uvx perenna@latest skill install --agent claude-code
+perenna skill install --agent claude-code
 ```
 
 Repeat `--agent` in one command when both clients should receive the skill.
@@ -136,11 +134,11 @@ To import, publish, or fast-forward compatible history through a private Git
 repository, run:
 
 ```bash
-uvx perenna@latest sync setup <repository-url>
+perenna sync setup <repository-url>
 ```
 
 Successful setup saves the selected remote in the Perenna home. Use
-`uvx perenna@latest sync disable` to save local-only mode while retaining the
+`perenna sync disable` to return to saved local-only mode without removing the
 Git remote.
 
 The
@@ -154,9 +152,6 @@ git clone https://github.com/scarletkc/Perenna.git
 cd Perenna
 uv tool install .
 ```
-
-A source installation uses `perenna mcp` for client registration and follows
-the checked-out package version.
 
 Source contributors should use the locked environment in the
 [development guide](https://github.com/scarletkc/Perenna/blob/main/docs/development/contributing.md#set-up-the-repository).

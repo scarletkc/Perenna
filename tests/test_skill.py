@@ -66,7 +66,7 @@ def test_perenna_memory_skill_is_discoverable_and_covers_the_tool_surface() -> N
         in combined
     )
     assert "https://github.com/scarletkc/Perenna/blob/main/docs/guides/self-hosting.md" in combined
-    assert "register the latest published Perenna MCP command" in combined
+    assert "register `perenna mcp`" in combined
     assert "perenna serve --local-only" in flattened
     assert "perenna serve" in combined
     assert "Do not expose or forward that local port" in flattened

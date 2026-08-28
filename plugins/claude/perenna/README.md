@@ -18,8 +18,8 @@ Perenna version when the MCP server starts, so startup requires access to
 PyPI. The resolved environment is cached between sessions.
 
 The plugin runs Perenna's base distribution. Local embedding dependencies use
-the standalone `perenna[local]` command in the
-[client setup guide](https://github.com/scarletkc/Perenna/blob/main/docs/guides/client-setup.md#use-local-embeddings).
+the standalone setup in
+[Getting Started](https://github.com/scarletkc/Perenna/blob/main/docs/getting-started.md#configure-retrieval).
 
 The plugin process must inherit the selected provider configuration and any
 required API key. Remote embedding providers receive memory text and search

@@ -29,8 +29,7 @@ unless `PERENNA_GIT_REMOTE` provides a process-level override. See the
 for remote selection and precedence.
 
 The plugin runs Perenna's base distribution. Local embedding dependencies use
-the standalone setup and its `perenna[local]` runtime described in
-[Client setup](client-setup.md#use-local-embeddings).
+the standalone setup in [Getting Started](../getting-started.md#configure-retrieval).
 
 ## Codex
 

@@ -7,8 +7,9 @@ MCP server separately.
 
 ## Prerequisites
 
-Install [uv](https://docs.astral.sh/uv/) and configure a working Vexor
-embedding provider first:
+Install [uv](https://docs.astral.sh/uv/). Configure a Vexor embedding provider
+through [Configure retrieval](../getting-started.md#configure-retrieval), then
+verify it:
 
 ```bash
 uvx vexor doctor

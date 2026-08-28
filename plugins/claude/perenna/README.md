@@ -6,8 +6,10 @@ release from PyPI with `uvx`.
 
 ## Before installing
 
-Install [uv](https://docs.astral.sh/uv/) and configure a working Vexor
-embedding provider first:
+Install [uv](https://docs.astral.sh/uv/). Configure a Vexor embedding provider
+through
+[Configure retrieval](https://github.com/scarletkc/Perenna/blob/main/docs/getting-started.md#configure-retrieval),
+then verify it:
 
 ```bash
 uvx vexor doctor

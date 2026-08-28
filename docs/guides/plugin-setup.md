@@ -22,8 +22,9 @@ The client that loads the plugin must inherit `VEXOR_CONFIG_JSON`,
 `VEXOR_API_KEY`, or the selected provider's environment variable. A remote
 embedding provider receives memory text and search queries.
 
-Successful `uvx perenna@latest sync setup` saves the optional Git
-synchronization choice in the Perenna home. The client uses that saved choice
+After a successful
+`uvx perenna@latest sync setup <repository-url>`, Perenna saves the optional
+Git synchronization choice in its home. The client uses that saved choice
 unless `PERENNA_GIT_REMOTE` provides a process-level override. See the
 [configuration reference](../reference/configuration.md#git-remote-synchronization)
 for remote selection and precedence.

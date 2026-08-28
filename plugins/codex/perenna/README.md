@@ -25,8 +25,9 @@ The plugin process must inherit the selected provider configuration and any
 required API key. Remote embedding providers receive memory text and search
 queries.
 
-Successful `uvx perenna@latest sync setup` saves the optional Git
-synchronization choice in the Perenna home. The plugin process uses that saved
+After a successful
+`uvx perenna@latest sync setup <repository-url>`, Perenna saves the optional
+Git synchronization choice in its home. The plugin process uses that saved
 choice unless `PERENNA_GIT_REMOTE` provides a process-level override.
 
 For complete installation, configuration, privacy, synchronization, and troubleshooting

@@ -49,7 +49,7 @@ more exact layers only when you need them.
 | --- | --- |
 | [Contributing](development/contributing.md) | Set up the repository and follow implementation boundaries |
 | [Testing](development/testing.md) | Run offline, concurrency, integration, and live-provider tests |
-| [Releasing](development/releasing.md) | Understand and run the GitHub Release to PyPI workflow |
+| [Releasing](development/releasing.md) | Understand the automated GitHub Release, PyPI, and MCP Registry workflow |
 
 ## Review proposals
 

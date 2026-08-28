@@ -7,22 +7,30 @@ MCP server separately.
 
 ## Prerequisites
 
-Install Perenna and configure a working Vexor embedding provider first:
+Install [uv](https://docs.astral.sh/uv/) and configure a working Vexor
+embedding provider first:
 
 ```bash
-uv tool install perenna
 uvx vexor doctor
 ```
+
+The plugin starts `uvx perenna@latest mcp`. `uvx` checks PyPI for the latest
+stable Perenna release at startup and caches the resolved environment between
+sessions. Starting the MCP server therefore requires PyPI access.
 
 The client that loads the plugin must inherit `VEXOR_CONFIG_JSON`,
 `VEXOR_API_KEY`, or the selected provider's environment variable. A remote
 embedding provider receives memory text and search queries.
 
-Successful `perenna sync setup` saves the optional Git synchronization choice
-in the Perenna home. The client uses that saved choice unless
-`PERENNA_GIT_REMOTE` provides a process-level override. See the
+After a successful
+`uvx perenna@latest sync setup <repository-url>`, Perenna saves the optional
+Git synchronization choice in its home. The client uses that saved choice
+unless `PERENNA_GIT_REMOTE` provides a process-level override. See the
 [configuration reference](../reference/configuration.md#git-remote-synchronization)
 for remote selection and precedence.
+
+The plugin runs Perenna's base distribution. Local embedding dependencies use
+the standalone setup in [Getting Started](../getting-started.md#configure-retrieval).
 
 ## Codex
 
@@ -36,7 +44,7 @@ codex plugin add perenna@perenna
 Start a new Codex session after installation. The plugin starts:
 
 ```text
-perenna mcp
+uvx perenna@latest mcp
 ```
 
 Inspect the installed plugin and its Marketplace with:
@@ -65,7 +73,7 @@ claude plugin install perenna@perenna
 Start a new Claude Code session after installation. The plugin starts:
 
 ```text
-perenna mcp
+uvx perenna@latest mcp
 ```
 
 Inspect or update the installed plugin with:

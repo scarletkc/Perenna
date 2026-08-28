@@ -1,25 +1,34 @@
 # Perenna Plugin
 
 This plugin bundles the `perenna-memory` Agent Skill with a local stdio MCP
-connection. The Codex and Claude packages start the same installed Perenna
-command.
+connection. The Codex and Claude packages start the latest stable Perenna
+release from PyPI with `uvx`.
 
 ## Before installing
 
-Install Perenna and configure a working Vexor embedding provider first:
+Install [uv](https://docs.astral.sh/uv/) and configure a working Vexor
+embedding provider first:
 
 ```bash
-uv tool install perenna
 uvx vexor doctor
 ```
+
+The plugin starts `uvx perenna@latest mcp`. `uvx` refreshes the published
+Perenna version when the MCP server starts, so startup requires access to
+PyPI. The resolved environment is cached between sessions.
+
+The plugin runs Perenna's base distribution. Local embedding dependencies use
+the standalone setup in
+[Getting Started](https://github.com/scarletkc/Perenna/blob/main/docs/getting-started.md#configure-retrieval).
 
 The plugin process must inherit the selected provider configuration and any
 required API key. Remote embedding providers receive memory text and search
 queries.
 
-Successful `perenna sync setup` saves the optional Git synchronization choice
-in the Perenna home. The plugin process uses that saved choice unless
-`PERENNA_GIT_REMOTE` provides a process-level override.
+After a successful
+`uvx perenna@latest sync setup <repository-url>`, Perenna saves the optional
+Git synchronization choice in its home. The plugin process uses that saved
+choice unless `PERENNA_GIT_REMOTE` provides a process-level override.
 
 For complete installation, configuration, privacy, synchronization, and troubleshooting
 guidance, see the
@@ -42,8 +51,8 @@ claude plugin install perenna@perenna
 ```
 
 Start a new session after installation. The plugin replaces the separate
-`perenna skill install` and client-specific MCP registration steps; it does not
-replace Perenna or Vexor provider installation.
+`perenna skill install` and client-specific MCP registration steps. It still
+requires `uv` and a working Vexor provider configuration.
 
 ## Repository maintenance
 

@@ -31,8 +31,10 @@ def test_repository_plugin_artifacts_are_synchronized() -> None:
     claude_mcp = json.loads(
         (REPO_ROOT / "plugins/claude/perenna/.mcp.json").read_text(encoding="utf-8")
     )
-    assert codex_mcp["mcpServers"]["perenna"]["args"] == ["mcp"]
-    assert claude_mcp["mcpServers"]["perenna"]["args"] == ["mcp"]
+    for manifest in (codex_mcp, claude_mcp):
+        runtime = manifest["mcpServers"]["perenna"]
+        assert runtime["command"] == "uvx"
+        assert runtime["args"] == ["perenna@latest", "mcp"]
     server = json.loads((REPO_ROOT / "server.json").read_text(encoding="utf-8"))
     assert all(
         argument.get("name") != "--source"
@@ -53,6 +55,10 @@ def test_repository_plugin_artifacts_are_synchronized() -> None:
     ).read_bytes() == (REPO_ROOT / "skills/perenna-memory/SKILL.md").read_bytes()
     assert server["version"] == __version__
     assert all(package["version"] == __version__ for package in server["packages"])
+
+    plugin_readme = (REPO_ROOT / "plugins/README.md").read_text(encoding="utf-8")
+    assert "uvx perenna@latest mcp" in plugin_readme
+    assert "uv tool install perenna" not in plugin_readme
 
 
 def test_generated_json_uses_the_repository_crlf_contract() -> None:

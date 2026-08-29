@@ -84,10 +84,10 @@ The rationale for this boundary is recorded in
 ### Vexor collection
 
 Vexor embeds each memory title, authoritative summary, and bounded body chunks.
-It applies scope filters before scoring. Perenna validates chunk identity,
-revision, range, and path against the trusted committed Markdown snapshot, then
-ranks distinct memories by their highest-scoring chunk before returning a
-passage.
+It applies scope filters before scoring or reranking and uses the effective
+Vexor reranker configuration. Perenna validates chunk identity, revision,
+range, and path against the trusted committed Markdown snapshot, then ranks
+distinct memories by their highest-scoring chunk before returning a passage.
 
 ## Trust boundaries
 
@@ -95,7 +95,8 @@ passage.
 - Memory paths are derived from validated scope and ULID values.
 - Committed Markdown is trusted only after strict schema and integrity checks.
 - Vexor metadata is treated as a cache hint and cross-checked against Git.
-- Remote embedding providers receive text only when the user configures one.
+- Remote embedding and reranking providers receive text only when the user
+  configures them.
 - Local-only HTTP rejects non-loopback listeners, validates its exact local
   `Host`, and requires any supplied `Origin` to match the derived local origin.
   It relies on host trust and the external tunnel for remote access.

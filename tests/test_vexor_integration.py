@@ -1,3 +1,4 @@
+import json
 import shutil
 from pathlib import Path
 
@@ -53,6 +54,63 @@ def test_real_vexor_collection_scope_and_deleted_index_recovery(
         assert not index.is_current(snapshot)
         index.rebuild(snapshot)
         assert index.is_current(snapshot)
+
+
+def test_real_vexor_collection_inherits_remote_reranker_configuration(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    with EmbeddingServer() as server:
+        environment = server.environment()
+        config = json.loads(environment["VEXOR_CONFIG_JSON"])
+        config.update(
+            {
+                "rerank": "remote",
+                "remote_rerank": {
+                    "base_url": server.base_url,
+                    "model": "perenna-test-reranker",
+                },
+            }
+        )
+        environment["VEXOR_CONFIG_JSON"] = json.dumps(config)
+        environment["VEXOR_REMOTE_RERANK_API_KEY"] = "offline-rerank-key"
+        for name, value in environment.items():
+            monkeypatch.setenv(name, value)
+
+        global_memory = _memory(
+            "01K00000000000000000000001",
+            "global",
+            "global/01K00000000000000000000001.md",
+            "global candidate",
+        )
+        project_memory = _memory(
+            "01K00000000000000000000002",
+            "project:vexor",
+            "projects/vexor/01K00000000000000000000002.md",
+            "project candidate",
+        )
+        excluded_memory = _memory(
+            "01K00000000000000000000003",
+            "project:other",
+            "projects/other/01K00000000000000000000003.md",
+            "excluded candidate",
+        )
+        snapshot = MemorySnapshot(
+            "e" * 40,
+            (global_memory, project_memory, excluded_memory),
+        )
+        index = VexorIndex(tmp_path / "index")
+        index.rebuild(snapshot)
+
+        results = index.search(snapshot, "candidate", "vexor")
+
+        request = server.rerank_requests[-1]
+        documents = request["documents"]
+        assert request["model"] == "perenna-test-reranker"
+        assert request["query"] == "candidate"
+        assert len(documents) == 2
+        assert excluded_memory.body not in "\n".join(documents)
+        assert results.matches[0].memory.body in documents[-1]
 
 
 def _memory(memory_id: str, scope: str, path: str, body: str) -> Memory:

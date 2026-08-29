@@ -55,9 +55,9 @@ coverage threshold are owned by `pyproject.toml`.
 | End to end | agents create, search, get, patch, and delete one shared memory |
 | Safety | environment isolation, links, device names, Git states, control characters |
 
-The real Vexor integration tests use a controlled local OpenAI-compatible
-embedding endpoint. They exercise the published Collections API without
-calling the public internet.
+The real Vexor integration tests use controlled local embedding and reranking
+endpoints. They exercise the published Collections API, including inherited
+reranker configuration, without calling the public internet.
 
 ## Focused tests
 

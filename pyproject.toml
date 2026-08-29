@@ -39,11 +39,11 @@ dependencies = [
   "PyYAML>=6.0.3,<7.0",
   "starlette>=1.6,<2.0",
   "uvicorn>=0.52.4,<1.0",
-  "vexor>=0.28,<0.29",
+  "vexor>=0.29,<0.30",
 ]
 
 [project.optional-dependencies]
-local = ["vexor[local]>=0.28,<0.29"]
+local = ["vexor[local]>=0.29,<0.30"]
 dev = [
   "build>=1.5",
   "coverage[toml]>=7.15.4",

@@ -1377,8 +1377,8 @@ requires-dist = [
     { name = "starlette", specifier = ">=1.6,<2.0" },
     { name = "twine", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "uvicorn", specifier = ">=0.52.4,<1.0" },
-    { name = "vexor", specifier = ">=0.28,<0.29" },
-    { name = "vexor", extras = ["local"], marker = "extra == 'local'", specifier = ">=0.28,<0.29" },
+    { name = "vexor", specifier = ">=0.29,<0.30" },
+    { name = "vexor", extras = ["local"], marker = "extra == 'local'", specifier = ">=0.29,<0.30" },
 ]
 provides-extras = ["dev", "local"]
 
@@ -2319,7 +2319,7 @@ wheels = [
 
 [[package]]
 name = "vexor"
-version = "0.28.0"
+version = "0.29.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "charset-normalizer" },
@@ -2340,9 +2340,9 @@ dependencies = [
     { name = "typer" },
     { name = "watchdog" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e0/44/b1f45c700e776f3520f8ae5aa25ae5fd966a2b72faebb968506ba06bb5b7/vexor-0.28.0.tar.gz", hash = "sha256:6aa5b87602b2d2716f5105a20197399447b169fa2d0be74aaeb94786e8e33c0d", size = 144436, upload-time = "2026-08-21T23:45:53.562Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/12/70/4af3395d830c8fb14ff9cf9d98fb684f47bacf50004782b99ab5a4626a5a/vexor-0.29.0.tar.gz", hash = "sha256:dd390b77b3a6543071bd40cc5a5bfb8ac0fff8f7e1bcd922d7b737d39b7bc9d0", size = 144619, upload-time = "2026-08-29T09:38:20.003Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0f/e1/bc78de30d4ce266530e03295d3ad3b4eb0970bf57bf49d746c7003c44cba/vexor-0.28.0-py3-none-any.whl", hash = "sha256:933f88e92c0f5034cd72d7d444526d6f108497aa551283f27e4ab3304e41a7df", size = 160264, upload-time = "2026-08-21T23:45:52.073Z" },
+    { url = "https://files.pythonhosted.org/packages/49/3d/ac2eddfd795760082dec6bb790a3552a7ab6f0a86571d2d9a4886bba3dee/vexor-0.29.0-py3-none-any.whl", hash = "sha256:fce4bd0723bc3313984aa0ba6a3a7167c65c7b699f7854c8413cc49ebbbb6026", size = 160420, upload-time = "2026-08-29T09:38:18.427Z" },
 ]
 
 [package.optional-dependencies]

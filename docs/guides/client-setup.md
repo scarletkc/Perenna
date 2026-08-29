@@ -130,9 +130,9 @@ precedence rules are in the
 
 ## Pass runtime configuration
 
-Embedding provider settings belong in Vexor configuration or environment
-variables inherited by the Perenna process. Do not place API keys in a tracked
-client configuration file. See
+Embedding provider and reranker settings belong in Vexor configuration or
+environment variables inherited by the Perenna process. Do not place API keys
+in a tracked client configuration file. See
 [Vexor provider configuration](../reference/configuration.md#vexor-provider-configuration)
 for the supported sources and privacy boundary.
 

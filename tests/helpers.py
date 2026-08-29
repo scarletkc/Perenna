@@ -19,34 +19,55 @@ PROJECT_ROOT = Path(__file__).parents[1]
 
 
 class EmbeddingServer:
-    def __init__(self) -> None:
+    def __init__(self, *, rerank_error: str | None = None) -> None:
         self.requests: list[list[str]] = []
+        self.rerank_requests: list[dict[str, Any]] = []
+        self.rerank_error = rerank_error
         owner = self
 
         class Handler(BaseHTTPRequestHandler):
             def do_POST(self) -> None:  # noqa: N802
                 size = int(self.headers.get("content-length", "0"))
                 payload = json.loads(self.rfile.read(size))
-                raw_inputs = payload["input"]
-                inputs = [raw_inputs] if isinstance(raw_inputs, str) else list(raw_inputs)
-                owner.requests.append(inputs)
-                data = [
-                    {
-                        "object": "embedding",
-                        "embedding": _embedding(text),
-                        "index": index,
-                    }
-                    for index, text in enumerate(inputs)
-                ]
-                response = json.dumps(
-                    {
+                status = 200
+                if self.path.rstrip("/").endswith("/rerank"):
+                    owner.rerank_requests.append(payload)
+                    documents = list(payload["documents"])
+                    if owner.rerank_error is not None:
+                        status = 503
+                        response_payload = {"error": owner.rerank_error}
+                    else:
+                        response_payload = {
+                            "results": [
+                                {
+                                    "index": index,
+                                    "relevance_score": float(len(documents) - rank),
+                                }
+                                for rank, index in enumerate(reversed(range(len(documents))))
+                            ]
+                        }
+                else:
+                    raw_inputs = payload["input"]
+                    inputs = (
+                        [raw_inputs] if isinstance(raw_inputs, str) else list(raw_inputs)
+                    )
+                    owner.requests.append(inputs)
+                    data = [
+                        {
+                            "object": "embedding",
+                            "embedding": _embedding(text),
+                            "index": index,
+                        }
+                        for index, text in enumerate(inputs)
+                    ]
+                    response_payload = {
                         "object": "list",
                         "data": data,
                         "model": payload.get("model", "perenna-test"),
                         "usage": {"prompt_tokens": 0, "total_tokens": 0},
                     }
-                ).encode()
-                self.send_response(200)
+                response = json.dumps(response_payload).encode()
+                self.send_response(status)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(response)))
                 self.end_headers()

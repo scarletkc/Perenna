@@ -137,7 +137,6 @@ class VexorIndex:
                     query,
                     top_k=MAX_SEARCH_CANDIDATES,
                     filters=filters,
-                    rerank="off",
                 )
         except Exception as exc:
             raise _query_failed() from exc
@@ -316,8 +315,8 @@ def _rebuild_failed() -> IndexUnavailableError:
 def _query_failed() -> IndexUnavailableError:
     return IndexUnavailableError(
         "Memory search query failed against the current index. Perenna invalidated the index and "
-        "will rebuild it before the next non-empty search. Check the Vexor provider configuration "
-        "and access to the local index directory."
+        "will rebuild it before the next non-empty search. Check the Vexor embedding provider and "
+        "reranker configuration, and access to the local index directory."
     )
 
 

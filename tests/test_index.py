@@ -143,6 +143,7 @@ def test_rebuild_creates_chunk_records_and_applies_project_filter(tmp_path: Path
         "scope": {"in": ["global", "project:vexor"]}
     }
     assert collection.searches[-1]["top_k"] == MAX_SEARCH_CANDIDATES
+    assert "rerank" not in collection.searches[-1]
 
 
 def test_long_memory_is_chunked_with_exact_overlapping_passages(tmp_path: Path) -> None:
@@ -364,6 +365,7 @@ def test_sync_mismatch_and_search_provider_failure_are_wrapped(tmp_path: Path) -
     with pytest.raises(IndexUnavailableError, match="query failed") as exc_info:
         index.search(snapshot, "query", None)
     assert "invalidated the index" in str(exc_info.value)
+    assert "reranker configuration" in str(exc_info.value)
 
 
 def test_empty_snapshots_and_invalid_limits_have_clear_behavior(tmp_path: Path) -> None:

@@ -356,12 +356,14 @@ a passage.
 ## Vexor provider configuration
 
 Perenna forces only the Vexor cache directory. It leaves the Vexor user
-configuration directory unchanged, so provider settings follow Vexor's own
+configuration directory unchanged and does not override the collection
+reranker, so embedding provider and reranker settings follow Vexor's own
 configuration system:
 
 - user configuration: `~/.vexor/config.json`;
 - non-secret process overrides: `VEXOR_CONFIG_JSON`;
 - general provider secret: `VEXOR_API_KEY`;
+- remote reranker secret: `VEXOR_REMOTE_RERANK_API_KEY`;
 - provider-specific secrets such as `OPENAI_API_KEY`,
   `GOOGLE_GENAI_API_KEY`, and `VOYAGE_API_KEY`.
 
@@ -377,7 +379,9 @@ VEXOR_CONFIG_JSON={"provider":"openai","model":"text-embedding-3-small"}
 
 Refer to the
 [Vexor configuration documentation](https://github.com/scarletkc/vexor/blob/main/docs/configuration.md)
-for its provider field and precedence contract.
+for its provider field and precedence contract, and its
+[rerank section](https://github.com/scarletkc/vexor/blob/main/docs/configuration.md#rerank)
+for the available strategies and their dependencies.
 
 ## Remote provider privacy boundary
 
@@ -386,12 +390,16 @@ When Vexor uses a remote embedding provider, that provider receives:
 - each memory title, summary, and body chunk during mutation or rebuild;
 - each search query when generating its query vector.
 
+When Vexor uses a remote reranker, that provider receives the search query and
+the filtered candidate record texts. Each record text contains the normalized
+memory title, authoritative summary, and one bounded body chunk.
+
 The Markdown repository remains local, but local storage does not mean the
 embedded content stays on the machine. Review the selected provider and
 endpoint before writing sensitive information.
 
 Perenna logs do not include summaries, bodies, search query text, or API keys.
-That logging rule does not prevent configured embedding traffic.
+That logging rule does not prevent configured embedding or reranking traffic.
 
 ## Local provider installation
 

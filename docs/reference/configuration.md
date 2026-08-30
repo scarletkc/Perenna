@@ -1,13 +1,14 @@
 # Configuration Reference
 
-This page is the canonical reference for Perenna startup configuration, local
-paths, local-only HTTP, remote OAuth, optional Git synchronization, and Vexor
-provider settings.
+This page is the canonical reference for the Perenna CLI, startup
+configuration, local paths, local-only HTTP, remote OAuth, optional Git
+synchronization, and Vexor provider settings.
 
 ## CLI entry point
 
 ```text
 perenna mcp [--home PATH]
+perenna call {memory_read,memory_write,memory_delete} --input FILE [--home PATH]
 perenna serve [--local-only] [--home PATH] [--host HOST] [--port PORT]
 perenna sync setup REPOSITORY_URL [--home PATH] [--replace] [--deploy-key]
 perenna sync status [--home PATH]
@@ -15,11 +16,41 @@ perenna sync disable [--home PATH]
 perenna skill install --agent AGENT [--agent AGENT] [--scope SCOPE] [--replace]
 ```
 
-`mcp` serves local clients over stdio. `serve` exposes a Streamable HTTP
-endpoint at `/mcp`. Without `--local-only`, HTTP is OAuth-protected. The default
-listen address is `127.0.0.1` and the default port is `8000`; a remote container
+`mcp` serves local clients over stdio. `call` runs one memory operation for a
+local client that cannot speak MCP. `serve` exposes a Streamable HTTP endpoint
+at `/mcp`. Without `--local-only`, HTTP is OAuth-protected. The default listen
+address is `127.0.0.1` and the default port is `8000`; a remote container
 normally overrides the address to `0.0.0.0` while publishing the port only to a
 trusted reverse proxy.
+
+## Call memory tools from the CLI
+
+`perenna call` accepts exactly one of the public MCP tool names and reads one
+UTF-8 JSON object from the file named by `--input`. The object must match that
+tool's existing MCP arguments; the [MCP API reference](mcp-api.md) owns the
+fields and action semantics.
+
+```text
+perenna call memory_read --input request.json
+perenna call memory_write --input - --home /path/to/perenna-home
+perenna call memory_delete --input -
+```
+
+Use `--input -` to read the object from standard input. File and standard-input
+transport keep memory bodies, summaries, search queries, and patch text out of
+the process argument list. Do not place those values in wrapper-command logs.
+
+On success, stdout contains one JSON document identical to the selected MCP
+call's `structuredContent`; it has no human-readable decoration. Operational
+logs and errors use stderr. The command does not require OAuth and uses the same
+local trust boundary and Perenna home as `perenna mcp`.
+
+| Exit status | Meaning |
+| --- | --- |
+| `0` | The operation succeeded and stdout contains the structured result. |
+| `1` | An unexpected failure was redacted; inspect the local stderr log and Perenna home, then retry. |
+| `2` | JSON input, tool arguments, configuration, or the requested memory operation failed with an actionable error. |
+| `130` | The process was interrupted. |
 
 ## Bundled Agent Skill
 
@@ -437,6 +468,9 @@ Do not edit `collections.db` or `indexed_commit` to imitate compatibility.
 
 During `perenna mcp`, stdout is reserved for MCP protocol messages. Perenna
 sends diagnostics and redacted operational logs to stderr.
+
+During `perenna call`, stdout is reserved for the one structured JSON result.
+Diagnostics and redacted operational logs use stderr.
 
 `perenna serve` also sends application diagnostics to stderr. Its default
 Uvicorn access log is disabled so bearer headers and request details do not

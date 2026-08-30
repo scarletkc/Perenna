@@ -1,7 +1,13 @@
 from __future__ import annotations
 
+import io
+import json
+import os
 import subprocess
+import sys
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -11,6 +17,15 @@ from perenna.config import LOCAL_CONFIG_NAME, RemoteSettings, RuntimePaths, Runt
 from perenna.errors import ConfigurationError, SkillInstallError
 from perenna.skill_installer import SkillInstallReport
 from perenna.sync import SyncReport
+from tests.helpers import EmbeddingServer
+
+
+@dataclass(frozen=True)
+class CliCallResult:
+    returncode: int
+    stdout: str
+    stderr: str
+    payload: dict[str, Any] | None
 
 
 def test_parser_uses_package_description() -> None:
@@ -26,6 +41,238 @@ def test_main_reports_version(flag: str, capsys) -> None:
     captured = capsys.readouterr()
     assert captured.out == f"perenna {__version__}\n"
     assert captured.err == ""
+
+
+def test_call_help_documents_machine_input_output_and_exit_statuses(capsys) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main(["call", "--help"])
+
+    assert exc_info.value.code == 0
+    captured = capsys.readouterr()
+    help_text = " ".join(captured.out.split())
+    assert "exact JSON argument object used by MCP" in help_text
+    assert "--input FILE" in help_text
+    assert "stdout contains only the structured JSON result" in help_text
+    assert "Exit statuses: 0 success, 2 invalid input" in help_text
+    assert "perenna call memory_read --input request.json" in help_text
+    assert captured.err == ""
+
+
+@pytest.mark.parametrize("raw", ["not-json-private", "[]"])
+def test_call_rejects_invalid_json_without_starting_the_core(
+    raw: str,
+    capsys,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(sys, "stdin", io.StringIO(raw))
+    monkeypatch.setattr(
+        cli,
+        "resolve_settings",
+        lambda **_kwargs: pytest.fail("invalid JSON must fail before runtime startup"),
+    )
+
+    assert cli.main(["call", "memory_read", "--input", "-"]) == 2
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "Provide" in captured.err
+    assert "not-json-private" not in captured.err
+
+
+@pytest.mark.parametrize(
+    ("tool_name", "arguments"),
+    [
+        ("memory_read", {"action": "list", "project": None}),
+        ("memory_read", {"action": "search"}),
+        ("memory_read", {"action": "search", "query": "private-query", "limit": 6}),
+        (
+            "memory_read",
+            {"action": "get", "memory_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV", "project": "private"},
+        ),
+        (
+            "memory_write",
+            {
+                "action": "create",
+                "title": "Private",
+                "summary": "Private.",
+                "body": "Private",
+                "unknown": True,
+            },
+        ),
+        (
+            "memory_delete",
+            {
+                "memory_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+                "expected_title": "Private",
+                "base_revision": "a" * 64,
+                "action": "delete",
+            },
+        ),
+    ],
+)
+def test_call_rejects_the_same_null_missing_incompatible_and_unknown_fields_as_mcp(
+    tool_name: str,
+    arguments: dict[str, Any],
+    capsys,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(arguments)))
+    monkeypatch.setattr(cli, "resolve_settings", lambda **_kwargs: object())
+    monkeypatch.setattr(cli, "PerennaCore", lambda _settings: object())
+
+    assert cli.main(["call", tool_name, "--input", "-"]) == 2
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert f"Invalid {tool_name} arguments" in captured.err
+    assert "private-query" not in captured.err
+
+
+def test_call_hides_unexpected_exception_and_private_input(
+    capsys,
+    caplog,
+    monkeypatch,
+) -> None:
+    private_query = "private-query-from-stdin"
+    private_failure = "private-provider-failure"
+    monkeypatch.setattr(
+        sys,
+        "stdin",
+        io.StringIO(json.dumps({"action": "search", "query": private_query})),
+    )
+    monkeypatch.setattr(cli, "resolve_settings", lambda **_kwargs: object())
+    monkeypatch.setattr(cli, "PerennaCore", lambda _settings: object())
+
+    def fail(*_args, **_kwargs):
+        raise RuntimeError(private_failure)
+
+    monkeypatch.setattr(cli, "execute_memory_command", fail)
+
+    assert cli.main(["call", "memory_read", "--input", "-"]) == 1
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "memory command failed" in captured.err
+    assert private_query not in captured.err
+    assert private_failure not in captured.err
+    assert private_query not in caplog.text
+    assert private_failure not in caplog.text
+
+
+def test_real_cli_call_process_runs_all_seven_actions_with_machine_json(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    request_file = tmp_path / "list.json"
+    request_file.write_text('{"action":"list"}', encoding="utf-8")
+    private_values = {
+        "Private CLI title",
+        "Private CLI summary.",
+        "Private CLI body",
+        "private-cli-query",
+        "Private patched body",
+        "Private replacement body",
+        "stale-private",
+    }
+
+    with EmbeddingServer() as embedding_server:
+        environment = os.environ.copy()
+        environment["PERENNA_GIT_REMOTE"] = ""
+        environment.pop("PERENNA_HOME", None)
+        environment.update(embedding_server.environment())
+
+        listed = _run_memory_call(
+            home,
+            "memory_read",
+            None,
+            environment,
+            input_path=request_file,
+        )
+        created = _run_memory_call(
+            home,
+            "memory_write",
+            {
+                "action": "create",
+                "title": "Private CLI title",
+                "summary": "Private CLI summary.",
+                "body": "Private CLI body",
+            },
+            environment,
+        )
+        memory_id = created.payload["memory"]["memory_id"]
+        created_revision = created.payload["memory"]["revision"]
+        searched = _run_memory_call(
+            home,
+            "memory_read",
+            {"action": "search", "query": "private-cli-query", "limit": 1},
+            environment,
+        )
+        fetched = _run_memory_call(
+            home,
+            "memory_read",
+            {"action": "get", "memory_id": memory_id},
+            environment,
+        )
+        patched = _run_memory_call(
+            home,
+            "memory_write",
+            {
+                "action": "patch",
+                "memory_id": memory_id,
+                "base_revision": created_revision,
+                "edits": [
+                    {"old_text": "Private CLI body", "new_text": "Private patched body"}
+                ],
+            },
+            environment,
+        )
+        stale = _run_memory_call(
+            home,
+            "memory_write",
+            {
+                "action": "patch",
+                "memory_id": memory_id,
+                "base_revision": created_revision,
+                "edits": [{"old_text": "Private CLI body", "new_text": "stale-private"}],
+            },
+            environment,
+            expected_exit=2,
+        )
+        replaced = _run_memory_call(
+            home,
+            "memory_write",
+            {
+                "action": "replace",
+                "memory_id": memory_id,
+                "base_revision": patched.payload["memory"]["revision"],
+                "summary": "Private CLI summary.",
+                "body": "Private replacement body",
+            },
+            environment,
+        )
+        deleted = _run_memory_call(
+            home,
+            "memory_delete",
+            {
+                "memory_id": memory_id,
+                "expected_title": "Private CLI title",
+                "base_revision": replaced.payload["memory"]["revision"],
+            },
+            environment,
+        )
+
+    assert [
+        listed.payload["action"],
+        searched.payload["action"],
+        fetched.payload["action"],
+        created.payload["action"],
+        patched.payload["action"],
+        replaced.payload["action"],
+        deleted.payload["action"],
+    ] == ["list", "search", "get", "create", "patch", "replace", "delete"]
+    assert stale.stdout == ""
+    assert "changed after it was read" in stale.stderr
+    assert "no file was changed" in stale.stderr
+    for result in (listed, created, searched, fetched, patched, stale, replaced, deleted):
+        assert all(private not in result.stderr for private in private_values)
 
 
 def test_main_resolves_settings_builds_core_and_runs_stdio(tmp_path: Path, monkeypatch) -> None:
@@ -509,3 +756,48 @@ def test_main_hides_unexpected_exception_details(capsys, caplog, monkeypatch) ->
     assert "startup failed" in captured.err
     assert secret not in captured.err
     assert secret not in caplog.text
+
+
+def _run_memory_call(
+    home: Path,
+    tool_name: str,
+    arguments: dict[str, Any] | None,
+    environment: dict[str, str],
+    *,
+    input_path: Path | None = None,
+    expected_exit: int = 0,
+) -> CliCallResult:
+    source = os.fspath(input_path) if input_path is not None else "-"
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "perenna",
+            "call",
+            tool_name,
+            "--input",
+            source,
+            "--home",
+            os.fspath(home),
+        ],
+        cwd=Path(__file__).parents[1],
+        env=environment,
+        input=None if input_path is not None else json.dumps(arguments, ensure_ascii=False),
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="strict",
+        timeout=30,
+    )
+    assert result.returncode == expected_exit, result.stderr
+    payload = json.loads(result.stdout) if expected_exit == 0 else None
+    if expected_exit == 0:
+        assert result.stdout.endswith("\n")
+        assert isinstance(payload, dict)
+    return CliCallResult(
+        returncode=result.returncode,
+        stdout=result.stdout,
+        stderr=result.stderr,
+        payload=payload,
+    )

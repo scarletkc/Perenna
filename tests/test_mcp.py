@@ -21,13 +21,11 @@ from perenna.mcp_schemas import (
     MEMORY_WRITE_SCHEMA,
     SERVER_INSTRUCTIONS,
 )
-from perenna.mcp_server import (
+from perenna.mcp_server import _summary, create_server, run_stdio
+from perenna.memory_commands import (
     MemoryDeleteArguments,
     MemoryReadArguments,
     MemoryWriteArguments,
-    _summary,
-    create_server,
-    run_stdio,
 )
 from tests.helpers import perenna_session, result_text
 

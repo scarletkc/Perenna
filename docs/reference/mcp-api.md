@@ -14,6 +14,10 @@ Tool discovery is returned in deterministic order with private, zero-lifetime
 cache hints. Clients can therefore refresh the catalog without relying on a
 connection-specific tool list.
 
+Local clients that cannot speak MCP can pass the same argument objects to
+[`perenna call`](configuration.md#call-memory-tools-from-the-cli). The CLI
+reuses the validation and execution path documented here.
+
 ## `memory_read`
 
 `memory_read` has three actions.

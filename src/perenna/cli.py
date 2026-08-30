@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import logging
 import sys
 from collections.abc import Sequence
@@ -24,6 +25,7 @@ from perenna.errors import PerennaError
 from perenna.git import GitRepository
 from perenna.http_server import run_http, run_local_http
 from perenna.mcp_server import run_stdio
+from perenna.memory_commands import MEMORY_TOOL_NAMES, execute_memory_command
 from perenna.skill_installer import SUPPORTED_AGENTS, install_bundled_skill
 from perenna.sync import inspect_sync, setup_sync
 
@@ -37,6 +39,36 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
     mcp = subparsers.add_parser("mcp", help="Run the local MCP server over stdio.")
     _add_runtime_arguments(mcp)
+
+    call = subparsers.add_parser(
+        "call",
+        help="Call a memory tool with its MCP JSON arguments.",
+        description=(
+            "Call one public Perenna memory tool with the exact JSON argument object used by MCP."
+        ),
+        epilog=(
+            "On success, stdout contains only the structured JSON result. Diagnostics use "
+            "stderr. Exit statuses: 0 success, 2 invalid input or an expected operation failure, "
+            "1 unexpected failure, 130 interrupted.\n\n"
+            "Examples:\n"
+            "  perenna call memory_read --input request.json\n"
+            "  perenna call memory_write --input - --home /path/to/perenna-home"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    call.add_argument(
+        "tool_name",
+        choices=MEMORY_TOOL_NAMES,
+        help="Public memory tool to call.",
+    )
+    call.add_argument(
+        "--input",
+        dest="input_source",
+        required=True,
+        metavar="FILE",
+        help="Read one MCP JSON argument object from FILE, or use '-' for standard input.",
+    )
+    _add_runtime_arguments(call)
 
     serve = subparsers.add_parser(
         "serve",
@@ -160,6 +192,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "skill":
             _run_skill(args)
             return 0
+        call_input = _read_call_input(args.input_source) if args.command == "call" else None
         settings = resolve_settings(cli_home=args.home)
         local_http = args.command == "serve" and args.local_only
         if local_http:
@@ -168,7 +201,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             resolve_remote_settings() if args.command == "serve" and not local_http else None
         )
         core = PerennaCore(settings)
-        if args.command == "mcp":
+        if args.command == "call":
+            _run_call(args, core, call_input)
+        elif args.command == "mcp":
             asyncio.run(run_stdio(core))
         elif local_http:
             run_local_http(core, host=args.host, port=args.port)
@@ -181,13 +216,60 @@ def main(argv: Sequence[str] | None = None) -> int:
     except KeyboardInterrupt:
         return 130
     except Exception as exc:
-        logging.getLogger(__name__).error("startup=failed error_type=%s", type(exc).__name__)
-        print(
-            "perenna: startup failed. Check the local stderr log and configuration, then retry.",
-            file=sys.stderr,
-        )
+        if args.command == "call":
+            logging.getLogger(__name__).error(
+                "memory_command=failed tool=%s error_type=%s",
+                args.tool_name,
+                type(exc).__name__,
+            )
+            print(
+                "perenna: memory command failed. Check the local stderr log and Perenna home, "
+                "then retry.",
+                file=sys.stderr,
+            )
+        else:
+            logging.getLogger(__name__).error("startup=failed error_type=%s", type(exc).__name__)
+            print(
+                "perenna: startup failed. Check the local stderr log and configuration, then "
+                "retry.",
+                file=sys.stderr,
+            )
         return 1
     return 0
+
+
+class _CallInputError(PerennaError):
+    """The CLI could not load one JSON argument object."""
+
+
+def _run_call(args: argparse.Namespace, core: PerennaCore, raw: object) -> None:
+    payload = execute_memory_command(core, args.tool_name, raw)
+    output = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    sys.stdout.write(f"{output}\n")
+
+
+def _read_call_input(source: str) -> object:
+    label = "standard input" if source == "-" else f"{Path(source)}"
+    try:
+        raw = sys.stdin.read() if source == "-" else Path(source).read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        raise _CallInputError(
+            f"Could not read JSON input from {label}. Check the path, permissions, and UTF-8 "
+            "encoding, then retry."
+        ) from None
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise _CallInputError(
+            f"JSON input from {label} is invalid at line {exc.lineno}, column {exc.colno}. "
+            "Provide one JSON object using the selected tool's MCP arguments."
+        ) from None
+    if not isinstance(value, dict):
+        raise _CallInputError(
+            f"JSON input from {label} must contain one object. Provide the selected tool's exact "
+            "MCP argument object."
+        )
+    return value
 
 
 def _run_sync(args: argparse.Namespace) -> None:

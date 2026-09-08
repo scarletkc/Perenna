@@ -8,7 +8,12 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from perenna import DESCRIPTION, __version__
-from perenna.cli_output import print_skill_report, print_sync_report
+from perenna.cli_output import (
+    print_promote_plan,
+    print_session_list,
+    print_skill_report,
+    print_sync_report,
+)
 from perenna.config import (
     GitRemoteSelection,
     RuntimePaths,
@@ -24,6 +29,7 @@ from perenna.errors import PerennaError
 from perenna.git import GitRepository
 from perenna.http_server import run_http, run_local_http
 from perenna.mcp_server import run_stdio
+from perenna.session import discard_session, list_sessions, promote_session, start_session
 from perenna.skill_installer import SUPPORTED_AGENTS, install_bundled_skill
 from perenna.sync import inspect_sync, setup_sync
 
@@ -131,6 +137,49 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Back up and replace an installed copy that differs from the bundled skill.",
     )
+
+    session = subparsers.add_parser(
+        "session",
+        help="Manage session working-memory branches in the memory repository.",
+    )
+    session_commands = session.add_subparsers(dest="session_command", required=True)
+    sessions_list = session_commands.add_parser(
+        "list",
+        help="List session branches in the memory repository.",
+    )
+    _add_runtime_arguments(sessions_list)
+    sessions_start = session_commands.add_parser(
+        "start",
+        help="Start a session branch from the currently checked-out branch.",
+    )
+    sessions_start.add_argument(
+        "name",
+        help="Session name; use lowercase letters, digits, dots, underscores, or hyphens.",
+    )
+    _add_runtime_arguments(sessions_start)
+    sessions_promote = session_commands.add_parser(
+        "promote",
+        help="Preview or apply a session's memory changes as normal Perenna mutations.",
+    )
+    sessions_promote.add_argument(
+        "name",
+        help="Session name; use lowercase letters, digits, dots, underscores, or hyphens.",
+    )
+    sessions_promote.add_argument(
+        "--apply",
+        action="store_true",
+        help="Apply the planned mutations to the base branch. Default: print the plan only.",
+    )
+    _add_runtime_arguments(sessions_promote)
+    sessions_discard = session_commands.add_parser(
+        "discard",
+        help="Delete a session branch and its unapplied work.",
+    )
+    sessions_discard.add_argument(
+        "name",
+        help="Session name; use lowercase letters, digits, dots, underscores, or hyphens.",
+    )
+    _add_runtime_arguments(sessions_discard)
     return parser
 
 
@@ -159,6 +208,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         if args.command == "skill":
             _run_skill(args)
+            return 0
+        if args.command == "session":
+            _run_session(args)
             return 0
         settings = resolve_settings(cli_home=args.home)
         local_http = args.command == "serve" and args.local_only
@@ -283,6 +335,41 @@ def _run_skill(args: argparse.Namespace) -> None:
         print_skill_report(report)
     print()
     print("Restart the client if the skill does not appear.")
+
+
+def _run_session(args: argparse.Namespace) -> None:
+    settings = resolve_settings(cli_home=args.home)
+    repository = GitRepository.initialize(settings.paths.memory)
+    if args.session_command == "list":
+        print_session_list(list_sessions(repository))
+        return
+    if args.session_command == "start":
+        info = start_session(repository, args.name)
+        print(f"Started session branch {info.name} at {info.commit[:12]}.")
+        print(
+            f"Check it out with 'git -C {settings.paths.memory} checkout {info.name}', draft "
+            "memory files under global/ and projects/, then promote confirmed changes with "
+            f"'perenna session promote {args.name} --apply'."
+        )
+        return
+    if args.session_command == "discard":
+        branch = discard_session(repository, args.name)
+        print(f"Discarded session branch {branch}.")
+        return
+    core = PerennaCore(settings)
+    plan, results = promote_session(repository, core, args.name, apply=args.apply)
+    print_promote_plan(plan)
+    if not args.apply:
+        if plan.items:
+            print("Preview only. Re-run with --apply to commit these changes to the base branch.")
+        return
+    for _item, payload in results:
+        memory = payload["memory"]
+        print(
+            f"  {payload['action']}: {memory['title']!r} "
+            f"commit={payload['commit'][:12]} changed={str(payload['changed']).lower()}"
+        )
+    print(f"Promoted {len(results)} memory change(s) to {plan.base_branch}.")
 
 
 def _configure_logging() -> None:

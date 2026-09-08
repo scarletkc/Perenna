@@ -1,11 +1,14 @@
 """Human-readable rendering of CLI command reports.
 
 Command parsing, dispatch, and logging setup live in `perenna.cli`; this
-module only formats sync and skill reports for stdout.
+module only formats sync, skill, and session reports for stdout.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
+from perenna.session import PromotePlan, SessionInfo
 from perenna.skill_installer import SKILL_NAME, SkillInstallReport
 from perenna.sync import SyncReport
 
@@ -63,3 +66,22 @@ def print_skill_report(report: SkillInstallReport) -> None:
     print(f"Path: {report.destination}")
     if report.backup is not None:
         print(f"Backup: {report.backup}")
+
+
+def print_session_list(sessions: Sequence[SessionInfo]) -> None:
+    if not sessions:
+        print("No session branches.")
+        return
+    for info in sessions:
+        print(f"Session: {info.name} ({info.commit[:12]})")
+
+
+def print_promote_plan(plan: PromotePlan) -> None:
+    print(f"Session branch: {plan.branch}")
+    print(f"Base branch: {plan.base_branch}")
+    if not plan.items:
+        print("No memory changes to promote.")
+        return
+    print(f"Planned memory changes ({len(plan.items)}):")
+    for item in plan.items:
+        print(f"  {item.operation:<7} {item.path}")

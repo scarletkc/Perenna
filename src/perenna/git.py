@@ -165,6 +165,14 @@ class GitRepository:
                 "then retry."
             ) from exc
 
+    def path_exists_at(self, commit: str, relative_path: str) -> bool:
+        _validate_relative_path(relative_path)
+        result = self._run(
+            ["cat-file", "-e", f"{commit}:{relative_path}"],
+            check=False,
+        )
+        return result.returncode == 0
+
     def worktree_path(self, relative_path: str) -> Path:
         path = PurePosixPath(relative_path)
         _validate_relative_path(relative_path)
@@ -323,6 +331,69 @@ class GitRepository:
 
     def clear_sync_conflict(self) -> None:
         self._run(["update-ref", "-d", SYNC_CONFLICT_REF])
+
+    def branches(self, prefix: str = "") -> dict[str, str]:
+        """Return branch names under an optional refs/heads/ prefix, name to commit."""
+        args = ["for-each-ref", "--format=%(refname:short)%00%(objectname)"]
+        if prefix:
+            args.append(f"refs/heads/{prefix}")
+        result = self._run(args)
+        branches: dict[str, str] = {}
+        for line in result.stdout.splitlines():
+            name, separator, commit = line.partition("\0")
+            if separator and name and commit:
+                branches[name] = commit
+        return branches
+
+    def branch_exists(self, name: str) -> bool:
+        result = self._run(
+            ["show-ref", "--verify", "--quiet", f"refs/heads/{name}"],
+            check=False,
+        )
+        return result.returncode == 0
+
+    def create_branch(self, name: str) -> None:
+        self._run(["branch", "--quiet", name])
+
+    def delete_branch(self, name: str) -> None:
+        self._run(["branch", "-D", "--quiet", name])
+
+    def diff_name_status(
+        self,
+        base: str,
+        head: str,
+        pathspecs: tuple[str, ...],
+    ) -> list[tuple[str, str]]:
+        """List (status, path) entries between the merge base and head.
+
+        Renames are reported as delete plus add pairs, matching Perenna's
+        identity model where a memory file's ULID filename is its stable ID.
+        """
+        result = self._run_bytes(
+            ["diff", "--no-renames", "--name-status", "-z", f"{base}...{head}", "--", *pathspecs]
+        )
+        try:
+            fields = result.stdout.decode("utf-8", errors="strict").split("\0")
+        except UnicodeDecodeError as exc:
+            raise RepositoryError(
+                f"Git diff between {base!r} and {head!r} contains a non-UTF-8 path. Repair the "
+                "memory repository before retrying."
+            ) from exc
+        changes: list[tuple[str, str]] = []
+        index = 0
+        while index < len(fields):
+            status = fields[index]
+            index += 1
+            if not status:
+                break
+            if index >= len(fields) or not fields[index]:
+                raise RepositoryError(
+                    f"Git diff between {base!r} and {head!r} returned an unreadable change "
+                    "entry. Inspect the memory repository before retrying."
+                )
+            changes.append((status, fields[index]))
+            index += 1
+        return changes
 
     def configure_deploy_key(self, private_key: Path, known_hosts: Path) -> None:
         command = " ".join(

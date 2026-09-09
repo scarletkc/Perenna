@@ -32,7 +32,8 @@ Use pytest temporary directories or an explicit disposable home.
 src/perenna/
 ├── cli.py           # command parsing, dispatch, and stderr logging setup
 ├── cli_output.py    # human-readable sync and skill report rendering
-├── mcp_server.py    # shared MCP tool dispatch and stdio adapter
+├── memory_commands.py  # shared memory schema validation and core dispatch
+├── mcp_server.py    # MCP result mapping and stdio adapter
 ├── mcp_schemas.py   # exact MCP tool metadata, input/output schemas, and scopes
 ├── http_server.py   # local-only and authenticated Streamable HTTP adapter
 ├── oauth.py         # single-owner JWT verification

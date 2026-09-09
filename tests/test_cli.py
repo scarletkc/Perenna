@@ -52,6 +52,7 @@ def test_call_help_documents_machine_input_output_and_exit_statuses(capsys) -> N
     help_text = " ".join(captured.out.split())
     assert "exact JSON argument object used by MCP" in help_text
     assert "--input FILE" in help_text
+    assert "UTF-8 MCP JSON" in help_text
     assert "stdout contains only the structured JSON result" in help_text
     assert "Exit statuses: 0 success, 2 invalid input" in help_text
     assert "perenna call memory_read --input request.json" in help_text
@@ -273,6 +274,77 @@ def test_real_cli_call_process_runs_all_seven_actions_with_machine_json(tmp_path
     assert "no file was changed" in stale.stderr
     for result in (listed, created, searched, fetched, patched, stale, replaced, deleted):
         assert all(private not in result.stderr for private in private_values)
+
+
+@pytest.mark.parametrize("input_source", ["stdin", "file"])
+def test_real_cli_call_preserves_unicode_with_non_utf8_stdio(
+    tmp_path: Path,
+    input_source: str,
+) -> None:
+    home = tmp_path / "home"
+    arguments = {
+        "action": "create",
+        "title": "中文记忆 🌱",
+        "summary": "跨语言摘要 café。",
+        "body": "完整正文：中文、日本語、🌱。",
+    }
+    request_file = tmp_path / "create.json"
+    request_file.write_text(json.dumps(arguments, ensure_ascii=False), encoding="utf-8")
+
+    with EmbeddingServer() as embedding_server:
+        environment = os.environ.copy()
+        environment.update(embedding_server.environment())
+        environment.update(
+            PERENNA_GIT_REMOTE="",
+            PYTHONIOENCODING="cp1252",
+            PYTHONUTF8="0",
+        )
+        environment.pop("PERENNA_HOME", None)
+        created = _run_memory_call(
+            home,
+            "memory_write",
+            arguments,
+            environment,
+            input_path=request_file if input_source == "file" else None,
+        )
+        fetched = _run_memory_call(
+            home,
+            "memory_read",
+            {"action": "get", "memory_id": created.payload["memory"]["memory_id"]},
+            environment,
+        )
+
+    assert created.payload["changed"] is True
+    assert created.payload["memory"]["title"] == arguments["title"]
+    for field in ("title", "summary", "body"):
+        assert fetched.payload["memory"][field] == arguments[field]
+        assert arguments[field] not in created.stderr + fetched.stderr
+    assert created.stdout.isascii()
+    assert fetched.stdout.isascii()
+
+
+def test_real_cli_call_rejects_non_utf8_stdin_before_creating_home(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    environment = os.environ.copy()
+    environment.update(PYTHONIOENCODING="cp1252", PYTHONUTF8="0")
+    result = subprocess.run(
+        [
+            sys.executable, "-m", "perenna", "call", "memory_read", "--input", "-",
+            "--home", os.fspath(home),
+        ],
+        input=b'{"action":"search","query":"private-\xff"}',
+        env=environment,
+        capture_output=True,
+        check=False,
+        timeout=30,
+    )
+
+    assert result.returncode == 2
+    assert result.stdout == b""
+    assert b"Could not read JSON input from standard input" in result.stderr
+    assert b"UTF-8" in result.stderr
+    assert b"private-" not in result.stderr
+    assert not home.exists()
 
 
 def test_main_resolves_settings_builds_core_and_runs_stdio(tmp_path: Path, monkeypatch) -> None:

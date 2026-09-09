@@ -66,7 +66,7 @@ def build_parser() -> argparse.ArgumentParser:
         dest="input_source",
         required=True,
         metavar="FILE",
-        help="Read one MCP JSON argument object from FILE, or use '-' for standard input.",
+        help="Read one UTF-8 MCP JSON argument object from FILE, or use '-' for standard input.",
     )
     _add_runtime_arguments(call)
 
@@ -244,14 +244,18 @@ class _CallInputError(PerennaError):
 
 def _run_call(args: argparse.Namespace, core: PerennaCore, raw: object) -> None:
     payload = execute_memory_command(core, args.tool_name, raw)
-    output = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    output = json.dumps(payload, ensure_ascii=True, separators=(",", ":"))
     sys.stdout.write(f"{output}\n")
 
 
 def _read_call_input(source: str) -> object:
     label = "standard input" if source == "-" else f"{Path(source)}"
     try:
-        raw = sys.stdin.read() if source == "-" else Path(source).read_text(encoding="utf-8")
+        if source == "-":
+            buffer = getattr(sys.stdin, "buffer", None)
+            raw = buffer.read().decode("utf-8") if buffer is not None else sys.stdin.read()
+        else:
+            raw = Path(source).read_text(encoding="utf-8")
     except (OSError, UnicodeError):
         raise _CallInputError(
             f"Could not read JSON input from {label}. Check the path, permissions, and UTF-8 "

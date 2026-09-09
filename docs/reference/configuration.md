@@ -36,12 +36,15 @@ perenna call memory_write --input - --home /path/to/perenna-home
 perenna call memory_delete --input -
 ```
 
-Use `--input -` to read the object from standard input. File and standard-input
+Use `--input -` to read the object from standard input. Both input sources use
+UTF-8 regardless of the terminal encoding. File and standard-input
 transport keep memory bodies, summaries, search queries, and patch text out of
 the process argument list. Do not place those values in wrapper-command logs.
 
 On success, stdout contains one JSON document identical to the selected MCP
-call's `structuredContent`; it has no human-readable decoration. Operational
+call's `structuredContent`; it has no human-readable decoration. Non-ASCII
+characters use JSON Unicode escapes so output works through non-UTF-8 pipes;
+parsing the JSON restores the original text. Operational
 logs and errors use stderr. The command does not require OAuth and uses the same
 local trust boundary and Perenna home as `perenna mcp`.
 
